@@ -30,6 +30,7 @@ import com.yuyan.imemodule.utils.addPreference
 import com.yuyan.imemodule.utils.importErrorDialog
 import com.yuyan.imemodule.utils.queryFileName
 import com.yuyan.imemodule.utils.TimeUtils
+import com.yuyan.inputmethod.util.RimeDeployUtils
 import com.yuyan.inputmethod.util.RimeSyncScheduler
 import com.yuyan.imemodule.view.preference.ManagedPreference
 import com.yuyan.imemodule.view.widget.withLoadingDialog
@@ -145,6 +146,23 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .setMessage(R.string.confirm_import_user_data)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
                     importLauncher.launch("application/zip")
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+        // Rime 重新部署（方案更新后重新编译）
+        screen.addPreference("⚙️ 重新部署", "删除 build 缓存并重新编译所有方案") {
+            AlertDialog.Builder(ctx)
+                .setTitle("重新部署")
+                .setMessage("将删除 build 编译缓存并重新编译所有方案文件。\n部署期间输入法不可用，完成后自动恢复。")
+                .setPositiveButton("开始部署") { _, _ ->
+                    lifecycleScope.launch {
+                        Toast.makeText(ctx, "正在部署，请稍候...", Toast.LENGTH_SHORT).show()
+                        val result = withContext(Dispatchers.IO) {
+                            RimeDeployUtils.deploy()
+                        }
+                        Toast.makeText(ctx, result, Toast.LENGTH_LONG).show()
+                    }
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
