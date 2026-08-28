@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Rime 用户数据同步需要写入 /sdcard/rime/sync/ -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <queries>
         <intent>
             <action android:name="android.intent.action.GET_CONTENT"/>
@@ -12,6 +16,7 @@
         </intent>
     </queries>
     <application
+        android:requestLegacyExternalStorage="true"
         android:supportsRtl="true">
         <activity
             android:name=".ui.activity.SettingsActivity"

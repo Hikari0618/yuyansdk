@@ -1,7 +1,13 @@
 package com.yuyan.imemodule.ui.fragment
 
+import android.Manifest
 import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -11,6 +17,7 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceScreen
 import com.yuyan.imemodule.R
 import com.yuyan.imemodule.application.Launcher
@@ -24,7 +31,6 @@ import com.yuyan.imemodule.utils.importErrorDialog
 import com.yuyan.imemodule.utils.queryFileName
 import com.yuyan.imemodule.utils.TimeUtils
 import com.yuyan.inputmethod.util.RimeSyncScheduler
-import com.yuyan.inputmethod.util.RimeSyncUtils
 import com.yuyan.imemodule.view.preference.ManagedPreference
 import com.yuyan.imemodule.view.widget.withLoadingDialog
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +48,8 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
     private var exportTimestamp = System.currentTimeMillis()
     private lateinit var exportLauncher: ActivityResultLauncher<String>
     private lateinit var importLauncher: ActivityResultLauncher<String>
+    private lateinit var storagePermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var manageStorageLauncher: ActivityResultLauncher<Intent>
 
     override fun onStart() {
         super.onStart()
@@ -55,6 +63,27 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Android 10-: 请求 WRITE_EXTERNAL_STORAGE
+        storagePermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                if (granted) {
+                    doSync()
+                } else {
+                    Toast.makeText(requireContext(), "需要存储权限才能同步", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+        // Android 11+: 请求 MANAGE_EXTERNAL_STORAGE
+        manageStorageLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+                    doSync()
+                } else {
+                    Toast.makeText(requireContext(), "需要所有文件访问权限才能同步", Toast.LENGTH_SHORT).show()
+                }
+            }
+
         importLauncher =
             registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
                 if (uri == null) return@registerForActivityResult
@@ -122,12 +151,7 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
         }
         // Rime 原生同步
         screen.addPreference("🔄 同步用户数据", "上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {
-            lifecycleScope.launch {
-                val result = withContext(Dispatchers.IO) {
-                    RimeSyncScheduler.doSyncNow()
-                }
-                Toast.makeText(ctx, result, Toast.LENGTH_LONG).show()
-            }
+            checkPermissionAndSync()
         }
         // 自动同步间隔
         val currentInterval = RimeSyncScheduler.getInterval(ctx)
@@ -138,10 +162,53 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
             AlertDialog.Builder(ctx)
                 .setTitle("自动同步间隔")
                 .setItems(options) { _, which ->
+                    if (values[which] > 0) {
+                        // 开启自动同步前先检查权限
+                        checkPermissionAndSync()
+                    }
                     RimeSyncScheduler.setInterval(ctx, values[which])
                     Toast.makeText(ctx, "已设为 ${options[which]}", Toast.LENGTH_SHORT).show()
                 }
                 .show()
+        }
+    }
+
+    private fun checkPermissionAndSync() {
+        val ctx = requireContext()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+: 需要 MANAGE_EXTERNAL_STORAGE
+            if (Environment.isExternalStorageManager()) {
+                doSync()
+            } else {
+                AlertDialog.Builder(ctx)
+                    .setTitle("需要存储权限")
+                    .setMessage("Rime 同步需要写入 /sdcard/rime/sync/ 目录，请授予「所有文件访问」权限。")
+                    .setPositiveButton("去授权") { _, _ ->
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:${ctx.packageName}")
+                        }
+                        manageStorageLauncher.launch(intent)
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+            }
+        } else {
+            // Android 10-: 需要 WRITE_EXTERNAL_STORAGE
+            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED) {
+                doSync()
+            } else {
+                storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+    }
+
+    private fun doSync() {
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                RimeSyncScheduler.doSyncNow()
+            }
+            Toast.makeText(requireContext(), result, Toast.LENGTH_LONG).show()
         }
     }
 }

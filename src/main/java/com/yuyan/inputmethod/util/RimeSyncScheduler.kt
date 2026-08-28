@@ -26,6 +26,20 @@ class RimeSyncWork(
 
     override suspend fun doWork(): Result {
         return try {
+            // 检查存储权限
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                if (!android.os.Environment.isExternalStorageManager()) {
+                    Log.w(TAG, "No MANAGE_EXTERNAL_STORAGE permission, skip sync")
+                    return Result.failure()
+                }
+            } else {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        applicationContext, android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    Log.w(TAG, "No WRITE_EXTERNAL_STORAGE permission, skip sync")
+                    return Result.failure()
+                }
+            }
             Log.i(TAG, "Background sync starting ...")
             val result = RimeSyncUtils.sync()
             prefs().edit().putLong(KEY_LAST_SYNC, System.currentTimeMillis()).apply()
