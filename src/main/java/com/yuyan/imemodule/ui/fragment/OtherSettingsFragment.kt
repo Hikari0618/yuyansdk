@@ -23,6 +23,7 @@ import com.yuyan.imemodule.utils.addPreference
 import com.yuyan.imemodule.utils.importErrorDialog
 import com.yuyan.imemodule.utils.queryFileName
 import com.yuyan.imemodule.utils.TimeUtils
+import com.yuyan.inputmethod.util.RimeSyncScheduler
 import com.yuyan.inputmethod.util.RimeSyncUtils
 import com.yuyan.imemodule.view.preference.ManagedPreference
 import com.yuyan.imemodule.view.widget.withLoadingDialog
@@ -119,14 +120,28 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
-        // Rime 原生同步（通过 dlsym 调用 libyuyanime.so 中的 RimeSyncUserData）
-        screen.addPreference("🔄 同步用户数据", "Rime 原生同步，数据存于 /sdcard/rime/sync/yuyan/") {
+        // Rime 原生同步
+        screen.addPreference("🔄 同步用户数据", "Rime 原生同步 | 上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {
             lifecycleScope.launch {
                 val result = withContext(Dispatchers.IO) {
-                    RimeSyncUtils.sync()
+                    RimeSyncScheduler.doSyncNow()
                 }
                 Toast.makeText(ctx, result, Toast.LENGTH_LONG).show()
             }
+        }
+        // 自动同步间隔
+        val currentInterval = RimeSyncScheduler.getInterval(ctx)
+        val intervalLabel = if (currentInterval > 0) "当前: ${currentInterval} 分钟" else "当前: 关闭"
+        screen.addPreference("⏱️ 自动同步间隔", "$intervalLabel | 上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {
+            val options = arrayOf("关闭", "5 分钟", "15 分钟", "30 分钟", "60 分钟")
+            val values = intArrayOf(0, 5, 15, 30, 60)
+            AlertDialog.Builder(ctx)
+                .setTitle("自动同步间隔")
+                .setItems(options) { _, which ->
+                    RimeSyncScheduler.setInterval(ctx, values[which])
+                    Toast.makeText(ctx, "已设为 ${options[which]}", Toast.LENGTH_SHORT).show()
+                }
+                .show()
         }
     }
 }

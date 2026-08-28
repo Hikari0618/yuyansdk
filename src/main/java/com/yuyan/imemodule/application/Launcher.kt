@@ -13,6 +13,7 @@ import com.yuyan.imemodule.service.ClipboardHelper
 import com.yuyan.imemodule.utils.AssetUtils.copyFileOrDir
 import com.yuyan.imemodule.utils.thread.ThreadPoolUtils
 import com.yuyan.inputmethod.core.Kernel
+import com.yuyan.inputmethod.util.RimeSyncScheduler
 
 class Launcher {
     lateinit var context: Context
@@ -45,6 +46,7 @@ class Launcher {
                 AppPrefs.getInstance().internal.dataDictVersion.setValue(CustomConstant.CURRENT_RIME_DICT_DATA_VERSIOM)
             }
             Kernel.resetIme()  // 解决词库复制慢，导致先调用初始化问题
+            RimeSyncScheduler.start(context)  // 启动定时同步调度器
             YuyanEmojiCompat.init(context)
             //初始化键盘主题
             val isFollowSystemDayNight = prefs.followSystemDayNightTheme.getValue()
