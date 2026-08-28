@@ -2,6 +2,7 @@ package com.yuyan.inputmethod.util
 
 import android.content.Context
 import com.yuyan.imemodule.application.CustomConstant
+import com.yuyan.inputmethod.core.Kernel
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -11,24 +12,24 @@ import java.util.Locale
 
 /**
  * Rime 用户数据同步工具（应用层 workaround）
- * 模拟 Rime 原生 sync 行为：将用户数据同步到固定目录，
- * 可配合 Syncthing/网盘等工具实现多设备同步。
+ *
+ * 由于 native 库未暴露 RimeSyncUserData() JNI，
+ * 通过文件复制实现同步。同步前停止 Rime 引擎，同步后重启。
  *
  * 同步目录: /sdcard/rime/sync/yuyan/
- * 同步内容: user.txt、*.userdb、custom_phrase.txt
+ * 同步内容: user.txt（用户词库）、custom_phrase.txt（自定义短语）
+ *
+ * 注意: userdb 不同步，Rime 重启时会根据 user.txt 自动重建。
  */
 object RimeSyncUtils {
 
     private const val SYNC_DIR = "/sdcard/rime/sync/yuyan"
 
-    // 需要同步的文件
-    private val SYNC_FILES = listOf("user.txt", "user.kct", "custom_phrase.txt")
-    // 需要同步的目录后缀
-    private val SYNC_DIR_SUFFIXES = listOf(".userdb")
+    // 同步的文件（userdb 不需要，Rime 重启会从 user.txt 重建）
+    private val SYNC_FILES = listOf("user.txt", "custom_phrase.txt")
 
     /**
-     * 一键同步：先导出本地数据，再导入远端数据
-     * @return 同步结果描述
+     * 一键同步：停止引擎 → 导出 → 导入 → 重启引擎
      */
     fun sync(context: Context): String {
         val rimeDir = File(CustomConstant.RIME_DICT_PATH)
@@ -40,41 +41,26 @@ object RimeSyncUtils {
         var exportCount = 0
         var importCount = 0
 
-        // ===== 第一步：导出（本地 → 同步目录）=====
-        // 同步文件
+        // 停止 Rime 引擎，释放文件锁
+        try { Kernel.reset() } catch (_: Exception) {}
+
+        // ===== 导出（本地 → 同步目录）=====
         for (name in SYNC_FILES) {
             val src = File(rimeDir, name)
-            if (src.exists()) {
+            if (src.exists() && src.length() > 0) {
                 copyFile(src, File(syncDir, name))
-                exportCount++
-            }
-        }
-        // 同步目录（*.userdb）
-        rimeDir.listFiles()?.forEach { f ->
-            if (f.isDirectory && SYNC_DIR_SUFFIXES.any { f.name.endsWith(it) }) {
-                copyDir(f, File(syncDir, f.name))
                 exportCount++
             }
         }
         log.append("⬆️ 导出 $exportCount 项")
 
-        // ===== 第二步：导入（同步目录 → 本地）=====
-        // 只导入本地不存在的文件（避免覆盖本地更新的数据）
+        // ===== 导入（同步目录 → 本地，仅本地没有时）=====
         for (name in SYNC_FILES) {
             val src = File(syncDir, name)
             val dst = File(rimeDir, name)
-            if (src.exists() && !dst.exists()) {
+            if (src.exists() && (!dst.exists() || dst.length() == 0L)) {
                 copyFile(src, dst)
                 importCount++
-            }
-        }
-        syncDir.listFiles()?.forEach { f ->
-            if (f.isDirectory && SYNC_DIR_SUFFIXES.any { f.name.endsWith(it) }) {
-                val dst = File(rimeDir, f.name)
-                if (!dst.exists()) {
-                    copyDir(f, dst)
-                    importCount++
-                }
             }
         }
         if (importCount > 0) log.append(" ⬇️ 导入 $importCount 项")
@@ -91,13 +77,5 @@ object RimeSyncUtils {
     private fun copyFile(src: File, dst: File) {
         dst.parentFile?.mkdirs()
         FileInputStream(src).use { i -> FileOutputStream(dst).use { o -> i.copyTo(o) } }
-    }
-
-    private fun copyDir(src: File, dst: File) {
-        dst.mkdirs()
-        src.listFiles()?.forEach { f ->
-            if (f.isDirectory) copyDir(f, File(dst, f.name))
-            else copyFile(f, File(dst, f.name))
-        }
     }
 }
