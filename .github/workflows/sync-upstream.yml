@@ -1,4 +1,4 @@
-name: Sync Upstream & Update Rime Schemas
+name: Sync Upstream Rime-Wanxiang
 
 on:
   push:
@@ -16,29 +16,14 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v5
         with:
-          submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-
-      - name: Check upstream YuyanIme
-        id: check_yuyan
-        run: |
-          git remote add upstream https://github.com/gurecn/YuyanIme.git 2>/dev/null || true
-          git fetch upstream 2>/dev/null || true
-          LOCAL=$(git rev-parse HEAD)
-          UPSTREAM=$(git rev-parse upstream/master 2>/dev/null || git rev-parse upstream/main 2>/dev/null || echo "none")
-          if [ "$LOCAL" != "$UPSTREAM" ] && [ "$UPSTREAM" != "none" ]; then
-            echo "has_update=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_update=false" >> $GITHUB_OUTPUT
-          fi
 
       - name: Check rime-wanxiang releases
         id: check_wanxiang
         run: |
-          # 获取最新 release 版本号
           LATEST=$(curl -s https://api.github.com/repos/amzxyz/rime-wanxiang/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
-          LOCAL_VERSION=$(cat yuyansdk/src/main/assets/rime/wanxiang_version.txt 2>/dev/null || echo "none")
+          LOCAL_VERSION=$(cat src/main/assets/rime/wanxiang_version.txt 2>/dev/null || echo "none")
           echo "latest=$LATEST" >> $GITHUB_OUTPUT
           echo "local=$LOCAL_VERSION" >> $GITHUB_OUTPUT
           if [ "$LATEST" != "$LOCAL_VERSION" ]; then
@@ -46,21 +31,18 @@ jobs:
           else
             echo "has_update=false" >> $GITHUB_OUTPUT
           fi
+          echo "Latest: $LATEST, Local: $LOCAL_VERSION"
 
       - name: Download and update rime-wanxiang
         if: steps.check_wanxiang.outputs.has_update == 'true'
         run: |
           VERSION="${{ steps.check_wanxiang.outputs.latest }}"
-          RIME_DIR="yuyansdk/src/main/assets/rime"
+          RIME_DIR="src/main/assets/rime"
 
           echo "📦 Downloading rime-wanxiang $VERSION flypy-fuzhu release..."
           wget -q "https://github.com/amzxyz/rime-wanxiang/releases/download/$VERSION/rime-wanxiang-flypy-fuzhu.zip" -O /tmp/wx-flypy.zip
 
-          echo "📦 Downloading language model (gram)..."
-          wget -q "https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram" -O /tmp/wanxiang-lts-zh-hans.gram
-
           echo "📦 Extracting..."
-          mkdir -p /tmp/wx-extract
           python3 -c "
           import zipfile
           with zipfile.ZipFile('/tmp/wx-flypy.zip','r') as z:
@@ -83,9 +65,6 @@ jobs:
                    default.yaml custom_phrase.txt weasel.yaml version.txt; do
             [ -f "/tmp/wx-extract/$f" ] && cp "/tmp/wx-extract/$f" "$RIME_DIR/$f"
           done
-
-          # 复制语法模型
-          cp /tmp/wanxiang-lts-zh-hans.gram "$RIME_DIR/wanxiang-lts-zh-hans.gram"
 
           # 追加同步配置到 default.yaml
           echo '' >> "$RIME_DIR/default.yaml"
@@ -110,28 +89,20 @@ jobs:
           # 记录版本
           echo "$VERSION" > "$RIME_DIR/wanxiang_version.txt"
 
-          # 清理临时文件
-          rm -rf /tmp/wx-flypy.zip /tmp/wx-extract /tmp/wanxiang-lts-zh-hans.gram
+          # 清理
+          rm -rf /tmp/wx-flypy.zip /tmp/wx-extract
 
           echo "✅ Updated to $VERSION"
 
-      - name: Merge upstream YuyanIme
-        if: steps.check_yuyan.outputs.has_update == 'true'
-        run: |
-          git merge upstream/master --no-edit 2>/dev/null || git merge upstream/main --no-edit 2>/dev/null || true
-
       - name: Commit and push
-        if: steps.check_wanxiang.outputs.has_update == 'true' || steps.check_yuyan.outputs.has_update == 'true'
+        if: steps.check_wanxiang.outputs.has_update == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          MSG="🔄 自动同步上游更新"
-          [ "${{ steps.check_wanxiang.outputs.has_update }}" == "true" ] && MSG="$MSG | 万象拼音 ${{ steps.check_wanxiang.outputs.latest }}"
-          [ "${{ steps.check_yuyan.outputs.has_update }}" == "true" ] && MSG="$MSG | 语燕引擎"
           git add -A
-          git diff --cached --quiet || git commit -m "$MSG"
+          git diff --cached --quiet || git commit -m "🔄 自动同步万象拼音 ${{ steps.check_wanxiang.outputs.latest }}"
           git push
 
       - name: No updates
-        if: steps.check_wanxiang.outputs.has_update != 'true' && steps.check_yuyan.outputs.has_update != 'true'
+        if: steps.check_wanxiang.outputs.has_update != 'true'
         run: echo "⏭️ No upstream updates."
