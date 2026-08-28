@@ -119,11 +119,11 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
-        // Rime 用户数据同步（先导出再导入，配合 Syncthing/网盘实现多设备同步）
-        screen.addPreference("🔄 同步用户数据", "同步到 /sdcard/rime/sync/yuyan/，可配合 Syncthing/网盘") {
+        // Rime 原生同步（通过 dlsym 调用 libyuyanime.so 中的 RimeSyncUserData）
+        screen.addPreference("🔄 同步用户数据", "Rime 原生同步，数据存于 /sdcard/rime/sync/yuyan/") {
             lifecycleScope.launch {
                 val result = withContext(Dispatchers.IO) {
-                    RimeSyncUtils.sync(ctx)
+                    RimeSyncUtils.sync()
                 }
                 Toast.makeText(ctx, result, Toast.LENGTH_LONG).show()
             }
