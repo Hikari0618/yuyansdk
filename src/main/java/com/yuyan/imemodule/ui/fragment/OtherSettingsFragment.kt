@@ -151,13 +151,12 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .show()
         }
         // Rime 重新部署（方案更新后重新编译）
-        screen.addPreference("⚙️ 重新部署", "删除 build 缓存并重新编译所有方案") {
+        screen.addPreference("⚙️ 重新部署", "方案更新后点击，重新编译方案文件") {
             AlertDialog.Builder(ctx)
                 .setTitle("重新部署")
-                .setMessage("将删除 build 编译缓存并重新编译所有方案文件。\n部署期间输入法不可用，完成后自动恢复。")
+                .setMessage("将重新编译方案文件，部署期间输入法暂时不可用。")
                 .setPositiveButton("开始部署") { _, _ ->
                     lifecycleScope.launch {
-                        Toast.makeText(ctx, "正在部署，请稍候...", Toast.LENGTH_SHORT).show()
                         val result = withContext(Dispatchers.IO) {
                             RimeDeployUtils.deploy()
                         }

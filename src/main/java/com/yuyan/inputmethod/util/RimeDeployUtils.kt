@@ -2,46 +2,37 @@ package com.yuyan.inputmethod.util
 
 import android.util.Log
 import com.yuyan.imemodule.application.CustomConstant
-import java.io.File
+import com.yuyan.imemodule.application.Launcher
+import com.yuyan.inputmethod.core.Kernel
+import com.yuyan.inputmethod.core.Rime
 
 /**
  * Rime 部署工具
- * 方案文件更新后，删除 build 目录并调用 RimeDeployWorkspace() 重新编译。
+ * 方案文件更新后，触发 Rime 重新部署（编译方案文件）。
+ * 
+ * 原理：exitRime() + startupRime(fullCheck=true)
+ * 与同文输入法 deploy() 逻辑一致。
  */
 object RimeDeployUtils {
 
     private const val TAG = "RimeDeploy"
 
-    init {
-        System.loadLibrary("rime_sync")
-    }
-
     /**
-     * 部署：删除 build 目录 → 调用 RimeDeployWorkspace() 重新编译所有方案
-     * @return 部署结果描述
+     * 重新部署：停止引擎 → 以 fullCheck=true 重新启动
+     * Rime 会检测方案文件变更并重新编译
      */
     fun deploy(): String {
         return try {
-            // 删除 build 目录，强制重新编译
-            val buildDir = File(CustomConstant.RIME_DICT_PATH, "build")
-            if (buildDir.exists()) {
-                val deleted = buildDir.deleteRecursively()
-                Log.i(TAG, "build/ deleted: $deleted")
-            }
-
-            // 调用 librime 的 RimeDeployWorkspace()
-            val result = nativeDeployWorkspace()
-            if (result) {
-                "✅ 部署完成，方案已重新编译"
-            } else {
-                "⚠️ RimeDeployWorkspace 返回 false，可能需要重启输入法"
-            }
+            Log.i(TAG, "Deploy starting...")
+            // 停止 Rime 引擎
+            Rime.destroy()
+            // 以 fullCheck=true 重新启动，触发部署（重新编译方案）
+            Rime.startup(Launcher.instance.context, true)
+            Log.i(TAG, "Deploy done")
+            "✅ 部署完成"
         } catch (e: Exception) {
-            Log.e(TAG, "deploy failed", e)
+            Log.e(TAG, "Deploy failed", e)
             "❌ 部署失败: ${e.message}"
         }
     }
-
-    @JvmStatic
-    external fun nativeDeployWorkspace(): Boolean
 }
