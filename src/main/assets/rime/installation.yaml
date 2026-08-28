@@ -2,6 +2,6 @@ distribution_code_name: yuyan
 distribution_name: 语燕输入法
 distribution_version: "2026.08.28"
 install_time: "2026-08-28"
-installation_id: "yuyan-wanxiang-pro"
+installation_id: yuyan
 rime_version: 1.11.2
 sync_dir: "/sdcard/rime_sync"
