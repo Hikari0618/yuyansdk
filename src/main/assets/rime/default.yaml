@@ -137,6 +137,6 @@ key_binder:
 
 # 按键映射详见： https://amzxyz.github.io/doc/key
 
-# 用户同步配置 - 语燕输入法支持外置存储同步
+# 用户同步配置
 sync_dir: "/sdcard/rime/sync"
 sync_frequency: 30
