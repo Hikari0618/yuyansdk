@@ -121,7 +121,7 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .show()
         }
         // Rime 原生同步
-        screen.addPreference("🔄 同步用户数据", "Rime 原生同步 | 上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {
+        screen.addPreference("🔄 同步用户数据", "上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {
             lifecycleScope.launch {
                 val result = withContext(Dispatchers.IO) {
                     RimeSyncScheduler.doSyncNow()
