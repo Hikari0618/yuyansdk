@@ -1,0 +1,831 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "Skip to content" [ref=e4] [cursor=pointer]:
+        - /url: "#start-of-content"
+      - banner [ref=e9]:
+        - heading "Navigation Menu" [level=2] [ref=e10]
+        - generic [ref=e11]:
+          - link "Homepage" [ref=e13] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e16]:
+            - navigation "Global" [ref=e17]:
+              - list [ref=e18]:
+                - listitem [ref=e19]:
+                  - button "Platform" [ref=e21] [cursor=pointer]
+                - listitem [ref=e24]:
+                  - button "Solutions" [ref=e26] [cursor=pointer]
+                - listitem [ref=e29]:
+                  - button "Resources" [ref=e31] [cursor=pointer]
+                - listitem [ref=e34]:
+                  - button "Open Source" [ref=e36] [cursor=pointer]
+                - listitem [ref=e39]:
+                  - button "Enterprise" [ref=e41] [cursor=pointer]
+                - listitem [ref=e44]:
+                  - link "Pricing" [ref=e45] [cursor=pointer]:
+                    - /url: https://github.com/pricing
+            - generic [ref=e46]:
+              - button "Search or jump to, type / to search" [ref=e48] [cursor=pointer]
+              - link "Sign in" [ref=e55] [cursor=pointer]:
+                - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fosfans%2Ftrime
+              - link "Sign up" [ref=e58] [cursor=pointer]:
+                - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=osfans%2Ftrime
+              - button "Appearance settings" [ref=e61] [cursor=pointer]
+    - main [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e72]:
+            - link "osfans" [ref=e76] [cursor=pointer]:
+              - /url: /osfans
+            - generic [ref=e77]: /
+            - strong [ref=e78]:
+              - link "trime" [ref=e79] [cursor=pointer]:
+                - /url: /osfans/trime
+            - generic [ref=e80]: Public
+          - generic [ref=e81]:
+            - list:
+              - listitem [ref=e82]:
+                - button "Sponsor osfans/trime" [ref=e84] [cursor=pointer]:
+                  - generic [ref=e85]: Sponsor
+              - listitem [ref=e89]:
+                - link "You must be signed in to change notification settings" [ref=e90] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fosfans%2Ftrime
+                  - text: Notifications
+              - listitem [ref=e93]:
+                - link "Fork 519" [ref=e94] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fosfans%2Ftrime
+                  - text: Fork
+                  - generic "519" [ref=e97]
+              - listitem [ref=e98]:
+                - link "You must be signed in to star a repository" [ref=e100] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fosfans%2Ftrime
+                  - text: Star
+                  - generic "4603 users starred this repository" [ref=e103]: 4.6k
+        - navigation "Repository" [ref=e104]:
+          - list [ref=e105]:
+            - listitem [ref=e106]:
+              - link "Code" [ref=e107] [cursor=pointer]:
+                - /url: /osfans/trime
+            - listitem [ref=e111]:
+              - link "Issues 108" [ref=e112] [cursor=pointer]:
+                - /url: /osfans/trime/issues
+                - generic [ref=e116]: Issues
+                - generic "108" [ref=e117]
+            - listitem [ref=e118]:
+              - link "Pull requests 4" [ref=e119] [cursor=pointer]:
+                - /url: /osfans/trime/pulls
+                - generic [ref=e122]: Pull requests
+                - generic "4" [ref=e123]
+            - listitem [ref=e124]:
+              - link "Discussions" [ref=e125] [cursor=pointer]:
+                - /url: /osfans/trime/discussions
+            - listitem [ref=e129]:
+              - link "Actions" [ref=e130] [cursor=pointer]:
+                - /url: /osfans/trime/actions
+            - listitem [ref=e134]:
+              - link "Projects" [ref=e135] [cursor=pointer]:
+                - /url: /osfans/trime/projects
+            - listitem [ref=e139]:
+              - link "Wiki" [ref=e140] [cursor=pointer]:
+                - /url: /osfans/trime/wiki
+            - listitem [ref=e144]:
+              - link "Security and quality" [ref=e145] [cursor=pointer]:
+                - /url: /osfans/trime/security
+            - listitem [ref=e149]:
+              - link "Insights" [ref=e150] [cursor=pointer]:
+                - /url: /osfans/trime/pulse
+      - generic [ref=e167]:
+        - generic [ref=e170]:
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - button "develop branch" [ref=e174] [cursor=pointer]:
+                - generic [ref=e175]: develop
+              - generic [ref=e179]:
+                - link "Branches" [ref=e180] [cursor=pointer]:
+                  - /url: /osfans/trime/branches
+                - link "Tags" [ref=e183] [cursor=pointer]:
+                  - /url: /osfans/trime/tags
+            - generic [ref=e186]:
+              - combobox "Go to file" [ref=e194]
+              - button "Code" [ref=e195] [cursor=pointer]
+          - generic [ref=e198]:
+            - generic [ref=e199]:
+              - generic [ref=e201]:
+                - heading "Latest commit" [level=2] [ref=e202]
+                - generic [ref=e205]:
+                  - heading "History" [level=2] [ref=e206]
+                  - link "2,957 Commits" [ref=e207] [cursor=pointer]:
+                    - /url: /osfans/trime/commits/develop/
+              - heading "Folders and files" [level=2] [ref=e210]
+              - table "Folders and files" [ref=e211]:
+                - rowgroup:
+                  - row "Name Last commit message Last commit date":
+                    - columnheader "Name"
+                    - columnheader "Last commit message"
+                    - columnheader "Last commit date"
+                - rowgroup [ref=e212]:
+                  - row ".github, (Directory)" [ref=e213]:
+                    - cell [ref=e214]:
+                      - link ".github, (Directory)" [ref=e221] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/.github
+                        - text: .github
+                    - cell [ref=e222]
+                    - cell [ref=e224]
+                  - row ".idea/copyright, (Directory)" [ref=e227]:
+                    - cell [ref=e228]:
+                      - link ".idea/copyright, (Directory)" [ref=e235] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/.idea/copyright
+                        - text: .idea/copyright
+                    - cell [ref=e236]
+                    - cell [ref=e238]
+                  - row "app, (Directory)" [ref=e241]:
+                    - cell [ref=e242]:
+                      - link "app, (Directory)" [ref=e249] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/app
+                        - text: app
+                    - cell [ref=e250]
+                    - cell [ref=e252]
+                  - row "build-logic, (Directory)" [ref=e255]:
+                    - cell [ref=e256]:
+                      - link "build-logic, (Directory)" [ref=e263] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/build-logic
+                        - text: build-logic
+                    - cell [ref=e264]
+                    - cell [ref=e266]
+                  - row "codegen, (Directory)" [ref=e269]:
+                    - cell [ref=e270]:
+                      - link "codegen, (Directory)" [ref=e277] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/codegen
+                        - text: codegen
+                    - cell [ref=e278]
+                    - cell [ref=e280]
+                  - row "doc, (Directory)" [ref=e283]:
+                    - cell [ref=e284]:
+                      - link "doc, (Directory)" [ref=e291] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/doc
+                        - text: doc
+                    - cell [ref=e292]
+                    - cell [ref=e294]
+                  - row "fastlane/metadata/android, (Directory)" [ref=e297]:
+                    - cell [ref=e298]:
+                      - link "fastlane/metadata/android, (Directory)" [ref=e305] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/fastlane/metadata/android
+                        - text: fastlane/metadata/android
+                    - cell [ref=e306]
+                    - cell [ref=e308]
+                  - row "gradle, (Directory)" [ref=e311]:
+                    - cell [ref=e312]:
+                      - link "gradle, (Directory)" [ref=e319] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/gradle
+                        - text: gradle
+                    - cell [ref=e320]
+                    - cell [ref=e322]
+                  - row "patches, (Directory)" [ref=e325]:
+                    - cell [ref=e326]:
+                      - link "patches, (Directory)" [ref=e333] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/patches
+                        - text: patches
+                    - cell [ref=e334]
+                    - cell [ref=e336]
+                  - row "script, (Directory)" [ref=e339]:
+                    - cell [ref=e340]:
+                      - link "script, (Directory)" [ref=e347] [cursor=pointer]:
+                        - /url: /osfans/trime/tree/develop/script
+                        - text: script
+                    - cell [ref=e348]
+                    - cell [ref=e350]
+                  - row ".clang-format, (File)" [ref=e353]:
+                    - cell [ref=e354]:
+                      - link ".clang-format, (File)" [ref=e361] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/.clang-format
+                        - text: .clang-format
+                    - cell [ref=e362]
+                    - cell [ref=e364]
+                  - row ".editorconfig, (File)" [ref=e367]:
+                    - cell [ref=e368]:
+                      - link ".editorconfig, (File)" [ref=e375] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/.editorconfig
+                        - text: .editorconfig
+                    - cell [ref=e376]
+                    - cell [ref=e378]
+                  - row ".git-blame-ignore-revs, (File)" [ref=e381]:
+                    - cell [ref=e382]:
+                      - link ".git-blame-ignore-revs, (File)" [ref=e389] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/.git-blame-ignore-revs
+                        - text: .git-blame-ignore-revs
+                    - cell [ref=e390]
+                    - cell [ref=e392]
+                  - row ".gitattributes, (File)" [ref=e395]:
+                    - cell [ref=e396]:
+                      - link ".gitattributes, (File)" [ref=e403] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/.gitattributes
+                        - text: .gitattributes
+                    - cell [ref=e404]
+                    - cell [ref=e406]
+                  - row ".gitignore, (File)" [ref=e409]:
+                    - cell [ref=e410]:
+                      - link ".gitignore, (File)" [ref=e417] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/.gitignore
+                        - text: .gitignore
+                    - cell [ref=e418]
+                    - cell [ref=e420]
+                  - row ".gitmodules, (File)" [ref=e423]:
+                    - cell [ref=e424]:
+                      - link ".gitmodules, (File)" [ref=e431] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/.gitmodules
+                        - text: .gitmodules
+                    - cell [ref=e432]
+                    - cell [ref=e434]
+                  - row "AUTHORS, (File)" [ref=e437]:
+                    - cell [ref=e438]:
+                      - link "AUTHORS, (File)" [ref=e445] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/AUTHORS
+                        - text: AUTHORS
+                    - cell [ref=e446]
+                    - cell [ref=e448]
+                  - row "CHANGELOG.md, (File)" [ref=e451]:
+                    - cell [ref=e452]:
+                      - link "CHANGELOG.md, (File)" [ref=e459] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/CHANGELOG.md
+                        - text: CHANGELOG.md
+                    - cell [ref=e460]
+                    - cell [ref=e462]
+                  - row "CODE_OF_CONDUCT.md, (File)" [ref=e465]:
+                    - cell [ref=e466]:
+                      - link "CODE_OF_CONDUCT.md, (File)" [ref=e473] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/CODE_OF_CONDUCT.md
+                        - text: CODE_OF_CONDUCT.md
+                    - cell [ref=e474]
+                    - cell [ref=e476]
+                  - row "CONTRIBUTING.md, (File)" [ref=e479]:
+                    - cell [ref=e480]:
+                      - link "CONTRIBUTING.md, (File)" [ref=e487] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/CONTRIBUTING.md
+                        - text: CONTRIBUTING.md
+                    - cell [ref=e488]
+                    - cell [ref=e490]
+                  - row "LICENSE, (File)" [ref=e493]:
+                    - cell [ref=e494]:
+                      - link "LICENSE, (File)" [ref=e501] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/LICENSE
+                        - text: LICENSE
+                    - cell [ref=e502]
+                    - cell [ref=e504]
+                  - row "Makefile, (File)" [ref=e507]:
+                    - cell [ref=e508]:
+                      - link "Makefile, (File)" [ref=e515] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/Makefile
+                        - text: Makefile
+                    - cell [ref=e516]
+                    - cell [ref=e518]
+                  - row "PRIVACY.md, (File)" [ref=e521]:
+                    - cell [ref=e522]:
+                      - link "PRIVACY.md, (File)" [ref=e529] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/PRIVACY.md
+                        - text: PRIVACY.md
+                    - cell [ref=e530]
+                    - cell [ref=e532]
+                  - row "README.md, (File)" [ref=e535]:
+                    - cell [ref=e536]:
+                      - link "README.md, (File)" [ref=e543] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/README.md
+                        - text: README.md
+                    - cell [ref=e544]
+                    - cell [ref=e546]
+                  - row "README_sc.md, (File)" [ref=e549]:
+                    - cell [ref=e550]:
+                      - link "README_sc.md, (File)" [ref=e557] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/README_sc.md
+                        - text: README_sc.md
+                    - cell [ref=e558]
+                    - cell [ref=e560]
+                  - row "README_tc.md, (File)" [ref=e563]:
+                    - cell [ref=e564]:
+                      - link "README_tc.md, (File)" [ref=e571] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/README_tc.md
+                        - text: README_tc.md
+                    - cell [ref=e572]
+                    - cell [ref=e574]
+                  - row "build.gradle.kts, (File)" [ref=e577]:
+                    - cell [ref=e578]:
+                      - link "build.gradle.kts, (File)" [ref=e585] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/build.gradle.kts
+                        - text: build.gradle.kts
+                    - cell [ref=e586]
+                    - cell [ref=e588]
+                  - row "cliff.toml, (File)" [ref=e591]:
+                    - cell [ref=e592]:
+                      - link "cliff.toml, (File)" [ref=e599] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/cliff.toml
+                        - text: cliff.toml
+                    - cell [ref=e600]
+                    - cell [ref=e602]
+                  - row "gradle.properties, (File)" [ref=e605]:
+                    - cell [ref=e606]:
+                      - link "gradle.properties, (File)" [ref=e613] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/gradle.properties
+                        - text: gradle.properties
+                    - cell [ref=e614]
+                    - cell [ref=e616]
+                  - row "gradlew, (File)" [ref=e619]:
+                    - cell [ref=e620]:
+                      - link "gradlew, (File)" [ref=e627] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/gradlew
+                        - text: gradlew
+                    - cell [ref=e628]
+                    - cell [ref=e630]
+                  - row "gradlew.bat, (File)" [ref=e633]:
+                    - cell [ref=e634]:
+                      - link "gradlew.bat, (File)" [ref=e641] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/gradlew.bat
+                        - text: gradlew.bat
+                    - cell [ref=e642]
+                    - cell [ref=e644]
+                  - row "osfans_alipay.png, (File)" [ref=e647]:
+                    - cell [ref=e648]:
+                      - link "osfans_alipay.png, (File)" [ref=e655] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/osfans_alipay.png
+                        - text: osfans_alipay.png
+                    - cell [ref=e656]
+                    - cell [ref=e658]
+                  - row "settings.gradle.kts, (File)" [ref=e661]:
+                    - cell [ref=e662]:
+                      - link "settings.gradle.kts, (File)" [ref=e669] [cursor=pointer]:
+                        - /url: /osfans/trime/blob/develop/settings.gradle.kts
+                        - text: settings.gradle.kts
+                    - cell [ref=e670]
+                    - cell [ref=e672]
+            - generic [ref=e676]:
+              - generic [ref=e677]:
+                - heading "Repository files navigation" [level=2] [ref=e678]
+                - navigation "Repository files" [ref=e679]:
+                  - list [ref=e680]:
+                    - listitem [ref=e681]:
+                      - link "README" [ref=e682] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e687]:
+                      - link "Code of conduct" [ref=e688] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e693]:
+                      - link "Contributing" [ref=e694] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e699]:
+                      - link "GPL-3.0 license" [ref=e700] [cursor=pointer]:
+                        - /url: "#"
+                - button "Outline" [ref=e705] [cursor=pointer]
+              - article [ref=e709]:
+                - generic [ref=e710]:
+                  - heading "Trime" [level=1] [ref=e711]
+                  - 'link "Permalink: Trime" [ref=e712] [cursor=pointer]':
+                    - /url: "#trime"
+                - paragraph [ref=e715]: Rime IME for Android
+                - paragraph [ref=e716]:
+                  - link [ref=e717] [cursor=pointer]:
+                    - /url: https://github.com/osfans/trime/actions/workflows/commit-ci.yml/badge.svg?branch=develop
+                    - img "build" [ref=e718]
+                  - link [ref=e719] [cursor=pointer]:
+                    - /url: https://www.gnu.org/licenses/gpl-3.0
+                    - 'img "License: GPL v3" [ref=e720]'
+                  - link [ref=e721] [cursor=pointer]:
+                    - /url: https://github.com/osfans/trime/releases
+                    - img "GitHub release" [ref=e722]
+                  - link [ref=e723] [cursor=pointer]:
+                    - /url: https://f-droid.org/packages/com.osfans.trime
+                    - img "F-Droid release" [ref=e724]
+                  - link [ref=e725] [cursor=pointer]:
+                    - /url: http://osfans.github.io/trime/
+                    - img "Latest build" [ref=e726]
+                - paragraph [ref=e727]:
+                  - text: English |
+                  - link "简体中文" [ref=e728] [cursor=pointer]:
+                    - /url: /osfans/trime/blob/develop/README_sc.md
+                  - text: "|"
+                  - link "繁體中文" [ref=e729] [cursor=pointer]:
+                    - /url: /osfans/trime/blob/develop/README_tc.md
+                - generic [ref=e730]:
+                  - heading "About" [level=2] [ref=e731]
+                  - 'link "Permalink: About" [ref=e732] [cursor=pointer]':
+                    - /url: "#about"
+                - paragraph [ref=e735]:
+                  - text: Trime is originally a frontend of open-source
+                  - link "Android Traditional Chinese IME" [ref=e736] [cursor=pointer]:
+                    - /url: https://code.google.com/p/android-traditional-chinese-ime/
+                  - text: ", based on"
+                  - link "RIME" [ref=e737] [cursor=pointer]:
+                    - /url: http://rime.im
+                  - text: input method framework and written in Java/Kotlin with JNI. It is designed to protect the native language of various local dialects of Chinese and is a universal shape-based and phonetic-based input method platform.
+                - paragraph [ref=e738]:
+                  - link "Documentation" [ref=e739] [cursor=pointer]:
+                    - /url: https://github.com/osfans/trime/wiki
+                - generic [ref=e740]:
+                  - heading "Download" [level=2] [ref=e741]
+                  - 'link "Permalink: Download" [ref=e742] [cursor=pointer]':
+                    - /url: "#download"
+                - list [ref=e745]:
+                  - listitem [ref=e746]:
+                    - paragraph [ref=e747]:
+                      - text: Stable Channel
+                      - link [ref=e748] [cursor=pointer]:
+                        - /url: https://f-droid.org/packages/com.osfans.trime
+                        - img "Get it on F-Droid" [ref=e749]
+                      - link [ref=e750] [cursor=pointer]:
+                        - /url: https://play.google.com/store/apps/details?id=com.osfans.trime
+                        - img "Google Play Download Now" [ref=e751]
+                  - listitem [ref=e752]:
+                    - paragraph [ref=e753]:
+                      - text: Nightly Channel
+                      - link "Download" [ref=e754] [cursor=pointer]:
+                        - /url: https://github.com/osfans/trime/releases/tag/nightly
+                  - listitem [ref=e755]:
+                    - paragraph [ref=e756]:
+                      - text: Canary Channel
+                      - link "Download" [ref=e757] [cursor=pointer]:
+                        - /url: https://github.com/osfans/trime/actions
+                  - listitem [ref=e758]:
+                    - paragraph [ref=e759]:
+                      - text: Configurations
+                      - link "rimerc" [ref=e760] [cursor=pointer]:
+                        - /url: https://github.com/Bambooin/rimerc
+                - generic [ref=e761]:
+                  - heading "History" [level=2] [ref=e762]
+                  - 'link "Permalink: History" [ref=e763] [cursor=pointer]':
+                    - /url: "#history"
+                - paragraph [ref=e766]:
+                  - text: TRIME is the abbreviation of
+                  - emphasis [ref=e767]: Tongwen RIME
+                  - text: or
+                  - emphasis [ref=e768]: ThaeRv Input Method
+                  - text: .
+                - paragraph [ref=e769]:
+                  - text: From the beginning, TRIME was written for TaeRv Pinyin, and named
+                  - emphasis [ref=e770]: TaeRv Input Method (泰如输入法)
+                  - text: .
+                - paragraph [ref=e771]:
+                  - text: Then, we created an input method platform with some code tables, such as Wu dialect (吴语). We renamed it to
+                  - emphasis [ref=e772]: Chinese Character Dialect Input Method (汉字方言输入法)
+                  - text: .
+                - paragraph [ref=e773]:
+                  - text: Later, it supports Wubi and Liangbi and other shape-based input method, we branded it
+                  - link [ref=e774] [cursor=pointer]:
+                    - /url: https://github.com/osfans/trime-legacy
+                    - emphasis [ref=e775]: Tongwen Input Method Platform 2.0 (同文输入法平台 2.0)
+                  - text: ", which implies that the phonetic-based and shape-based input method on one platform, while dialects and Mandrain share one kind of characters."
+                - paragraph [ref=e776]:
+                  - text: Benefit from the
+                  - link "librime" [ref=e777] [cursor=pointer]:
+                    - /url: https://github.com/rime/librime
+                  - text: project by JNI, we are now in version 3.0 of TRIME aka
+                  - emphasis [ref=e778]: Tongwen Input Method (同文输入法)
+                  - text: .
+                - paragraph [ref=e779]:
+                  - text: Your are now welcome to
+                  - link "contribution" [ref=e780] [cursor=pointer]:
+                    - /url: /osfans/trime/blob/develop/CONTRIBUTING.md
+                  - text: ~ !
+                - generic [ref=e781]:
+                  - heading "Getting Started for developer" [level=2] [ref=e782]
+                  - 'link "Permalink: Getting Started for developer" [ref=e783] [cursor=pointer]':
+                    - /url: "#getting-started-for-developer"
+                - generic [ref=e786]:
+                  - heading "Prepare" [level=3] [ref=e787]
+                  - 'link "Permalink: Prepare" [ref=e788] [cursor=pointer]':
+                    - /url: "#prepare"
+                - generic [ref=e791]:
+                  - heading "Requirements:" [level=4] [ref=e792]
+                  - 'link "Permalink: Requirements:" [ref=e793] [cursor=pointer]':
+                    - /url: "#requirements"
+                - list [ref=e796]:
+                  - listitem [ref=e797]:
+                    - paragraph [ref=e798]: Android SDK and Android NDK
+                    - list [ref=e799]:
+                      - listitem [ref=e800]:
+                        - text: If you are new to Android development, please install
+                        - link "Android Studio" [ref=e801] [cursor=pointer]:
+                          - /url: https://developer.android.com/studio
+                        - text: .
+                  - listitem [ref=e802]:
+                    - paragraph [ref=e803]: JDK (OpenJDK) 17
+                  - listitem [ref=e804]:
+                    - paragraph [ref=e805]: Python 3 (required by OpenCC to generate dictionary text files)
+                - generic [ref=e806]:
+                  - heading "Prerequisites for Windows" [level=4] [ref=e807]
+                  - 'link "Permalink: Prerequisites for Windows" [ref=e808] [cursor=pointer]':
+                    - /url: "#prerequisites-for-windows"
+                - paragraph [ref=e811]: "Symbolic links will be created according to current build configurations, developers need:"
+                - list [ref=e812]:
+                  - listitem [ref=e813]:
+                    - paragraph [ref=e814]:
+                      - text: Enable
+                      - link "Developer Mode" [ref=e815] [cursor=pointer]:
+                        - /url: https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development
+                      - text: so that symlinks can be created without administrator privilege.
+                  - listitem [ref=e816]:
+                    - paragraph [ref=e817]:
+                      - text: Enable symlink support for
+                      - code [ref=e818]: git
+                      - text: ":"
+                    - generic [ref=e819]:
+                      - generic [ref=e820]: git config --global core.symlinks true
+                      - button "Copy code to clipboard" [ref=e822] [cursor=pointer]
+                - paragraph [ref=e826]: If you cannot or wouldn't like to enable anything, it doesn't matter. Copying will be used instead when error on creating symbolic links.
+                - generic [ref=e827]:
+                  - heading "Build" [level=3] [ref=e828]
+                  - 'link "Permalink: Build" [ref=e829] [cursor=pointer]':
+                    - /url: "#build"
+                - generic [ref=e832]:
+                  - heading "1. Clone this project and fetch all submodules:" [level=4] [ref=e833]
+                  - 'link "Permalink: 1. Clone this project and fetch all submodules:" [ref=e834] [cursor=pointer]':
+                    - /url: "#1-clone-this-project-and-fetch-all-submodules"
+                - generic [ref=e837]:
+                  - generic [ref=e838]:
+                    - text: git clone git@github.com:osfans/trime.git git submodule update --init --recursive
+                    - generic [ref=e839]: "# use partial clone to save time"
+                    - text: git submodule update --init --recursive --filter=blob:none
+                  - button "Copy code to clipboard" [ref=e841] [cursor=pointer]
+                - generic [ref=e845]:
+                  - heading "2. Debug version without signature:" [level=4] [ref=e846]
+                  - 'link "Permalink: 2. Debug version without signature:" [ref=e847] [cursor=pointer]':
+                    - /url: "#2-debug-version-without-signature"
+                - generic [ref=e850]:
+                  - generic [ref=e851]:
+                    - generic [ref=e852]: "# On Linux or macOS"
+                    - text: make debug
+                    - generic [ref=e853]: "# On Windows"
+                    - text: .\gradlew assembleDebug
+                  - button "Copy code to clipboard" [ref=e855] [cursor=pointer]
+                - generic [ref=e859]:
+                  - heading "3. Release version with signture:" [level=4] [ref=e860]
+                  - 'link "Permalink: 3. Release version with signture:" [ref=e861] [cursor=pointer]':
+                    - /url: "#3-release-version-with-signture"
+                - paragraph [ref=e864]:
+                  - text: Create
+                  - code [ref=e865]: keystore.properties
+                  - text: file which contains following contents for
+                  - link "signing information" [ref=e866] [cursor=pointer]:
+                    - /url: https://developer.android.com/studio/publish/app-signing.html
+                  - text: ":"
+                - generic [ref=e867]:
+                  - generic [ref=e868]: storePassword=myStorePassword keyPassword=mykeyPassword keyAlias=myKeyAlias storeFile=myStoreFileLocation
+                  - button "Copy code to clipboard" [ref=e870] [cursor=pointer]
+                - paragraph [ref=e874]: "Then, you may run:"
+                - generic [ref=e875]:
+                  - generic [ref=e876]:
+                    - generic [ref=e877]: "# On Linux or macOS"
+                    - text: make release
+                    - generic [ref=e878]: "# On Windows"
+                    - text: .\gradlew assembleRelease
+                  - button "Copy code to clipboard" [ref=e880] [cursor=pointer]
+                - generic [ref=e884]:
+                  - heading "Troubleshooting" [level=3] [ref=e885]
+                  - 'link "Permalink: Troubleshooting" [ref=e886] [cursor=pointer]':
+                    - /url: "#troubleshooting"
+                - generic [ref=e889]:
+                  - code [ref=e891]: Target "boost_log_setup" links to target "Boost::coroutine" but the target was not found.
+                  - button "Copy code to clipboard" [ref=e893] [cursor=pointer]
+                - paragraph [ref=e897]:
+                  - text: Run
+                  - code [ref=e898]: make clean
+                  - text: on Linux or macOS, or run
+                  - code [ref=e899]: .\gradlew clean
+                  - text: on Windows.
+                - paragraph [ref=e900]: "Other issues:"
+                - list [ref=e901]:
+                  - listitem [ref=e902]:
+                    - text: Try
+                    - code [ref=e903]: make clean
+                  - listitem [ref=e904]: Make sure your repo is up-to-date. If one or more submodules are modified, also make sure they are compatible with the current version.
+                  - listitem [ref=e905]: If the problem still exists(very unlikely), try to make a new clone.
+                  - listitem [ref=e906]: Check if this is there is an issue/PR related to your problem. If yes, try their solutions.
+                  - listitem [ref=e907]: If none of them works, you may make an issue to ask for help.(optional)
+                - generic [ref=e908]:
+                  - heading "Acknowledgments" [level=2] [ref=e909]
+                  - 'link "Permalink: Acknowledgments" [ref=e910] [cursor=pointer]':
+                    - /url: "#acknowledgments"
+                - list [ref=e913]:
+                  - listitem [ref=e914]:
+                    - text: "Developer:"
+                    - link "osfans" [ref=e915] [cursor=pointer]:
+                      - /url: https://github.com/osfans
+                  - listitem [ref=e916]:
+                    - text: "Contributors:"
+                    - link "boboIqiqi" [ref=e917] [cursor=pointer]:
+                      - /url: https://github.com/boboIqiqi
+                    - text: 、
+                    - link "Bambooin" [ref=e918] [cursor=pointer]:
+                      - /url: https://github.com/Bambooin
+                    - text: 、
+                    - link "senchi96" [ref=e919] [cursor=pointer]:
+                      - /url: https://github.com/senchi96
+                    - text: 、
+                    - link "heiher" [ref=e920] [cursor=pointer]:
+                      - /url: https://github.com/heiher
+                    - text: 、
+                    - link "abay" [ref=e921] [cursor=pointer]:
+                      - /url: https://github.com/a342191555
+                    - text: 、
+                    - link "iovxw" [ref=e922] [cursor=pointer]:
+                      - /url: https://github.com/iovxw
+                    - text: 、
+                    - link "huyz-git" [ref=e923] [cursor=pointer]:
+                      - /url: https://github.com/huyz-git
+                    - text: 、
+                    - link "tumuyan" [ref=e924] [cursor=pointer]:
+                      - /url: https://github.com/tumuyan
+                    - text: 、
+                    - link "WhiredPlanck" [ref=e925] [cursor=pointer]:
+                      - /url: https://github.com/WhiredPlanck
+                    - text: 、
+                    - link "nopdan" [ref=e926] [cursor=pointer]:
+                      - /url: https://github.com/nopdan
+                    - text: ...
+                  - listitem [ref=e927]:
+                    - link "Wiki Editors" [ref=e928] [cursor=pointer]:
+                      - /url: https://github.com/osfans/trime/wiki
+                    - text: ":"
+                    - link "xiaoqun2016" [ref=e929] [cursor=pointer]:
+                      - /url: https://github.com/xiaoqun2016
+                    - text: 、
+                    - link "boboIqiqi" [ref=e930] [cursor=pointer]:
+                      - /url: https://github.com/boboIqiqi
+                    - text: ...
+                  - listitem [ref=e931]: "Translators: 天真可爱的满满 (Chinese Traditional), 点解 (English) ..."
+                  - listitem [ref=e932]: "Keyboard Designers: 天真可爱的满满、皛筱晓小笨鱼、吴琛 11、熊猫阿 Bo、默默ㄇㄛ ˋ..."
+                  - listitem [ref=e933]:
+                    - text: "Donations: See QR Code in"
+                    - link "Releases" [ref=e934] [cursor=pointer]:
+                      - /url: https://github.com/osfans/trime/releases
+                  - listitem [ref=e935]:
+                    - text: "Community: Netizens who feedback in"
+                    - link "Issues" [ref=e936] [cursor=pointer]:
+                      - /url: https://github.com/osfans/trime/issues
+                    - text: 、
+                    - link "QQ Group (811142286)" [ref=e937] [cursor=pointer]:
+                      - /url: https://jq.qq.com/?_wv=1027&k=AXdR80HN
+                    - text: 、
+                    - link "QQ Group (224230445)" [ref=e938] [cursor=pointer]:
+                      - /url: http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=pg_q7UVumWYLq1Rk8kIAqkK1xGt64VnX&authKey=04m9l7OBO5H5vgrEL8IbpsmtnptWM60xy%2FUwYCfyvw9VcRhe8zRzAS1ezoemZdFr&noverify=0&group_code=224230445
+                    - text: 、
+                    - link "Tieba" [ref=e939] [cursor=pointer]:
+                      - /url: http://tieba.baidu.com/f?kw=rime
+                    - text: 、
+                    - link "Google Play" [ref=e940] [cursor=pointer]:
+                      - /url: https://play.google.com/store/apps/details?id=com.osfans.trime
+                    - text: 、
+                    - link "Telegram" [ref=e941] [cursor=pointer]:
+                      - /url: https://t.me/trime_dev
+                    - text: ...
+                  - listitem [ref=e942]:
+                    - text: "Projects:"
+                    - link "RIME" [ref=e943] [cursor=pointer]:
+                      - /url: http://rime.im
+                    - text: 、
+                    - link "OpenCC" [ref=e944] [cursor=pointer]:
+                      - /url: https://github.com/BYVoid/OpenCC
+                    - text: 、
+                    - link "Android Traditional Chinese IME" [ref=e945] [cursor=pointer]:
+                      - /url: https://code.google.com/p/android-traditional-chinese-ime/
+                    - text: and so on.
+                - generic [ref=e946]:
+                  - heading "Third Party Libraries" [level=2] [ref=e947]
+                  - 'link "Permalink: Third Party Libraries" [ref=e948] [cursor=pointer]':
+                    - /url: "#third-party-libraries"
+                - list [ref=e951]:
+                  - listitem [ref=e952]:
+                    - link "Boost C++ Libraries" [ref=e953] [cursor=pointer]:
+                      - /url: https://www.boost.org/
+                    - text: (Boost Software License)
+                  - listitem [ref=e954]:
+                    - link "darts-clone" [ref=e955] [cursor=pointer]:
+                      - /url: https://github.com/s-yata/darts-clone
+                    - text: (New BSD License)
+                  - listitem [ref=e956]:
+                    - link "LevelDB" [ref=e957] [cursor=pointer]:
+                      - /url: https://github.com/google/leveldb
+                    - text: (New BSD License)
+                  - listitem [ref=e958]:
+                    - link "libiconv" [ref=e959] [cursor=pointer]:
+                      - /url: https://www.gnu.org/software/libiconv/
+                    - text: (LGPL License)
+                  - listitem [ref=e960]:
+                    - link "marisa-trie" [ref=e961] [cursor=pointer]:
+                      - /url: https://github.com/s-yata/marisa-trie
+                    - text: (BSD License)
+                  - listitem [ref=e962]:
+                    - link "glog" [ref=e963] [cursor=pointer]:
+                      - /url: https://github.com/google/glog
+                    - text: (New BSD License)
+                  - listitem [ref=e964]:
+                    - link "OpenCC" [ref=e965] [cursor=pointer]:
+                      - /url: https://github.com/BYVoid/OpenCC
+                    - text: (Apache License 2.0)
+                  - listitem [ref=e966]:
+                    - link "RIME" [ref=e967] [cursor=pointer]:
+                      - /url: https://rime.im
+                    - text: (BSD License)
+                  - listitem [ref=e968]:
+                    - link "snappy" [ref=e969] [cursor=pointer]:
+                      - /url: https://github.com/google/snappy
+                    - text: (BSD License)
+                  - listitem [ref=e970]:
+                    - link "utfcpp" [ref=e971] [cursor=pointer]:
+                      - /url: https://github.com/nemtrif/utfcpp
+                    - text: (Boost Software License)
+                  - listitem [ref=e972]:
+                    - link "yaml-cpp" [ref=e973] [cursor=pointer]:
+                      - /url: https://github.com/jbeder/yaml-cpp
+                    - text: (MIT License)
+                  - listitem [ref=e974]:
+                    - link "Android Traditional Chinese IME" [ref=e975] [cursor=pointer]:
+                      - /url: https://code.google.com/p/android-traditional-chinese-ime/
+                    - text: (Apache License 2.0)
+        - generic [ref=e978]:
+          - generic [ref=e979]:
+            - heading "About" [level=2] [ref=e980]
+            - paragraph [ref=e981]: 同文安卓輸入法平臺3.x/Android-rime/Rime Input Method Engine for Android
+            - generic "http://osfans.github.io/trime/" [ref=e985]:
+              - link "osfans.github.io/trime/" [ref=e986] [cursor=pointer]:
+                - /url: http://osfans.github.io/trime/
+            - heading "Topics" [level=3] [ref=e987]
+            - generic [ref=e988]:
+              - link "android" [ref=e989] [cursor=pointer]:
+                - /url: /topics/android
+              - link "chinese" [ref=e990] [cursor=pointer]:
+                - /url: /topics/chinese
+              - link "ime" [ref=e991] [cursor=pointer]:
+                - /url: /topics/ime
+              - link "jni" [ref=e992] [cursor=pointer]:
+                - /url: /topics/jni
+              - link "opencc" [ref=e993] [cursor=pointer]:
+                - /url: /topics/opencc
+              - link "rime" [ref=e994] [cursor=pointer]:
+                - /url: /topics/rime
+            - heading "Resources" [level=3] [ref=e995]
+            - link "Readme" [ref=e997] [cursor=pointer]:
+              - /url: "#readme-ov-file"
+            - link "GPL-3.0 license" [ref=e1001] [cursor=pointer]:
+              - /url: "#GPL-3.0-1-ov-file"
+            - heading "Code of conduct" [level=3] [ref=e1004]
+            - link "Code of conduct" [ref=e1006] [cursor=pointer]:
+              - /url: /osfans/trime#coc-ov-file
+            - heading "Contributing" [level=3] [ref=e1009]
+            - link "Contributing" [ref=e1011] [cursor=pointer]:
+              - /url: "#contributing-ov-file"
+            - link "Activity" [ref=e1015] [cursor=pointer]:
+              - /url: /osfans/trime/activity
+            - heading "Stars" [level=3] [ref=e1018]
+            - generic [ref=e1020]:
+              - strong [ref=e1023]: 4.6k
+              - text: stars
+            - heading "Watchers" [level=3] [ref=e1024]
+            - generic [ref=e1026]:
+              - strong [ref=e1029]: "72"
+              - text: watching
+            - heading "Forks" [level=3] [ref=e1030]
+            - link [ref=e1032] [cursor=pointer]:
+              - /url: /osfans/trime/forks
+              - strong [ref=e1036]: "519"
+              - text: forks
+            - link "Report repository" [ref=e1038] [cursor=pointer]:
+              - /url: /contact/report-content?content_url=https%3A%2F%2Fgithub.com%2Fosfans%2Ftrime&report=osfans+%28user%29
+          - heading "Releases" [level=2] [ref=e1040]
+          - heading "Sponsor this project" [level=2] [ref=e1044]
+          - heading "Packages" [level=2] [ref=e1047]
+          - heading "Used by" [level=2] [ref=e1050]
+          - heading "Contributors" [level=2] [ref=e1053]
+          - heading "Languages" [level=2] [ref=e1056]
+    - contentinfo [ref=e1059]:
+      - heading "Footer" [level=2] [ref=e1060]
+      - generic [ref=e1061]:
+        - generic [ref=e1062]:
+          - link "GitHub Homepage" [ref=e1063] [cursor=pointer]:
+            - /url: https://github.com
+          - generic [ref=e1066]: © 2026 GitHub, Inc.
+        - navigation "Footer" [ref=e1067]:
+          - heading "Footer navigation" [level=3] [ref=e1068]
+          - list "Footer navigation" [ref=e1069]:
+            - listitem [ref=e1070]:
+              - link "Terms" [ref=e1071] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+            - listitem [ref=e1072]:
+              - link "Privacy" [ref=e1073] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+            - listitem [ref=e1074]:
+              - link "Security" [ref=e1075] [cursor=pointer]:
+                - /url: https://github.com/security
+            - listitem [ref=e1076]:
+              - link "Status" [ref=e1077] [cursor=pointer]:
+                - /url: https://www.githubstatus.com/
+            - listitem [ref=e1078]:
+              - link "Community" [ref=e1079] [cursor=pointer]:
+                - /url: https://github.community/
+            - listitem [ref=e1080]:
+              - link "Docs" [ref=e1081] [cursor=pointer]:
+                - /url: https://docs.github.com/
+            - listitem [ref=e1082]:
+              - link "Contact" [ref=e1083] [cursor=pointer]:
+                - /url: https://support.github.com?tags=dotcom-footer
+            - listitem [ref=e1084]:
+              - button "Manage cookies" [ref=e1086] [cursor=pointer]
+            - listitem [ref=e1087]:
+              - button "Do not share my personal information" [ref=e1089] [cursor=pointer]
+  - alert [ref=e1092]

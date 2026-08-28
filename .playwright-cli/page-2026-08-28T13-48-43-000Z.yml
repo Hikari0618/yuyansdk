@@ -1,0 +1,103 @@
+- generic [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=f1e9]:
+      - heading "Navigation Menu" [level=2] [ref=f1e10]
+      - generic [ref=f1e11]:
+        - link "Homepage" [ref=f1e13] [cursor=pointer]:
+          - /url: /
+        - generic [ref=f1e16]:
+          - navigation "Global" [ref=f1e17]:
+            - list [ref=f1e18]:
+              - listitem [ref=f1e19]:
+                - button "Platform" [ref=f1e21] [cursor=pointer]
+              - listitem [ref=f1e24]:
+                - button "Solutions" [ref=f1e26] [cursor=pointer]
+              - listitem [ref=f1e29]:
+                - button "Resources" [ref=f1e31] [cursor=pointer]
+              - listitem [ref=f1e34]:
+                - button "Open Source" [ref=f1e36] [cursor=pointer]
+              - listitem [ref=f1e39]:
+                - button "Enterprise" [ref=f1e41] [cursor=pointer]
+              - listitem [ref=f1e44]:
+                - link "Pricing" [ref=f1e45] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+          - generic [ref=f1e46]:
+            - button "Search or jump to, type / to search" [ref=f1e48] [cursor=pointer]
+            - link "Sign in" [ref=f1e55] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fsearch%3Fq%3Drepo%253Aosfans%252Ftrime%2Bsync%26type%3Dcode
+            - link "Sign up" [ref=f1e58] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2Fsearch&source=header
+            - button "Appearance settings" [ref=f1e61] [cursor=pointer]
+  - main [ref=f1e67]:
+    - generic [ref=f1e70]:
+      - heading "code Search Results · repo:osfans/trime sync" [level=1] [ref=f1e71]
+      - generic [ref=f1e74]:
+        - generic [ref=f1e75]:
+          - generic [ref=f1e76]:
+            - heading "Filter by" [level=2] [ref=f1e77]
+            - list "Filter by" [ref=f1e82]:
+              - listitem [ref=f1e83]:
+                - list [ref=f1e84]:
+                  - listitem [ref=f1e85]:
+                    - link "Code (...) results" [ref=f1e86] [cursor=pointer]:
+                      - /url: https://github.com/search?q=repo%3Aosfans%2Ftrime+sync&type=code
+                      - generic [ref=f1e87]:
+                        - generic [ref=f1e88]: Code
+                        - generic:
+                          - generic: ...
+                          - generic: (...)
+                          - generic: results
+                  - listitem [ref=f1e89]:
+                    - link "Issues results" [ref=f1e90] [cursor=pointer]:
+                      - /url: https://github.com/search?q=repo%3Aosfans%2Ftrime+sync&type=issues
+                      - generic [ref=f1e91]:
+                        - generic [ref=f1e92]: Issues
+                        - generic: results
+                  - listitem [ref=f1e93]:
+                    - link "Pull requests results" [ref=f1e94] [cursor=pointer]:
+                      - /url: https://github.com/search?q=repo%3Aosfans%2Ftrime+sync&type=pullrequests
+                      - generic [ref=f1e95]:
+                        - generic [ref=f1e96]: Pull requests
+                        - generic: results
+                  - listitem [ref=f1e97]:
+                    - link "Discussions results" [ref=f1e98] [cursor=pointer]:
+                      - /url: https://github.com/search?q=repo%3Aosfans%2Ftrime+sync&type=discussions
+                      - generic [ref=f1e99]:
+                        - generic [ref=f1e100]: Discussions
+                        - generic: results
+                  - listitem [ref=f1e101]:
+                    - link "Commits results" [ref=f1e102] [cursor=pointer]:
+                      - /url: https://github.com/search?q=repo%3Aosfans%2Ftrime+sync&type=commits
+                      - generic [ref=f1e103]:
+                        - generic [ref=f1e104]: Commits
+                        - generic: results
+                  - listitem [ref=f1e105]:
+                    - link "Packages results" [ref=f1e106] [cursor=pointer]:
+                      - /url: https://github.com/search?q=repo%3Aosfans%2Ftrime+sync&type=registrypackages
+                      - generic [ref=f1e107]:
+                        - generic [ref=f1e108]: Packages
+                        - generic: results
+                  - listitem [ref=f1e109]:
+                    - link "Wikis results" [ref=f1e110] [cursor=pointer]:
+                      - /url: https://github.com/search?q=repo%3Aosfans%2Ftrime+sync&type=wikis
+                      - generic [ref=f1e111]:
+                        - generic [ref=f1e112]: Wikis
+                        - generic: results
+              - listitem [ref=f1e113]
+              - listitem [ref=f1e114]:
+                - link "Advanced search" [ref=f1e115] [cursor=pointer]:
+                  - /url: /search/advanced
+          - slider "Draggable pane splitter" [ref=f1e119]
+        - generic [ref=f1e123]:
+          - button "Open column options" [ref=f1e128] [cursor=pointer]
+          - generic [ref=f1e133]:
+            - img "Mona looking through a globe hologram for code" [ref=f1e135]
+            - generic [ref=f1e136]: Sign in to search code on GitHub
+            - generic [ref=f1e137]: Before you can access our code search functionality please sign in or create a free account.
+            - generic [ref=f1e138]:
+              - link "Sign in" [ref=f1e139] [cursor=pointer]:
+                - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fsearch%3Fq%3Drepo%253Aosfans%252Ftrime%2Bsync%26type%3Dcode
+              - link "Sign up" [ref=f1e142] [cursor=pointer]:
+                - /url: /signup?source=code_search_results
