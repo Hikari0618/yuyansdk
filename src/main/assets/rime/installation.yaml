@@ -4,4 +4,4 @@ distribution_version: "2026.08.28"
 install_time: "2026-08-28"
 installation_id: yuyan
 rime_version: 1.11.2
-sync_dir: "/sdcard/rime_sync"
+sync_dir: "/sdcard/rime/sync"

@@ -119,29 +119,14 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
-        // Rime 用户数据目录同步
-        screen.addPreference("📦 同步用户数据到目录", "导出到 /sdcard/rime_sync/yuyan/，可配合 Syncthing/云盘使用") {
+        // Rime 用户数据同步（先导出再导入，配合 Syncthing/网盘实现多设备同步）
+        screen.addPreference("🔄 同步用户数据", "同步到 /sdcard/rime/sync/yuyan/，可配合 Syncthing/网盘") {
             lifecycleScope.launch {
                 val result = withContext(Dispatchers.IO) {
-                    RimeSyncUtils.exportUserData(ctx)
+                    RimeSyncUtils.sync(ctx)
                 }
                 Toast.makeText(ctx, result, Toast.LENGTH_LONG).show()
             }
-        }
-        screen.addPreference("📥 从目录恢复用户数据", "从 /sdcard/rime_sync/yuyan/ 导入") {
-            AlertDialog.Builder(ctx)
-                .setTitle("从目录恢复用户数据")
-                .setMessage("将从 /sdcard/rime_sync/yuyan/ 恢复用户词库和自定义短语。\n已有自定义短语不会被覆盖。\n恢复后需要重启输入法。")
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    lifecycleScope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            RimeSyncUtils.importUserData(ctx)
-                        }
-                        Toast.makeText(ctx, result, Toast.LENGTH_LONG).show()
-                    }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
         }
     }
 }

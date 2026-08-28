@@ -88,7 +88,7 @@ jobs:
           # 追加同步配置到 default.yaml
           echo '' >> "$RIME_DIR/default.yaml"
           echo '# 用户同步配置' >> "$RIME_DIR/default.yaml"
-          echo 'sync_dir: "/sdcard/rime_sync"' >> "$RIME_DIR/default.yaml"
+          echo 'sync_dir: "/sdcard/rime/sync"' >> "$RIME_DIR/default.yaml"
           echo 'sync_frequency: 30' >> "$RIME_DIR/default.yaml"
 
           # 写入自定义配置: 小鹤双拼 + 间接辅助 + 模糊音 en/eng in/ing + 大字集
