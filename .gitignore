@@ -15,3 +15,7 @@ gradle/wrapper/
 /build/outputs/
 /build/tmp/
 /build/kspCaches/
+*.gram
+wanxiang-lts-zh-hans.gram
+*.gram
+wanxiang-lts-zh-hans.gram
