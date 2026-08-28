@@ -1,0 +1,41 @@
+# Rime default settings
+# encoding: utf-8
+# 基于万象拼音PRO方案 - 语燕输入法定制版
+
+config_version: '2026.08.28'
+
+schema_list:
+  - schema: wanxiang_pro
+  - schema: wanxiang
+
+menu:
+  page_size: 6
+  alternative_select_labels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+
+switcher:
+  caption: 「万象状态面板」
+  hotkeys:
+    - Control+grave
+  save_options:
+    - ascii_punct
+    - s2t
+    - s2hk
+    - s2tw
+    - emoji
+    - full_shape
+    - prediction
+    - chaifen_switch
+    - super_tips
+    - english
+    - abbrev
+
+key_binder:
+  bindings:
+    - { when: paging, accept: comma, send: Page_Up }
+    - { when: has_menu, accept: period, send: Page_Down }
+    - { when: paging, accept: minus, send: Page_Up }
+    - { when: has_menu, accept: equal, send: Page_Down }
+
+# 用户同步配置 - 语燕输入法支持外置存储同步
+sync_dir: "/sdcard/rime_sync"
+sync_frequency: 30

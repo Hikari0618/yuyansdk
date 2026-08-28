@@ -1,0 +1,148 @@
+name: Sync Upstream & Update Rime Schemas
+
+on:
+  schedule:
+    # 每天 UTC 02:00 (北京时间 10:00) 检查上游更新
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  check-and-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo (with submodules)
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Check upstream YuyanIme for updates
+        id: check_yuyan
+        run: |
+          cd YuyanIme 2>/dev/null || cd .
+          # 检查上游 YuyanIme 是否有新提交
+          git remote add upstream https://github.com/gurecn/YuyanIme.git 2>/dev/null || true
+          git fetch upstream master 2>/dev/null || git fetch upstream main 2>/dev/null || true
+          LOCAL=$(git rev-parse HEAD)
+          UPSTREAM=$(git rev-parse upstream/master 2>/dev/null || git rev-parse upstream/main 2>/dev/null || echo "none")
+          if [ "$LOCAL" != "$UPSTREAM" ] && [ "$UPSTREAM" != "none" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "local=$LOCAL" >> $GITHUB_OUTPUT
+            echo "upstream=$UPSTREAM" >> $GITHUB_OUTPUT
+            echo "✅ YuyanIme upstream has updates: $LOCAL -> $UPSTREAM"
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "⏭️ YuyanIme: no upstream changes"
+          fi
+
+      - name: Check upstream rime-wanxiang for updates
+        id: check_wanxiang
+        run: |
+          # 克隆万象拼音（shallow clone 节省时间）
+          git clone --depth 1 https://github.com/amzxyz/rime-wanxiang.git /tmp/rime-wanxiang 2>&1
+          WX_VERSION=$(cat /tmp/rime-wanxiang/version.txt 2>/dev/null || echo "unknown")
+          LOCAL_VERSION=$(cat yuyansdk/src/main/assets/rime/wanxiang_version.txt 2>/dev/null || echo "none")
+          echo "wx_version=$WX_VERSION" >> $GITHUB_OUTPUT
+          echo "local_version=$LOCAL_VERSION" >> $GITHUB_OUTPUT
+          if [ "$WX_VERSION" != "$LOCAL_VERSION" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "✅ rime-wanxiang has updates: $LOCAL_VERSION -> $WX_VERSION"
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "⏭️ rime-wanxiang: no changes (v$WX_VERSION)"
+          fi
+
+      - name: Sync rime-wanxiang schemas
+        if: steps.check_wanxiang.outputs.has_update == 'true'
+        run: |
+          RIME_DIR="yuyansdk/src/main/assets/rime"
+          WX_DIR="/tmp/rime-wanxiang"
+          WX_CUSTOM="$WX_DIR/custom"
+
+          echo "📦 Updating rime schema files..."
+
+          # 复制万象拼音核心文件
+          for f in wanxiang.schema.yaml wanxiang.dict.yaml wanxiang_algebra.yaml \
+                   wanxiang_symbols.yaml wanxiang_reverse.dict.yaml wanxiang_reverse.schema.yaml \
+                   wanxiang_english.dict.yaml wanxiang_english.schema.yaml \
+                   wanxiang_mixedcode.dict.yaml wanxiang_mixedcode.schema.yaml \
+                   custom_phrase.txt; do
+            cp "$WX_DIR/$f" "$RIME_DIR/$f"
+          done
+
+          # 复制 pro 版本
+          for f in wanxiang_pro.schema.yaml wanxiang_pro.dict.yaml; do
+            cp "$WX_CUSTOM/$f" "$RIME_DIR/$f"
+          done
+
+          # 复制 lua 脚本
+          rm -rf "$RIME_DIR/lua/wanxiang" "$RIME_DIR/lua/data"
+          cp -r "$WX_DIR/lua/wanxiang" "$RIME_DIR/lua/wanxiang"
+          cp -r "$WX_DIR/lua/data" "$RIME_DIR/lua/data"
+
+          # 复制词典
+          rm -rf "$RIME_DIR/dicts"
+          cp -r "$WX_DIR/dicts" "$RIME_DIR/dicts"
+
+          # 复制辅助码文件
+          cp "$WX_CUSTOM/jm_flypy.txt" "$RIME_DIR/jm_flypy.txt"
+          cp "$WX_CUSTOM/aux_code.csv" "$RIME_DIR/aux_code.csv"
+
+          # 重新应用小鹤双拼+模糊音自定义配置
+          cat > "$RIME_DIR/wanxiang_pro.custom.yaml" << 'CUSTOM_EOF'
+          # 万象拼音PRO - 小鹤双拼 + 模糊音方案
+          patch:
+            speller/algebra:
+              __patch:
+                - wanxiang_algebra:/模糊音_nl
+                - wanxiang_algebra:/模糊音_ry
+                - wanxiang_algebra:/模糊音_hf
+                - wanxiang_algebra:/模糊音_rl
+                - wanxiang_algebra:/模糊音_kg
+                - wanxiang_algebra:/模糊音_en_eng
+                - wanxiang_algebra:/模糊音_in_ing
+                - wanxiang_algebra:/模糊音_c_ch
+                - wanxiang_algebra:/模糊音_z_zh
+                - wanxiang_algebra:/模糊音_s_sh
+                - wanxiang_algebra:/pro/小鹤双拼
+                - wanxiang_algebra:/pro/直接辅助
+            menu/page_size: 6
+          CUSTOM_EOF
+
+          # 记录版本
+          echo "${{ steps.check_wanxiang.outputs.wx_version }}" > "$RIME_DIR/wanxiang_version.txt"
+
+          echo "✅ Schema files updated to v${{ steps.check_wanxiang.outputs.wx_version }}"
+
+      - name: Merge upstream YuyanIme changes
+        if: steps.check_yuyan.outputs.has_update == 'true'
+        run: |
+          cd YuyanIme 2>/dev/null || cd .
+          git merge upstream/master --no-edit 2>/dev/null || git merge upstream/main --no-edit 2>/dev/null || true
+          echo "✅ Merged upstream YuyanIme changes"
+
+      - name: Commit and push changes
+        if: steps.check_wanxiang.outputs.has_update == 'true' || steps.check_yuyan.outputs.has_update == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          COMMIT_MSG="🔄 自动同步上游更新"
+          if [ "${{ steps.check_wanxiang.outputs.has_update }}" == "true" ]; then
+            COMMIT_MSG="$COMMIT_MSG | 万象拼音 v${{ steps.check_wanxiang.outputs.wx_version }}"
+          fi
+          if [ "${{ steps.check_yuyan.outputs.has_update }}" == "true" ]; then
+            COMMIT_MSG="$COMMIT_MSG | 语燕引擎更新"
+          fi
+
+          git add -A
+          git diff --cached --quiet || git commit -m "$COMMIT_MSG"
+          git push
+          echo "✅ Changes pushed: $COMMIT_MSG"
+
+      - name: No updates
+        if: steps.check_wanxiang.outputs.has_update != 'true' && steps.check_yuyan.outputs.has_update != 'true'
+        run: echo "⏭️ No upstream updates found, skipping."
