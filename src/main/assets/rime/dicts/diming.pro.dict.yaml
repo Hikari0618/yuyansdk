@@ -4276,7 +4276,7 @@ sort: by_weight
 德祥乡	dé;ix xiáng;py xiāng;vp	10
 德新乡	dé;ix xīn;lj xiāng;vp	10
 德新镇	dé;ix xīn;lj zhèn;jb	10
-德兴市	dé;ix xīng;xb shì;wj	583
+德兴市	dé;ix xīng;xb shì;wj	183
 德兴县	dé;ix xīng;xb xiàn;qs	110
 德兴乡	dé;ix xīng;xb xiāng;vp	10
 德阳县	dé;ix yáng;eo xiàn;qs	115
@@ -18120,7 +18120,7 @@ sort: by_weight
 什玲镇	shí;ru líng;ws zhèn;jb	10
 石陵镇	shí;ak líng;ew zhèn;jb	-1
 石柳乡	shí;ak liǔ;me xiāng;vp	488
-石榴镇	shí;ak liú;mt zhèn;jb	10
+石榴镇	shí;ak liu;mt zhèn;jb	10
 石龙区	shí;ak lóng;ud qū;kx	96
 石龙镇	shí;ak lóng;ud zhèn;jb	384
 石楼县	shí;ak lóu;mn xiàn;qs	177
@@ -50787,7 +50787,7 @@ sort: by_weight
 南石臼村	nán;ug shí;ak jiù;pa cūn;mc	10
 南十里堡	nán;ug shí;al lǐ;la pù;rt	151
 南十里庄	nán;ug shí;al lǐ;la zhuāng;gt	10
-南石榴村	nán;ug shí;ak liú;mt cūn;mc	10
+南石榴村	nán;ug shí;ak liu;mt cūn;mc	10
 南石门村	nán;ug shí;ak mén;dv cūn;mc	10
 南石门镇	nán;ug shí;ak mén;dv zhèn;jb	10
 南石桥村	nán;ug shí;ak qiáo;ml cūn;mc	10
@@ -56579,12 +56579,12 @@ sort: by_weight
 石岭子村	shí;ak lǐng;es zi;va cūn;mc	10
 石岭子镇	shí;ak lǐng;es zi;va zhèn;jb	10
 十六号站	shí;al liù;wb hào;kv zhàn;lk	45
-石榴红村	shí;ak liú;mt hóng;sg cūn;mc	10
-石榴街道	shí;ak liú;mt jiē;ii dào;zz	10
-石榴口村	shí;ak liú;mt kǒu;la cūn;mc	10
-石榴坪乡	shí;ak liú;mt píng;tp xiāng;vp	10
+石榴红村	shí;ak liu;mt hóng;sg cūn;mc	10
+石榴街道	shí;ak liu;mt jiē;ii dào;zz	10
+石榴口村	shí;ak liu;mt kǒu;la cūn;mc	10
+石榴坪乡	shí;ak liu;mt píng;tp xiāng;vp	10
 史刘湾村	shǐ;ln liú;wd wān;dg cūn;mc	10
-石榴庄村	shí;ak liú;mt zhuāng;gt cūn;mc	10
+石榴庄村	shí;ak liu;mt zhuāng;gt cūn;mc	10
 石龙坝镇	shí;ak lóng;ud bà;tr zhèn;jb	10
 石龙洞村	shí;ak lóng;ud dòng;dk cūn;mc	10
 石龙沟村	shí;ak lóng;ud gōu;ds cūn;mc	10
@@ -63496,7 +63496,7 @@ sort: by_weight
 西石林村	xī;aa shí;ak lín;mm cūn;mc	10
 西柿林村	xī;aa shì;mj lín;mm cūn;mc	10
 西石岭村	xī;aa shí;ak lǐng;es cūn;mc	10
-西石榴村	xī;aa shí;ak liú;mt cūn;mc	10
+西石榴村	xī;aa shí;ak liu;mt cūn;mc	10
 西石楼村	xī;aa shí;ak lóu;mn cūn;mc	10
 西石门村	xī;aa shí;ak mén;dv cūn;mc	10
 西石庙村	xī;aa shí;ak miào;gy cūn;mc	10
@@ -76300,7 +76300,7 @@ sort: by_weight
 十里回族乡	shí;al lǐ;la huí;kk zú;fu xiāng;vp	10
 十里铺街道	shí;al lǐ;la pù;jf jiē;ii dào;zz	10
 十六里河镇	shí;al liù;wb lǐ;la hé;dk zhèn;jb	10
-石榴庄街道	shí;ak liú;mt zhuāng;gt jiē;ii dào;zz	10
+石榴庄街道	shí;ak liu;mt zhuāng;gt jiē;ii dào;zz	10
 石马河街道	shí;ak mǎ;va hé;dk jiē;ii dào;zz	10
 石马坪街道	shí;ak mǎ;va píng;tp jiē;ii dào;zz	10
 石马山街道	shí;ak mǎ;va shān;lk jiē;ii dào;zz	10
