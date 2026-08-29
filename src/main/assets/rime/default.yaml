@@ -1,9 +1,16 @@
 # Rime default settings
 # encoding: utf-8
 
+# 要比共享目录的同名文件的 config_version 大才可以生效
+config_version: 'LTS'
+
 # 方案列表（原版 + 万象拼音PRO）
 schema_list:
   - schema: wanxiang_pro
+#  - schema: wanxiang_english
+#  - schema: wanxiang_t9
+#  - schema: wanxiang_t9i
+#  - schema: wanxiang_lite
   - schema: t9_pinyin
   - schema: pinyin
   - schema: double_pinyin_natural
@@ -15,7 +22,73 @@ schema_list:
   - schema: double_pinyin_ls17
   - schema: stroke
   - schema: english
-
 # 菜单
 menu:
-  page_size: 6
+  page_size: 6  # 候选词个数，不得超过6个，7890代表声调
+  alternative_select_labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # 修改候选项标签
+
+# 万象状态面板相关
+switcher:
+  caption: 「万象状态面板」
+  hotkeys:
+    - Control+grave
+  save_options:
+    - ascii_punct
+    - s2t
+    - s2hk
+    - s2tw
+    - emoji
+    - full_shape
+    - prediction
+    - super_tips
+    - charset_filter
+    - chaifen_switch
+    - tone_display
+    - fuzhu_hint
+    - tone_hint
+    - full_pinyin
+    - chinese_english
+    - search_single_char
+    - abbrev
+  fold_options: true
+  abbreviate_options: true
+  option_list_separator: ' / '
+
+# 中英文切换
+ascii_composer:
+  good_old_caps_lock: true
+  switch_key:
+    Caps_Lock: clear
+    Shift_L: commit_code
+    Shift_R: commit_code
+    Control_L: noop
+    Control_R: noop
+
+# 处理符合特定规则的输入码
+recognizer:
+  patterns:
+
+# 快捷键
+key_binder:
+  bindings:
+    # 翻页 - =
+    - {when: has_menu, accept: minus, send: Page_Up}
+    - {when: has_menu, accept: equal, send: Page_Down}
+    - {when: composing, accept: Control+k, toggle: xxxxx}
+    # 小键盘映射
+    - {accept: KP_0, send: 0, when: composing}
+    - {accept: KP_1, send: 1, when: composing}
+    - {accept: KP_2, send: 2, when: composing}
+    - {accept: KP_3, send: 3, when: composing}
+    - {accept: KP_4, send: 4, when: composing}
+    - {accept: KP_5, send: 5, when: composing}
+    - {accept: KP_6, send: 6, when: composing}
+    - {accept: KP_7, send: 7, when: composing}
+    - {accept: KP_8, send: 8, when: composing}
+    - {accept: KP_9, send: 9, when: composing}
+    - {accept: KP_Decimal, send: period, when: composing}
+    - {accept: KP_Multiply, send: asterisk, when: composing}
+    - {accept: KP_Add, send: plus, when: composing}
+    - {accept: KP_Subtract, send: minus, when: composing}
+    - {accept: KP_Divide, send: slash, when: composing}
+    - {accept: KP_Enter, send: Return, when: composing}
