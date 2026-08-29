@@ -1,0 +1,6 @@
+# default.custom.yaml
+# 通过 patch 机制向 schema_list 追加万象拼音PRO方案
+# 此文件不会被 libyuyanime.so 内置的 default.yaml 覆盖
+patch:
+  schema_list/+:
+    - schema: wanxiang_pro
