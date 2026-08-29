@@ -1,6 +1,60 @@
 # default.custom.yaml
-# 通过 patch 机制向 schema_list 追加万象拼音PRO方案
+# 通过 patch 机制追加万象拼音PRO方案及配置
 # 此文件不会被 libyuyanime.so 内置的 default.yaml 覆盖
 patch:
+  config_version: 'LTS'
   schema_list/+:
     - schema: wanxiang_pro
+  menu/page_size: 6
+  menu/alternative_select_labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  switcher/caption: "「万象状态面板」"
+  switcher/hotkeys:
+    - Control+grave
+  switcher/save_options:
+    - ascii_punct
+    - s2t
+    - s2hk
+    - s2tw
+    - emoji
+    - full_shape
+    - prediction
+    - super_tips
+    - charset_filter
+    - chaifen_switch
+    - tone_display
+    - fuzhu_hint
+    - tone_hint
+    - full_pinyin
+    - chinese_english
+    - search_single_char
+    - abbrev
+  switcher/fold_options: true
+  switcher/abbreviate_options: true
+  switcher/option_list_separator: " / "
+  ascii_composer/good_old_caps_lock: true
+  ascii_composer/switch_key/Caps_Lock: clear
+  ascii_composer/switch_key/Shift_L: commit_code
+  ascii_composer/switch_key/Shift_R: commit_code
+  ascii_composer/switch_key/Control_L: noop
+  ascii_composer/switch_key/Control_R: noop
+  recognizer/patterns: {}
+  key_binder/bindings:
+    - {when: has_menu, accept: minus, send: Page_Up}
+    - {when: has_menu, accept: equal, send: Page_Down}
+    - {when: composing, accept: Control+k, toggle: xxxxx}
+    - {accept: KP_0, send: 0, when: composing}
+    - {accept: KP_1, send: 1, when: composing}
+    - {accept: KP_2, send: 2, when: composing}
+    - {accept: KP_3, send: 3, when: composing}
+    - {accept: KP_4, send: 4, when: composing}
+    - {accept: KP_5, send: 5, when: composing}
+    - {accept: KP_6, send: 6, when: composing}
+    - {accept: KP_7, send: 7, when: composing}
+    - {accept: KP_8, send: 8, when: composing}
+    - {accept: KP_9, send: 9, when: composing}
+    - {accept: KP_Decimal, send: period, when: composing}
+    - {accept: KP_Multiply, send: asterisk, when: composing}
+    - {accept: KP_Add, send: plus, when: composing}
+    - {accept: KP_Subtract, send: minus, when: composing}
+    - {accept: KP_Divide, send: slash, when: composing}
+    - {accept: KP_Enter, send: Return, when: composing}
