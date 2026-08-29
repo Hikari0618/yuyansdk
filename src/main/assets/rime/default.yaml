@@ -1,0 +1,21 @@
+# Rime default settings
+# encoding: utf-8
+
+# 方案列表（原版 + 万象拼音PRO）
+schema_list:
+  - schema: wanxiang_pro
+  - schema: t9_pinyin
+  - schema: pinyin
+  - schema: double_pinyin_natural
+  - schema: double_pinyin_mspy
+  - schema: double_pinyin_sogou
+  - schema: double_pinyin_flypy
+  - schema: double_pinyin_abc
+  - schema: double_pinyin_ziguang
+  - schema: double_pinyin_ls17
+  - schema: stroke
+  - schema: english
+
+# 菜单
+menu:
+  page_size: 6
