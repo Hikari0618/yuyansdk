@@ -158,8 +158,7 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .setPositiveButton("开始部署") { _, _ ->
                     lifecycleScope.launch {
                         val result = withContext(Dispatchers.IO) {
-                            com.yuyan.inputmethod.core.Kernel.resetIme()
-                            "✅ 部署完成"
+                            RimeDeployUtils.deploy()
                         }
                         Toast.makeText(ctx, result, Toast.LENGTH_LONG).show()
                     }

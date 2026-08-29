@@ -27,9 +27,14 @@ object RimeDeployUtils {
             val context = Launcher.instance.context
             // 重新复制方案文件到用户数据目录（确保文件完整）
             copyFileOrDir(context, "rime", "", CustomConstant.RIME_DICT_PATH, true)
-            // 停止 Rime 引擎
+            // 删除 build 目录，强制 Rime 重新编译
+            val buildDir = java.io.File(CustomConstant.RIME_DICT_PATH, "build")
+            if (buildDir.exists()) {
+                buildDir.deleteRecursively()
+                Log.i(TAG, "Deleted build directory")
+            }
+            // 停止并重启 Rime 引擎（检测到 build/ 不存在会自动部署）
             Rime.destroy()
-            // 以 fullCheck=true 重新启动，触发部署（重新编译方案）
             Rime.startup(context, true)
             Log.i(TAG, "Deploy done")
             "✅ 部署完成"

@@ -153,8 +153,8 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
         }
         SkbMenuMode.RimeDeploy -> {
             Thread {
-                com.yuyan.inputmethod.core.Kernel.resetIme()
-                android.widget.Toast.makeText(Launcher.instance.context, "✅ 重新部署完成", android.widget.Toast.LENGTH_SHORT).show()
+                val result = com.yuyan.inputmethod.util.RimeDeployUtils.deploy()
+                android.widget.Toast.makeText(Launcher.instance.context, result, android.widget.Toast.LENGTH_SHORT).show()
             }.start()
         }
         else ->{}
