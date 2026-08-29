@@ -8,7 +8,8 @@ enum class DoublePinyinSchemaMode {
     abc,
     mspy,
     sogou,
-    ziguang;
+    ziguang,
+    wanxiangPro;
 
     companion object : ManagedPreference.StringLikeCodec<DoublePinyinSchemaMode> {
         override fun decode(raw: String) = DoublePinyinSchemaMode.valueOf(raw)

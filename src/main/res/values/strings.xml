@@ -158,6 +158,7 @@
     <string name="double_pinyin_mspy">微软双拼</string>
     <string name="double_pinyin_sougou">搜狗双拼</string>
     <string name="double_pinyin_ziguang">紫光双拼</string>
+    <string name="wanxiang_pro">万象拼音PRO</string>
 
     <string name="keyboard_name_pinyin_lx_17">乱序17</string>
     <string name="keyboard_iv_menu_close">关闭键盘</string>
@@ -224,4 +225,6 @@
     <string name="keyboard_style_mod_samsung">三星</string>
 
     <string name="show_virtual_keyboard_with_external">物理键盘显示软键盘（插拔键盘生效）</string>
+    <string name="rime_sync">同步词典</string>
+    <string name="rime_deploy">重新部署</string>
 </resources>
