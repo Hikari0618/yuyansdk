@@ -158,6 +158,7 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
             DoublePinyinSchemaMode.mspy -> R.string.double_pinyin_mspy
             DoublePinyinSchemaMode.sogou -> R.string.double_pinyin_sougou
             DoublePinyinSchemaMode.ziguang -> R.string.double_pinyin_ziguang
+            DoublePinyinSchemaMode.wanxiangPro -> R.string.wanxiang_pro
         }
         funItems.add(
             SkbFunItem(

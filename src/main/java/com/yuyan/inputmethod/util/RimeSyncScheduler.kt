@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
  *
  * 优点：进程被杀仍有效、电量低时自动暂停、不重复注册
  */
-class RimeSyncWork(
+class RimeSyncScheduler(
     context: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
@@ -111,7 +111,7 @@ class RimeSyncWork(
                 .setRequiresStorageNotLow(true)
                 .build()
 
-            val request = PeriodicWorkRequestBuilder<RimeSyncWork>(
+            val request = PeriodicWorkRequestBuilder<RimeSyncScheduler>(
                 interval.toLong(), TimeUnit.MINUTES,
                 5, TimeUnit.MINUTES,       // flex interval
             ).setConstraints(constraints).build()
