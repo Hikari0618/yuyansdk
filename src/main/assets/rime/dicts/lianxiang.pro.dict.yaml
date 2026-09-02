@@ -1511,7 +1511,6 @@ sort: by_weight
 白伞盖佛顶	bái;po sǎn;ru gài;ym fó;rf dǐng;dr	10
 百色闭壳龟	bǎi;ab sè;db bì;mc ké;uj guī;dv	10
 白色长筒袜	bái;po sè;db cháng;pn tǒng;vk wà;pm	10
-白色大方块	bái;po sè;db dà;un fang;dw kuài;tg	10
 白色的背景	bái;po sè;db de;bu bèi;lo jǐng;ox	10
 白色的橱柜	bái;po sè;db de;bu chú;mc guì;mj	10
 白色的大衣	bái;po sè;db de;bu dà;un yī;wy	10
@@ -1533,7 +1532,6 @@ sort: by_weight
 白色骑士号	bái;po sè;db qí;mk shì;ua hào;kv	10
 白色小方块	bái;po sè;db xiǎo;ld fāng;dw kuài;tg	10
 白色与黑色	bái;po sè;db yǔ;aa hēi;lh sè;db	10
-白色中方块	bái;po sè;db zhōng;ll fāng;dw kuài;tg	10
 白沙洲大道	bái;po shā;du zhōu;dv dà;un dào;zz	10
 白山黑水间	bái;po shān;lk hēi;lh shuǐ;ln jiān;mo	10
 白衫军运动	bái;po shān;pp jūn;bi yùn;zs dòng;el	10
@@ -10533,6 +10531,7 @@ sort: by_weight
 大东部铁路	dà;un dōng;ad bù;le tiě;ju lù;zk	10
 大东电报局	dà;un dōng;ad diàn;lv bào;fy jú;uk	10
 大东沟海战	dà;un dōng;ad gōu;ds hǎi;dm zhàn;lg	10
+大董烤鸭店	dà;un dǒng;cv kǎo;hv yā;jn diàn;gk	10
 大动脉转位	dà;un dòng;el mài;oy zhuàn;iv wèi;rl	10
 大东区政府	dà;un dōng;ad qū;kx zhèng;vw fǔ;gc	10
 大东舆地图	dà;un dōng;ad yú;pb dì;ty tú;kd	10
@@ -13118,9 +13117,9 @@ sort: by_weight
 第三代战机	dì;vp sān;ae dài;ry zhàn;lg jī;mj	10
 第三定律熵	dì;vp sān;ae dìng;br lǜ;iy shāng;hk	10
 第三方存管	dì;vp sān;ae fāng;dw cún;uz guǎn;vk	10
-第三方登录	dì;vp sān;ae fāng;dw dēng;va lù;eu	10
+第三方登录	dì;vp sān;ae fāng;dw dēng;va lù;eu	12
 第三方登陆	dì;vp sān;ae fāng;dw dēng;va lù;ej	10
-第三方检测	dì;vp sān;ae fāng;dw jiǎn;ma cè;dd	10
+第三方检测	dì;vp sān;ae fāng;dw jiǎn;ma cè;dd	12
 第三方监测	dì;vp sān;ae fāng;dw jiān;lm cè;dd	10
 第三方监理	dì;vp sān;ae fāng;dw jiān;lm lǐ;wl	10
 第三方介入	dì;vp sān;ae fāng;dw jiè;rl rù;pn	10
@@ -26807,7 +26806,6 @@ sort: by_weight
 黑塞哥维那	hēi;lh sài;bt gē;dk wéi;sf nà;ve	10
 黑色奥洛夫	hēi;lh sè;db ào;pd luò;dk fū;an	10
 黑色白色配	hēi;lh sè;db bái;po sè;db pèi;yj	10
-黑色大方块	hēi;lh sè;db dà;un fang;dw kuài;tg	10
 黑色的斑点	hēi;lh sè;db de;bu bān;ww diǎn;lh	10
 黑色的包围	hēi;lh sè;db de;bu bāo;bs wéi;kw	10
 黑色的背景	hēi;lh sè;db de;bu bèi;lo jǐng;ox	10
@@ -158390,6 +158388,7 @@ sort: by_weight
 泡利不相容原理	pào;ds lì;hd bù;ad xiāng;mo róng;bk yuán;ix lǐ;wl	10
 抛物偏微分方程	pāo;fl wù;nw piān;rc wēi;iw fēn;bd fāng;dw chéng;hw	10
 配第克拉克定理	pèi;yj dì;vp kè;ue lā;fl kè;ue dìng;br lǐ;wl	10
+佩服得五体投地	pèi;rj fú;oy de;ic wǔ;aa tǐ;rb tóu;fy dì;ty	10
 赔了夫人又折兵	péi;kk le;vl fū;an rén;pn yòu;vn zhé;fj bīng;qb	10
 佩斯大学法学院	pèi;rj sī;qj dà;un xué;xz fǎ;ds xué;xz yuàn;ee	10
 配伍枳朴泻力强	pèi;yj wǔ;rw zhǐ;mb pǔ;mb xiè;dy lì;vp qiáng;gi	10
@@ -159361,6 +159360,7 @@ sort: by_weight
 圣惠荆芥地黄汤	shèng;yt huì;ax jīng;cd jiè;cl dì;ty huáng;cb tāng;dp	10
 生活满意度指数	shēng;pf huó;dk mǎn;dl yì;lx dù;gy zhǐ;fo shù;mw	10
 圣基茨和尼维斯	shèng;yt jī;qt cí;cr hé;hk ní;ub wéi;sf sī;qj	10
+省级自然保护区	shěng;uo jí;sj zì;po rán;ph bǎo;rm hù;fh qū;kx	10
 生姜半夏汤主之	shēng;pf jiāng;yn bàn;dl xià;aw tāng;dp zhǔ;dw zhī;dn	10
 生理性眼球震颤	shēng;pf lǐ;wl xìng;xu yǎn;og qiú;wq zhèn;yn chàn;wr	10
 生脉麦味与人参	shēng;pf mài;oy mài;fw wèi;kw yú;aa rén;pn cān;sp	10
@@ -159662,6 +159662,7 @@ sort: by_weight
 苏巴什佛寺遗址	sū;cb bā;sl shí;ru fó;rf sì;tc yí;zr zhǐ;tv	10
 速发相哮喘反应	sù;zu fā;vd xiāng;mo xiào;kz chuǎn;ke fǎn;py yìng;ga	10
 速发型超敏反应	sù;zu fà;vd xíng;kt chāo;tk mǐn;pw fǎn;py yìng;ga	10
+苏格拉底式对话	sū;cb gé;mk lā;fl dǐ;gd shì;yg duì;yc huà;yk	10
 苏军烈士纪念塔	sū;cb jūn;bi liè;dh shì;ua jì;sj niàn;rx tǎ;tk	10
 粟粒性脑膜结核	sù;xm lì;ml xìng;xu nǎo;ok mó;od jié;sk hé;mr	10
 塑料车针消毒盒	sù;bt liào;mu chē;al zhēn;ju xiāo;do dú;fm hé;rm	10
@@ -160840,6 +160841,7 @@ sort: by_weight
 以什么样的方式	yǐ;vr shén;ru me;ps yàng;my de;bu fāng;dw shì;yg	10
 益生菌固体饮料	yì;bm shēng;pf jūn;ch gù;kk tǐ;rb yǐn;ur liào;mu	10
 益生菌和益生元	yì;bm shēng;pf jūn;ch hé;hk yì;bm shēng;pf yuán;ee	10
+已是不争的事实	yǐ;vv shì;or bù;ad zhēng;dl de;bu shì;al shí;bd	10
 意识的高阶理论	yì;lx shí;yb de;bu gāo;wk jiē;el lǐ;wl lùn;yb	10
 胰十二指肠移植	yí;oy shí;al èr;aa zhǐ;fo cháng;op yí;hx zhí;mq	10
 以实干笃定前行	yǐ;vr shí;bd gàn;au dǔ;vm dìng;br qián;bd xíng;ii	10
