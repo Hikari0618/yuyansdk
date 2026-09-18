@@ -27,6 +27,8 @@
 --   - name: abbrev
 --     states: [简码关, 简码开]
 
+local wanxiang = require("wanxiang/wanxiang")
+
 local M = {}
 
 local function passthrough(input)
@@ -72,6 +74,7 @@ function M.init(env)
     local config = env.engine.schema.config
     env.insert_position = math.max(1, config:get_int("abbrev_phrase/insert_position") or 2)
     env.max_candidates = math.max(0, config:get_int("abbrev_phrase/max_candidates") or 3)
+    env.special_types = { table=true, user_table=true, completion=true }
     env.custom_translator = Component.Translator(env.engine, "custom_phrase", "script_translator")
     env.abbrev_translator = nil
 end
@@ -91,83 +94,111 @@ function M.func(input, env)
         return
     end
 
-    local abbrev_enabled = context:get_option("abbrev") and env.max_candidates > 0
+    local input_type = wanxiang.get_input_method_type(env)
+    local abbrev_enabled =
+        context:get_option("abbrev")
+        and env.max_candidates > 0
+        and input_type ~= "pinyin"
     local reserved = {}
-    local emitted = 0
+    local custom = {}
 
-    -- 1. 自定义短语按需逐个置顶，保留该词库内部的查询顺序。
-    local custom_translation = env.custom_translator
-        and env.custom_translator:query(code, seg)
+    local custom_translation = env.custom_translator and env.custom_translator:query(code, seg)
     if custom_translation then
         for cand in custom_translation:iter() do
             local source = whole_phrase(cand, input_end)
-            if source and not reserved[cand.text] then
+            if source and cand.text and cand.text ~= "" and not reserved[cand.text] then
                 reserved[cand.text] = true
-                emitted = emitted + 1
-                yield(prepare_candidate(cand, source, "custom_phrase"))
+                custom[#custom + 1] = prepare_candidate(cand, source, "custom_phrase")
             end
         end
     end
 
-    -- 2. 简码只保留配置数量；与自定义短语冲突的名额取消、不补取。
     local selected = {}
-    if abbrev_enabled then
+    local abbrev_loaded = false
+    local function load_abbrev()
+        if abbrev_loaded then return end
+        abbrev_loaded = true
+        if not abbrev_enabled then return end
+
         if not env.abbrev_translator then
-            env.abbrev_translator = Component.Translator(
-                env.engine, "abbrev_phrase", "script_translator")
+            env.abbrev_translator = Component.Translator(env.engine, "abbrev_phrase", "script_translator")
         end
-        local translation = env.abbrev_translator
-            and env.abbrev_translator:query(code, seg)
-        if translation then
-            local seen, count = {}, 0
-            for cand in translation:iter() do
-                local source = whole_phrase(cand, input_end)
-                local text = cand.text
-                if source and not seen[text] then
-                    seen[text] = true
-                    count = count + 1
-                    if not reserved[text] then
-                        selected[#selected + 1] = prepare_candidate(cand, source, "abbrev")
-                        reserved[text] = true
-                    end
-                    if count >= env.max_candidates then break end
-                end
+
+        local translation = env.abbrev_translator and env.abbrev_translator:query(code, seg)
+        if not translation then return end
+
+        local seen = {}
+        for cand in translation:iter() do
+            local source = whole_phrase(cand, input_end)
+            local text = cand.text
+            if source and text and text ~= "" and not seen[text] and not reserved[text] then
+                seen[text] = true
+                selected[#selected + 1] = prepare_candidate(cand, source, "abbrev")
             end
         end
     end
 
-    if emitted == 0 and #selected == 0 then
-        passthrough(input)
-        return
+    local special_checked = false
+    local special_first = false
+    local emitted = 0
+    local custom_done = false      -- custom 是否已全量输出过
+    local abbrev_done = false      -- abbrev 是否已插入过（含受限/全量两种模式）
+    local has_original = false     -- 原始候选流是否非空（仅由 input:iter() 置位）
+
+    local function emit_custom()
+        if custom_done then return end
+        custom_done = true
+        for i = 1, #custom do
+            emitted = emitted + 1
+            yield(custom[i])
+        end
     end
 
-    local inserted = #selected == 0
-    local function insert_selected()
-        inserted = true
-        for i = 1, #selected do
+    local function emit_abbrev(full_mode)
+        if abbrev_done then return end
+        abbrev_done = true
+        load_abbrev()
+        local n = #selected
+        if not full_mode and n > env.max_candidates then
+            n = env.max_candidates
+        end
+        for i = 1, n do
             emitted = emitted + 1
             yield(selected[i])
         end
     end
 
-    -- 自定义短语已占满目标位置时，直接跟上简码，无需预读普通候选。
-    if not inserted and emitted >= env.insert_position - 1 then
-        insert_selected()
-    end
-
-    -- 3. 原候选流只遍历一次；达到位置就插入简码，不重新比较质量或排序。
     for cand in input:iter() do
-        local duplicate = reserved[cand.text]
-            and cand.start == 0 and cand._end == input_end
-        if not duplicate then
-            emitted = emitted + 1
-            yield(cand)
-            if not inserted and emitted >= env.insert_position - 1 then
-                insert_selected()
+        has_original = true
+
+        if not special_checked then
+            special_checked = true
+            special_first = env.special_types and env.special_types[cand.type] == true
+            emit_custom()
+            if special_first then
+                emit_abbrev(true)
+                yield(cand)
+                goto continue
             end
         end
+
+        if not special_first then
+            if not abbrev_done and emitted >= env.insert_position - 1 then
+                emit_abbrev(false)
+            end
+        end
+
+        if cand.text and cand.text ~= "" and reserved[cand.text] then
+            goto continue
+        end
+
+        emitted = emitted + 1
+        yield(cand)
+        ::continue::
     end
-    if not inserted then insert_selected() end
+
+    emit_custom()
+    emit_abbrev(not has_original or special_first)
 end
 
 function M.fini(env)
