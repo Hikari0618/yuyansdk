@@ -190,6 +190,7 @@ object RimeEngine {
         val candidates = Rime.getRimeContext()?.candidates?.asList() ?: emptyList()
         customPhraseSize = 0
         val compositionText = Rime.compositionText
+        ImeLog.d("[ctx] cand=${candidates.size} comp='${compositionText}' eng=${InputModeSwitcher.isEnglish}")
         showCandidates = when {
             compositionText.isNotBlank() -> {
                 val phrase = CustomEngine.processPhrase(compositionText.replace("\'", ""))

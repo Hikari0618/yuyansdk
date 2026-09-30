@@ -100,6 +100,7 @@ class FloatCandidateBar(context: Context?, attrs: AttributeSet?) : RelativeLayou
      */
     fun showCandidates() {
         mComposingView.text = DecodingInfo.composingStrForDisplay
+        com.yuyan.inputmethod.util.ImeLog.d("[ui] showCand empty=${DecodingInfo.isCandidatesEmpty} total=${DecodingInfo.candidateSize}")
         if (DecodingInfo.isCandidatesEmpty) {
             this.visibility = GONE
         } else {

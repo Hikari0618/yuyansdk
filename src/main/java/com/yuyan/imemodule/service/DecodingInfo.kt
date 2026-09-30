@@ -131,6 +131,7 @@ object DecodingInfo {
 
     // 更新候选词
     fun cacheCandidates(words: Array<CandidateListItem>, associate: Boolean = false) {
+        com.yuyan.inputmethod.util.ImeLog.d("[ui] cacheCand n=${words.size} assoc=$associate first='${words.firstOrNull()?.text ?: ""}'")
         isAssociate = associate
         activeCandidate = 0
         activeCandidateBar = 0
