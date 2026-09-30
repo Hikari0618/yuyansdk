@@ -193,9 +193,18 @@ void Engine::Shutdown() {
 
 void Engine::EnsureSession() {
   if (!initialized_) return;
-  if (!session_id_ || !rime()->find_session(session_id_)) {
+  // 只在没有会话时创建。此前还会用 find_session 探活并在"失效"时重建，
+  // 但 find_session 在 Android 上会误判导致每键重建新会话——组合输入
+  // （preedit）随之每键清空、候选永远为 0（打不出字）。
+  // 会话真失效时 processKey 会返回 false，由上层重新初始化来恢复。
+  if (!session_id_) {
     session_id_ = rime()->create_session();
     ResetPaging();
+    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
+    if (f) {
+      fprintf(f, "[bridge] session created id=%d\n", (int)session_id_);
+      fclose(f);
+    }
   }
 }
 
