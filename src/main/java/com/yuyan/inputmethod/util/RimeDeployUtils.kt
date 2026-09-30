@@ -118,9 +118,14 @@ object RimeDeployUtils {
             }
             log("---- 引擎日志尾部 (${latest.name}) ----")
             val lines = latest.readLines()
-            lines.takeLast(60).forEach { log("  $it") }
-            val errors = lines.count { it.contains(" E") || it.contains("[ERROR]") }
-            log("---- 引擎日志统计: ${lines.size} 行, $errors 条错误 ----")
+            lines.takeLast(30).forEach { log("  $it") }
+            // 全量收集错误/警告行（部署失败的真实原因可能在日志前部，只看尾部会漏）
+            val problems = lines.filter {
+                it.contains(" E") || it.contains(" W") || it.contains("[ERROR]") || it.contains("failed")
+            }
+            log("---- 引擎日志问题行 (${problems.size} 条) ----")
+            problems.take(40).forEach { log("  $it") }
+            log("---- 引擎日志统计: ${lines.size} 行 ----")
         } catch (e: Exception) {
             log("读取引擎日志失败: $e")
         }

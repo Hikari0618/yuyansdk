@@ -57,7 +57,7 @@ object RimeEngine {
         // mask 是 rime 修饰键掩码（Shift/Ctrl…），不是 KeyEvent.action；统一传 0
         val pushed = keyRecordStack.pushKey(event)
         val ret = if (pushed) Rime.processKey(keyChar, 0) else false
-        ImeLog.d("key code=$keyCode char=$keyChar('${keyChar.toChar()}') pushed=$pushed rimeRet=$ret")
+        ImeLog.d("[${Rime.getCurrentRimeSchema()}] key char=$keyChar('${keyChar.toChar()}') pushed=$pushed rimeRet=$ret")
         updateCandidatesOrCommitText()
     }
 

@@ -57,9 +57,32 @@ object RimeWorkspace {
         return result.map { (id, name) -> id to (if (name.isEmpty()) id else name) }
     }
 
-    /** 仅自定义方案（排除内置），供键盘方案菜单展示 */
-    fun customSchemas(): List<Pair<String, String>> =
-        allSchemas().filter { it.first !in BUILTIN_SCHEMAS }
+    /** 仅自定义方案（排除内置），供键盘方案菜单展示——按 default.yaml 的
+     *  schema_list 过滤：词库转换、反查等附属方案不进方案列表（rime 标准机制） */
+    fun customSchemas(): List<Pair<String, String>> {
+        val active = activeSchemaIds()
+        return allSchemas().filter {
+            it.first !in BUILTIN_SCHEMAS && (active.isEmpty() || it.first in active)
+        }
+    }
+
+    /** 当前 default.yaml 的 schema_list（用户/方案包维护的可用方案列表） */
+    fun activeSchemaIds(): Set<String> {
+        val f = File(userDir, "default.yaml")
+        if (!f.exists()) return emptySet()
+        val ids = mutableSetOf<String>()
+        var inList = false
+        f.forEachLine { line ->
+            when {
+                line.trim() == "schema_list:" -> inList = true
+                inList && line.trimStart().startsWith("- ") -> {
+                    Regex("schema:\\s*(\\S+)").find(line)?.groupValues?.get(1)?.let { ids.add(it) }
+                }
+                inList && line.isNotBlank() -> inList = false
+            }
+        }
+        return ids
+    }
 
     private fun parseSchemaFile(file: File): Pair<String, String>? {
         return try {
@@ -147,10 +170,10 @@ object RimeWorkspace {
         var fileCount = 0
         var schemaCount = 0
         fun skip(name: String): Boolean {
-            // 用户数据与工作区配置不导入：default/installation/user.yaml 由 App 管理，
-            // 同文等其他输入法的同名文件混入会让引擎配置构建失败（打不出字）
+            // 用户数据与运行时文件不导入；default.yaml 不跳过——它就是 rime 标准的
+            // 方案列表文件（万象包自带、用户在里面 patch 方案 id），必须尊重
             return name.contains("userdb") || name == "user.yaml" || name == "build" ||
-                name == "default.yaml" || name == "installation.yaml"
+                name == "installation.yaml"
         }
         fun copyRecursively(src: File, dst: File) {
             if (src.isDirectory) {
@@ -203,14 +226,15 @@ object RimeWorkspace {
     }
 
     /**
-     * 生成 default.yaml，schema_list 合并全部可用方案。
-     * 以用户目录中的 default.yaml（assets 模板或用户自己的）为底，仅替换 schema_list 段，
-     * 保留 switcher/punctuator/key_binder 等标准段（方案配置 import_preset 需要）。
-     * 注意：schema_list 始终以扫描结果为准——用户版本的 schema_list 可能指向
-     * 已不存在的方案，若听信它会导致部署后无可用方案、打不出字。
+     * 生成 default.yaml 的 schema_list（仅当工作区没有 default.yaml 时）。
+     * 遵循 rime 标准机制：方案列表由用户/方案包的 default.yaml（及 default.custom.yaml
+     * patch）维护——万象包自带 default.yaml，用户把 wanxiang_pro 等 id patch 进
+     * schema_list。App 不做全量扫描注册（那会把词库转换、反查等附属方案
+     * 也塞进方案列表）。
      */
     fun writeDefaultYamlIfNeeded(): Boolean {
         val target = File(userDir, "default.yaml")
+        if (target.exists()) return false // 尊重用户/方案包的 default.yaml
         val schemas = allSchemas()
         if (schemas.isEmpty()) return false
         val newItems = schemas.map { "  - schema: ${it.first}" }
