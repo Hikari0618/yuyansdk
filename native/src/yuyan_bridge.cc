@@ -9,6 +9,20 @@
 
 #include <rime_api.h>
 
+// 强制链接 librime-lua / librime-octagram 的模块注册对象：
+// RIME_REGISTER_MODULE 生成的 rime_require_module_* 符号必须被引用，
+// 否则静态库的无引用对象被链接器丢弃，lua_processor/lua_translator/
+// lua_filter/grammar 等组件无法注册（万象的 lua 流水线会全部失效）。
+// 注意：这些符号是 C++ 链接（宏在 C++ 单元展开），不能用 extern "C"。
+void rime_require_module_lua();
+void rime_require_module_grammar();
+void rime_require_module_octagram();
+__attribute__((used)) static const void* const kForceLinkModules[] = {
+    (const void*)(void (*)(void))&rime_require_module_lua,
+    (const void*)(void (*)(void))&rime_require_module_grammar,
+    (const void*)(void (*)(void))&rime_require_module_octagram,
+};
+
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
