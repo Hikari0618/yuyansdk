@@ -167,6 +167,37 @@ object RimeWorkspace {
             }
         }
         copyRecursively(sdDir, userDir)
+        // 万象等方案包的安装约定：custom/ 目录里的方案/补丁/资源文件需提升到根目录才生效
+        // （rime 的 auto_patch 与方案加载只认根目录；方案包放 custom/ 是怕升级覆盖用户修改）。
+        // 根目录已有同名文件时保留（尊重用户手动放置的版本）。
+        val customDir = File(userDir, "custom")
+        if (customDir.isDirectory) {
+            customDir.listFiles()?.forEach { f ->
+                val n = f.name
+                val isText = n.endsWith(".yaml") || n.endsWith(".txt") || n.endsWith(".csv")
+                val dst = File(userDir, n)
+                if (f.isFile && isText && !dst.exists()) {
+                    f.copyTo(dst)
+                    fileCount++
+                    if (n.endsWith(".schema.yaml")) schemaCount++
+                }
+            }
+        }
+        // 万象词库命名兼容：import_tables 引用 xxx.pro / xxx.pure（release 包命名），
+        // 源码仓库中文件名为 xxx.dict.yaml——为缺失的变体名生成别名副本
+        val dictsDir = File(userDir, "dicts")
+        if (dictsDir.isDirectory) {
+            dictsDir.listFiles()?.filter { it.isFile && it.name.endsWith(".dict.yaml") }?.forEach { f ->
+                val stem = f.name.removeSuffix(".dict.yaml")
+                for (variant in listOf("pro", "pure")) {
+                    val alias = File(dictsDir, "$stem.$variant.dict.yaml")
+                    if (!alias.exists()) {
+                        f.copyTo(alias)
+                        fileCount++
+                    }
+                }
+            }
+        }
         return if (fileCount == 0) "$SD_RIME_DIR 中没有可导入的方案文件"
         else "已导入 $fileCount 个文件（$schemaCount 个方案）"
     }
@@ -182,7 +213,7 @@ object RimeWorkspace {
         val target = File(userDir, "default.yaml")
         val schemas = allSchemas()
         if (schemas.isEmpty()) return false
-        val newItems = schemas.map { "  - schema: $it" }
+        val newItems = schemas.map { "  - schema: ${it.first}" }
         val sb = StringBuilder()
         var inSchemaList = false
         var spliced = false

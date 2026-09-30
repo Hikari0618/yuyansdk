@@ -151,6 +151,10 @@ int main(int argc, char** argv) {
     printf("[select-schema] %s -> %d\n", schema.c_str(), ok ? 1 : 0);
     PrintStatus();
   }
+  if (argc > 2 && !strcmp(argv[argc - 1], "--switches")) {
+    printf("[switches]\n%s", engine.GetSwitches().c_str());
+    return 0;
+  }
   if (page > 0) engine.SetPageSize(page);
 
   for (char c : type_keys) {

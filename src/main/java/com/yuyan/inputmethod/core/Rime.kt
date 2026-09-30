@@ -149,6 +149,13 @@ class Rime(fullCheck: Boolean) {
         @JvmStatic
         external fun setRimeOption(option: String, value: Boolean, )
 
+        /** 当前方案的 switcher 选项：每行 name\t状态0\t状态1\t当前值(0/1) */
+        @JvmStatic
+        external fun getRimeSwitches(): String
+
+        @JvmStatic
+        external fun getRimeOption(option: String): Boolean
+
         @JvmStatic
         external fun getCurrentRimeSchema(): String
 

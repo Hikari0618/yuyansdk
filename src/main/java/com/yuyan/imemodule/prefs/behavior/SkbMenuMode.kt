@@ -40,7 +40,9 @@ enum class SkbMenuMode {
     PinyinCustom,
     FuzzyPinyin,
     RimeSync,
-    RimeDeploy;
+    RimeDeploy,
+    RimeSwitches,
+    RimeSwitchToggle;
 
     companion object : ManagedPreference.StringLikeCodec<SkbMenuMode> {
         override fun decode(raw: String): SkbMenuMode =

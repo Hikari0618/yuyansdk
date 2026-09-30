@@ -165,6 +165,15 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
                 showToast(result)
             }.start()
         }
+        SkbMenuMode.RimeSwitches -> {
+            // 动态选项（同文机制）：从当前方案的 switcher 配置自动读取，
+            // 部署好方案后选项自动出现，无需硬编码
+            KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
+            (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showRimeSwitchesView()
+        }
+        SkbMenuMode.RimeSwitchToggle -> {
+            // 由 SettingsContainer.onKeyboardMenuClick 处理（需要 switch 名），此处兜底
+        }
         SkbMenuMode.FuzzyPinyin -> {
             // AlertDialog 需要 Activity 窗口 token，键盘内用 Service context 会崩溃；
             // 模糊音设置入口在「设置 → 输入设置 → 模糊音」中，这里跳转过去
@@ -179,6 +188,18 @@ private fun showToast(message: String) {
     android.os.Handler(android.os.Looper.getMainLooper()).post {
         android.widget.Toast.makeText(Launcher.instance.context, message, android.widget.Toast.LENGTH_LONG).show()
     }
+}
+
+/** 切换 Rime 开关（同文菜单的中英/中英标点/半角全角能力）并提示新状态 */
+private fun toggleRimeOption(option: String, onLabel: String, offLabel: String) {
+    val status = com.yuyan.inputmethod.core.Rime.getRimeStatus()
+    val current = when (option) {
+        "ascii_mode" -> status?.isAsciiMode == true
+        "ascii_punct" -> status?.isAsciiPunch == true
+        else -> status?.isFullShape == true
+    }
+    com.yuyan.inputmethod.core.Rime.setOption(option, !current)
+    showToast("已切换为" + if (!current) onLabel else offLabel)
 }
 
 /** 模糊音设置对话框：自由开关模糊音，保存后自动重新部署生效。

@@ -70,6 +70,10 @@ class Engine {
   void ClearComposition();
 
   bool GetCommit(std::string* out);
+
+  // 读取当前方案的 switcher 选项（name\t状态0\t状态1\t当前值 每行一条），
+  // 供键盘菜单动态展示（同文机制：部署后选项自动出现，无需硬编码）
+  std::string GetSwitches();
   bool GetContext(ContextInfo* out);
   bool GetStatus(StatusInfo* out);
 

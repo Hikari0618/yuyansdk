@@ -30,4 +30,5 @@ val menuSkbFunsPreset: Map<SkbMenuMode, SkbFunItem> = hashMapOf(
     SkbMenuMode.RimeSync to SkbFunItem(Launcher.instance.context.getString(R.string.rime_sync), R.drawable.ic_menu_clipboard, SkbMenuMode.RimeSync),
     SkbMenuMode.RimeDeploy to SkbFunItem(Launcher.instance.context.getString(R.string.rime_deploy), R.drawable.ic_menu_setting, SkbMenuMode.RimeDeploy),
     SkbMenuMode.FuzzyPinyin to SkbFunItem(Launcher.instance.context.getString(R.string.fuzzy_pinyin), R.drawable.ic_menu_setting, SkbMenuMode.FuzzyPinyin),
+    SkbMenuMode.RimeSwitches to SkbFunItem("输入选项", R.drawable.ic_menu_setting, SkbMenuMode.RimeSwitches),
     )

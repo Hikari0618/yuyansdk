@@ -124,6 +124,38 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
         adapter?.notifyDataSetChanged()
     }
 
+    /** 动态输入选项（同文机制）：从当前方案的 switcher 配置自动读取并展示，
+     *  部署好方案后其中的选项（中英、中英标点、半角全角等）自动出现 */
+    fun showRimeSwitchesView() {
+        val funItems: MutableList<SkbFunItem> = LinkedList()
+        com.yuyan.inputmethod.core.Rime.getRimeSwitches().lines()
+            .filter { it.isNotBlank() }
+            .forEach { line ->
+                val p = line.split("\t")
+                val name = p[0]
+                val state0 = p.getOrElse(1) { "" }
+                val state1 = p.getOrElse(2) { "" }
+                val value = p.getOrElse(3) { "0" } == "1"
+                val currentLabel = if (value) state1.ifEmpty { "开" } else state0.ifEmpty { "关" }
+                funItems.add(
+                    SkbFunItem(
+                        "$currentLabel（$name）",
+                        R.drawable.ic_menu_setting,
+                        SkbMenuMode.RimeSwitchToggle,
+                        name
+                    )
+                )
+            }
+        if (funItems.isEmpty()) {
+            funItems.add(SkbFunItem("当前方案没有可切换选项", R.drawable.ic_menu_setting, SkbMenuMode.RimeSwitches, ""))
+        }
+        val adapter = MenuAdapter(context, funItems)
+        adapter.setOnItemClickLitener { _: RecyclerView.Adapter<*>?, _: View?, position: Int ->
+            onKeyboardMenuClick(funItems[position])
+        }
+        mRVMenuLayout!!.setAdapter(adapter)
+    }
+
     /**
      * 弹出键盘界面
      */
@@ -210,6 +242,14 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
 
     private fun onKeyboardMenuClick(data: SkbFunItem) {
         val value = when (data.skbMenuMode) {
+            SkbMenuMode.RimeSwitchToggle -> {
+                // 动态选项：翻转 Rime 开关并刷新列表（data.schemaId 存 switch 名）
+                val name = data.schemaId
+                val cur = com.yuyan.inputmethod.core.Rime.getRimeOption(name)
+                com.yuyan.inputmethod.core.Rime.setOption(name, !cur)
+                showRimeSwitchesView()
+                return
+            }
             SkbMenuMode.Pinyin26Jian -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, CustomConstant.SCHEMA_ZH_QWERTY)
             SkbMenuMode.PinyinHandWriting -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_HANDWRITING, CustomConstant.SCHEMA_ZH_HANDWRITING)
             SkbMenuMode.PinyinLx17 -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_LX17, CustomConstant.SCHEMA_ZH_DOUBLE_LX17)

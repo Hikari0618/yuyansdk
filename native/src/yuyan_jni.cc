@@ -4,6 +4,7 @@
 #include <jni.h>
 
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "yuyan_bridge.h"
@@ -187,6 +188,27 @@ Java_com_yuyan_inputmethod_core_Rime_setRimeOption(JNIEnv* env, jclass,
                                                    jboolean value) {
   yuyan::Engine::Instance().SetOption(JToStdString(env, option),
                                       value == JNI_TRUE);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_yuyan_inputmethod_core_Rime_getRimeSwitches(JNIEnv* env, jclass) {
+  return JFromString(env, yuyan::Engine::Instance().GetSwitches());
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_yuyan_inputmethod_core_Rime_getRimeOption(JNIEnv* env, jclass,
+                                                   jstring option) {
+  // 复用 GetSwitches 的取值（避免额外 API 面）——按名称查当前值
+  std::string name = JToStdString(env, option);
+  std::string all = yuyan::Engine::Instance().GetSwitches();
+  std::istringstream ss(all);
+  std::string line;
+  while (std::getline(ss, line)) {
+    if (line.rfind(name + "\t", 0) == 0) {
+      return (!line.empty() && line.back() == '1') ? JNI_TRUE : JNI_FALSE;
+    }
+  }
+  return JNI_FALSE;
 }
 
 JNIEXPORT jstring JNICALL

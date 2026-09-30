@@ -355,6 +355,61 @@ void Engine::SetOption(const std::string& name, bool value) {
   rime()->set_option(session_id_, name.c_str(), value ? True : False);
 }
 
+std::string Engine::GetSwitches() {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  EnsureSession();
+  std::string out;
+  // 读取当前方案配置（schema_open 指向当前 schema:/ 命名空间）
+  RimeStatus status = {0};
+  status.data_size = sizeof(RimeStatus);
+  std::string schema_id;
+  if (session_id_ && rime()->get_status(session_id_, &status)) {
+    schema_id = status.schema_id ? status.schema_id : "";
+    rime()->free_status(&status);
+  }
+  if (schema_id.empty()) return out;
+  RimeConfig cfg = {nullptr};
+  if (!rime()->schema_open(schema_id.c_str(), &cfg)) return out;
+  // 用列表迭代器遍历 switches（同文机制），iter.path 是列表项路径
+  RimeConfigIterator iter = {nullptr};
+  if (rime()->config_begin_list(&iter, &cfg, "switches")) {
+    while (rime()->config_next(&iter)) {
+      std::string base = iter.path ? iter.path : "";
+      if (base.empty()) continue;
+      const char* name =
+          rime()->config_get_cstring(&cfg, (base + "/name").c_str());
+      if (!name || !*name) continue;
+      // states 是内联列表，用迭代器取标量值
+      std::string s0s, s1s;
+      RimeConfigIterator siter = {nullptr};
+      if (rime()->config_begin_list(&siter, &cfg,
+                                   (base + "/states").c_str())) {
+        int si = 0;
+        while (rime()->config_next(&siter)) {
+          const char* v = rime()->config_get_cstring(
+              &cfg, siter.path ? siter.path : "");
+          if (si == 0 && v) s0s = v;
+          if (si == 1 && v) s1s = v;
+          si++;
+        }
+        rime()->config_end(&siter);
+      }
+      bool val = session_id_ && rime()->get_option(session_id_, name);
+      out += name;
+      out += "\t";
+      out += s0s;
+      out += "\t";
+      out += s1s;
+      out += "\t";
+      out += val ? "1" : "0";
+      out += "\n";
+    }
+    rime()->config_end(&iter);
+  }
+  rime()->config_close(&cfg);
+  return out;
+}
+
 bool Engine::SelectCandidate(int index) {
   std::lock_guard<std::mutex> lock(g_mutex);
   EnsureSession();
