@@ -190,9 +190,6 @@ local function release_sequence_state(env)
     if not env then return end
     env.sequence_state = nil
     env.sequence_db_name = nil
-
-    -- DbAccessor 没有显式析构接口。所有局部访问器先置空，再执行一次
-    -- 完整垃圾回收，确保其先于所引用的 LevelDb 释放。
     collectgarbage()
 end
 
@@ -256,9 +253,6 @@ local function load_input_records(state, input)
             if raw_key:find(prefix, 1, true) ~= 1 then break end
 
             local item = raw_key:sub(prefix_len + 1)
-
-            -- 旧格式 value 会以 i=... 开头；它已经迁移并写成墓碑，
-            -- 不再进入新的候选位置表。
             if item and item ~= "" and not item:match("^i=.- p=") then
                 local commits, tick = parse_record_tail(tail)
                 local version, position, active = decode_state(commits)
@@ -274,9 +268,9 @@ local function load_input_records(state, input)
                 if active then active_count = active_count + 1 end
             end
         end
-
-        accessor = nil
     end
+
+    accessor = nil
 
     cached = {
         records = records,
@@ -593,7 +587,7 @@ local function apply_current_adjustment(state, input, entries, records)
 end
 
 ------------------------------------------------------------
--- 七、Processor（含 Ctrl 标记）
+-- 七、Processor
 ------------------------------------------------------------
 local P = {}
 
@@ -643,29 +637,9 @@ function P.func(key_event, env)
     local down = seq_keys.down
     local reset = seq_keys.reset
     local pin = seq_keys.pin
-    local is_ctrl_key = code == 0xffe3 or code == 0xffe4
 
     if wanxiang.is_function_mode(context) then
         curr_state.reset()
-        return wanxiang.RIME_PROCESS_RESULTS.kNoop
-    end
-
-    -- Ctrl 监听，用于开关可视化标记。
-    if is_ctrl_key then
-        if context.composition:empty() then
-            return wanxiang.RIME_PROCESS_RESULTS.kNoop
-        end
-
-        local current = context:get_option("_seq_show_markers")
-        local target = not key_event:release()
-
-        if current ~= target then
-            local segment = context.composition:back()
-            curr_state.highlight_index = segment.selected_index
-            context:set_option("_seq_show_markers", target)
-            process_adjustment(context)
-        end
-
         return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
 
@@ -677,16 +651,16 @@ function P.func(key_event, env)
         or not selected_candidate
         or not selected_candidate.text
     then
-        if context:get_option("_seq_show_markers") then
-            context:set_option("_seq_show_markers", false)
-        end
-
         return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
 
     local adjust_code = context.input:sub(1, context.caret_pos)
 
+    -- 单字母编码不执行排序，但排序快捷键必须在 Rime 内吞掉，避免继续穿透给操作系统。
     if is_single_lowercase_letter(adjust_code) then
+        if key_repr == up or key_repr == down or key_repr == reset or key_repr == pin then
+            return wanxiang.RIME_PROCESS_RESULTS.kAccepted
+        end
         return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
 
@@ -703,11 +677,6 @@ function P.func(key_event, env)
         curr_state.offset = nil
         curr_state.mode = curr_state.ADJUST_MODE.Pin
     else
-        if context:get_option("_seq_show_markers") then
-            context:set_option("_seq_show_markers", false)
-            process_adjustment(context)
-        end
-
         return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
 
@@ -719,7 +688,7 @@ function P.func(key_event, env)
 end
 
 ------------------------------------------------------------
--- 八、Filter（含标记可视化）
+-- 八、Filter
 ------------------------------------------------------------
 local F = {}
 
@@ -780,6 +749,11 @@ function F.func(input, env)
         return yield_original_list(input, has_symbol, cache_limit, page_cache)
     end
 
+    -- 单个小写字母不参与手动排序；Filter 也直接透传，避免进入 sequence DB 查询。
+    if is_single_lowercase_letter(adjust_code) then
+        return yield_original_list(input, has_symbol, cache_limit, page_cache)
+    end
+
     local state = get_sequence_state(env)
     if not state then
         return yield_original_list(input, has_symbol, cache_limit, page_cache)
@@ -795,7 +769,6 @@ function F.func(input, env)
 
     local entries = {}
     local seen = {}
-    local show_markers = context:get_option("_seq_show_markers")
     local iterator, iterator_state, iterator_control = input:iter()
     local raw_position = 0
     local scanned = 0
@@ -831,25 +804,6 @@ function F.func(input, env)
     for position, entry in ipairs(ordered) do
         entry.final_position = position
         local candidate = entry.cand
-
-        if show_markers then
-            local record = records[entry.sort_key]
-
-            if record and record.active then
-                local diff = position - entry.raw_position
-                local mark
-
-                if diff > 0 then
-                    mark = "+" .. diff
-                elseif diff < 0 then
-                    mark = tostring(diff)
-                else
-                    mark = " ●"
-                end
-
-                candidate.comment = (candidate.comment or "") .. mark
-            end
-        end
 
         if not has_symbol and bottom_count < cache_limit then
             page_cache[#page_cache + 1] = clone_candidate(candidate)

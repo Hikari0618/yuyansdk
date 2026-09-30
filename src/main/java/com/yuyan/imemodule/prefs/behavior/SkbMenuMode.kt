@@ -37,6 +37,8 @@ enum class SkbMenuMode {
     LockClipBoard,
     TextEdit,
     PinyinWanxiangPro,
+    PinyinCustom,
+    FuzzyPinyin,
     RimeSync,
     RimeDeploy;
 

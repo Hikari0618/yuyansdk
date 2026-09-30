@@ -146,17 +146,55 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
                 else InputModeSwitcher.USER_KEYCODE_TEXTEDIT)
         }
         SkbMenuMode.RimeSync -> {
+            showToast("正在同步用户数据…")
             Thread {
                 val result = com.yuyan.inputmethod.util.RimeSyncUtils.sync()
-                android.widget.Toast.makeText(Launcher.instance.context, result, android.widget.Toast.LENGTH_SHORT).show()
+                showToast(result)
             }.start()
         }
         SkbMenuMode.RimeDeploy -> {
+            showToast("正在部署，期间输入法暂不可用…")
             Thread {
                 val result = com.yuyan.inputmethod.util.RimeDeployUtils.deploy()
-                android.widget.Toast.makeText(Launcher.instance.context, result, android.widget.Toast.LENGTH_SHORT).show()
+                showToast(result)
             }.start()
+        }
+        SkbMenuMode.FuzzyPinyin -> {
+            showFuzzyPinyinDialog()
         }
         else ->{}
     }
+}
+
+private fun showToast(message: String) {
+    android.os.Handler(android.os.Looper.getMainLooper()).post {
+        android.widget.Toast.makeText(Launcher.instance.context, message, android.widget.Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** 模糊音设置对话框：自由开关模糊音，保存后自动重新部署生效 */
+fun showFuzzyPinyinDialog() {
+    val context = Launcher.instance.context
+    val schemaId = com.yuyan.imemodule.prefs.AppPrefs.getInstance().internal.pinyinModeRime.getValue()
+    if (schemaId == com.yuyan.imemodule.application.CustomConstant.SCHEMA_ZH_HANDWRITING) {
+        showToast("手写模式不支持模糊音设置")
+        return
+    }
+    val options = com.yuyan.inputmethod.util.FuzzyPinyinUtils.OPTIONS
+    val labels = options.map { it.label }.toTypedArray()
+    val checked = options.map { it.key in com.yuyan.inputmethod.util.FuzzyPinyinUtils.getEnabled(schemaId) }.toBooleanArray()
+    android.app.AlertDialog.Builder(context)
+        .setTitle("模糊音设置（$schemaId）")
+        .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
+        .setPositiveButton("保存并部署") { _, _ ->
+            val enabled = options.filterIndexed { i, _ -> checked[i] }.map { it.key }.toSet()
+            com.yuyan.inputmethod.util.FuzzyPinyinUtils.save(schemaId, enabled)
+            showToast("已保存模糊音，正在重新部署…")
+            Thread {
+                val result = com.yuyan.inputmethod.util.RimeDeployUtils.deploy()
+                showToast(result)
+            }.start()
+        }
+        .setNegativeButton(android.R.string.cancel, null)
+        .show()
 }

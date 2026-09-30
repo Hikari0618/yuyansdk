@@ -72,7 +72,6 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                     DoublePinyinSchemaMode.mspy,
                     DoublePinyinSchemaMode.sogou,
                     DoublePinyinSchemaMode.ziguang,
-                    DoublePinyinSchemaMode.wanxiangPro,
                 ),
                 listOf(
                     R.string.double_pinyin_flypy_plus,
@@ -81,7 +80,6 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                     R.string.double_pinyin_mspy,
                     R.string.double_pinyin_sougou,
                     R.string.double_pinyin_ziguang,
-                    R.string.wanxiang_pro,
                 )
             )
 

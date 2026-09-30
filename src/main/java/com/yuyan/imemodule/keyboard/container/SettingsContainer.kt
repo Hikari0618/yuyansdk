@@ -188,6 +188,19 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 SkbMenuMode.PinyinStroke
             )
         )
+        // 自定义方案（/sdcard/rime 导入的任意拼音方案，如万象拼音等）
+        com.yuyan.inputmethod.util.RimeWorkspace.customSchemas()
+            .filter { it.first != CustomConstant.SCHEMA_ZH_WANXIANG_PRO }
+            .forEach { (schemaId, schemaName) ->
+                funItems.add(
+                    SkbFunItem(
+                        schemaName,
+                        R.drawable.selece_input_mode_py26,
+                        SkbMenuMode.PinyinCustom,
+                        schemaId
+                    )
+                )
+            }
         val adapter = MenuAdapter(context, funItems)
         adapter.setOnItemClickLitener { _: RecyclerView.Adapter<*>?, _: View?, position: Int ->
             onKeyboardMenuClick(funItems[position])
@@ -203,6 +216,7 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
             SkbMenuMode.PinyinStroke -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_STROKE, CustomConstant.SCHEMA_ZH_STROKE)
             SkbMenuMode.Pinyin26Double -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY + AppPrefs.getInstance().input.doublePYSchemaMode.getValue())
             SkbMenuMode.PinyinWanxiangPro -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, CustomConstant.SCHEMA_ZH_WANXIANG_PRO)
+            SkbMenuMode.PinyinCustom -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, data.schemaId)
             else -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_T9_PINYIN, CustomConstant.SCHEMA_ZH_T9)
         }
         InputModeSwitcher.switchModeForSetting(value)

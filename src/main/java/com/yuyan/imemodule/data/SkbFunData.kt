@@ -29,4 +29,5 @@ val menuSkbFunsPreset: Map<SkbMenuMode, SkbFunItem> = hashMapOf(
     SkbMenuMode.TextEdit to SkbFunItem(Launcher.instance.context.getString(R.string.menu_text_edit), R.drawable.ic_menu_cursor_icon, SkbMenuMode.TextEdit),
     SkbMenuMode.RimeSync to SkbFunItem(Launcher.instance.context.getString(R.string.rime_sync), R.drawable.ic_menu_clipboard, SkbMenuMode.RimeSync),
     SkbMenuMode.RimeDeploy to SkbFunItem(Launcher.instance.context.getString(R.string.rime_deploy), R.drawable.ic_menu_setting, SkbMenuMode.RimeDeploy),
+    SkbMenuMode.FuzzyPinyin to SkbFunItem(Launcher.instance.context.getString(R.string.fuzzy_pinyin), R.drawable.ic_menu_setting, SkbMenuMode.FuzzyPinyin),
     )

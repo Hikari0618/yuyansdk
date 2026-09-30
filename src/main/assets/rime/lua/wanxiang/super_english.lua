@@ -31,6 +31,13 @@ local tonumber = tonumber
 local floor = math.floor
 local concat = table.concat
 
+local wanxiang = require("wanxiang/wanxiang")
+
+local function should_skip(env)
+    local ctx = env.engine.context
+    return wanxiang.is_special_mode(ctx)
+end
+
 local function clear_array(t)
     if not t then return end
     for i = #t, 1, -1 do t[i] = nil end
@@ -134,7 +141,13 @@ function T.init(env)
 end
 
 function T.func(input, seg, env)
-    if not env.engine.context:get_option("english") then
+    if (env.engine.schema.schema_id ~= "wanxiang_english"
+            and not env.engine.context:get_option("english"))
+        or env.engine.context:get_option("ascii_mode") then
+        return
+    end
+
+    if should_skip(env) then
         return
     end
 
@@ -601,7 +614,7 @@ end
 
 function P.func(key, env)
     if key:release() then
-        return 2
+        return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
 
     local ctx = env.engine.context
@@ -622,7 +635,7 @@ function P.func(key, env)
         env.typed_in_ascii = true
     end
 
-    return 2
+    return wanxiang.RIME_PROCESS_RESULTS.kNoop
 end
 
 local F = {}
@@ -631,7 +644,6 @@ function F.init(env)
     local cfg = env.engine.schema.config
     env.schema_id = env.engine.schema.schema_id
     env.memory = env.schema_id == "wanxiang_english" and {} or nil
-    -- 热路径 scratch 仅保存 Lua number/string，循环复用，避免每候选创建多张临时表。
     env.spacing_starts = {}
     env.spacing_chunks = {}
     env.spacing_output = {}
@@ -730,7 +742,12 @@ end
 
 function F.func(input, env)
     local ctx = env.engine.context
-
+    if should_skip(env) then
+        for cand in input:iter() do
+            yield(cand)
+        end
+        return
+    end
     if _G.english_spacing_break == true then
         env.prev_commit_is_eng = false
     end
@@ -821,6 +838,9 @@ function F.func(input, env)
             and final_comment ~= ""
             and find(final_comment, "\226\152\175")
         then
+            -- librime-lua 的 ShadowCandidate 可能继续继承原候选 comment；
+            -- 先清空原 Phrase comment，再传空 comment，确保 ☯ 不会被继承回来。
+            cand.comment = ""
             final_comment = ""
         end
 

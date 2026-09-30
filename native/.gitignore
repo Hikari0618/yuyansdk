@@ -1,0 +1,11 @@
+# 引擎依赖源码与构建产物不入库
+build-host/
+build-android/
+librime/
+librime-lua/
+librime-lua-deps/
+librime-octagram/
+OpenCC/
+snappy/
+boost/
+boost-*.tar.xz

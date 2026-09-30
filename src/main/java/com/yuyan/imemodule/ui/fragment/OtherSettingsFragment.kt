@@ -150,11 +150,11 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
-        // Rime 重新部署（方案更新后重新编译）
-        screen.addPreference("⚙️ 重新部署", "方案更新后点击，重新编译方案文件") {
+        // Rime 重新部署（导入 /sdcard/rime 方案 + 重新编译）
+        screen.addPreference("⚙️ 重新部署", "导入 /sdcard/rime 方案并重新编译（部署期间输入法暂不可用）") {
             AlertDialog.Builder(ctx)
                 .setTitle("重新部署")
-                .setMessage("将重新编译方案文件，部署期间输入法暂时不可用。")
+                .setMessage("将从 /sdcard/rime 导入方案文件并重新编译，部署期间输入法暂时不可用。")
                 .setPositiveButton("开始部署") { _, _ ->
                     lifecycleScope.launch {
                         val result = withContext(Dispatchers.IO) {
@@ -165,6 +165,10 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
+        }
+        // 模糊音设置
+        screen.addPreference("🈳 模糊音设置", "自由开关模糊音，保存后自动部署生效") {
+            com.yuyan.imemodule.keyboard.showFuzzyPinyinDialog()
         }
         // Rime 原生同步
         screen.addPreference("🔄 同步用户数据", "上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {

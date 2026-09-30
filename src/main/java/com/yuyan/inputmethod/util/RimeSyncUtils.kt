@@ -16,10 +16,11 @@ object RimeSyncUtils {
 
     init {
         try {
-            System.loadLibrary("rime_sync")
+            // 原生实现在 libyuyanime.so 中（与 Rime 引擎同一个库）
+            System.loadLibrary("yuyanime")
             loaded = true
         } catch (e: UnsatisfiedLinkError) {
-            Log.w(TAG, "librime_sync.so not available: ${e.message}")
+            Log.w(TAG, "libyuyanime.so not available: ${e.message}")
         }
     }
 
