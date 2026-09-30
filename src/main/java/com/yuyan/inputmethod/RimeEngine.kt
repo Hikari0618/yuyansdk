@@ -11,6 +11,7 @@ import com.yuyan.inputmethod.core.Rime
 import com.yuyan.inputmethod.data.InputKey
 import com.yuyan.inputmethod.data.KeyRecordStack
 import com.yuyan.inputmethod.util.DoublePinYinUtils
+import com.yuyan.inputmethod.util.ImeLog
 import com.yuyan.inputmethod.util.LX17PinYinUtils
 import com.yuyan.inputmethod.util.QwertyPinYinUtils
 import com.yuyan.inputmethod.util.T9PinYinUtils
@@ -50,8 +51,13 @@ object RimeEngine {
     fun onNormalKey(event: KeyEvent) {
         val keyCode = event.keyCode
         val keyChar = if(keyCode == KeyEvent.KEYCODE_APOSTROPHE) if(isFinish()) '/'.code else '\''.code
-            else event.unicodeChar
-        if (keyRecordStack.pushKey(event))Rime.processKey(keyChar, event.action)
+            else if (event.unicodeChar != 0) event.unicodeChar
+            else android.view.KeyCharacterMap.load(android.view.KeyCharacterMap.VIRTUAL_KEYBOARD)
+                .get(keyCode, event.metaState)
+        // mask 是 rime 修饰键掩码（Shift/Ctrl…），不是 KeyEvent.action；统一传 0
+        val pushed = keyRecordStack.pushKey(event)
+        val ret = if (pushed) Rime.processKey(keyChar, 0) else false
+        ImeLog.d("key code=$keyCode char=$keyChar('${keyChar.toChar()}') pushed=$pushed rimeRet=$ret")
         updateCandidatesOrCommitText()
     }
 
@@ -167,6 +173,7 @@ object RimeEngine {
     private fun updateCandidatesOrCommitText(): String? {
         val rimeCommit = Rime.getRimeCommit()
         if (rimeCommit != null) {
+            ImeLog.d("commit='${rimeCommit.commitText}'")
             keyRecordStack.clear()
             preCommitText = rimeCommit.commitText
             preCommitText = if (charCase == KeyEvent.META_SHIFT_ON) {

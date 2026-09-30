@@ -159,7 +159,10 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
 
     private fun processInput(event: KeyEvent): Boolean {
         val keyCode = event.keyCode
-        val keyChar = event.unicodeChar
+        // 与 InputView.processInput 同理：软键盘 KeyEvent 无 unicodeChar，需 KeyCharacterMap 解析
+        val keyChar = if (event.unicodeChar != 0) event.unicodeChar
+            else android.view.KeyCharacterMap.load(android.view.KeyCharacterMap.VIRTUAL_KEYBOARD)
+                .get(keyCode, event.metaState)
         val label = keyChar.toChar().toString()
         return when {
             keyCode == KeyEvent.KEYCODE_DEL -> {

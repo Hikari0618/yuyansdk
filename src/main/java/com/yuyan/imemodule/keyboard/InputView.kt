@@ -465,7 +465,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     private fun processInput(event: KeyEvent): Boolean {
         val keyCode = event.keyCode
-        val keyChar = event.unicodeChar
+        // 软键盘合成的 KeyEvent 无 unicodeChar（恒 0），必须经 KeyCharacterMap 解析，
+        // 否则按键进不了 Rime、直接当原始按键发给编辑框（表现为"打不出字"）
+        val keyChar = if (event.unicodeChar != 0) event.unicodeChar
+            else android.view.KeyCharacterMap.load(android.view.KeyCharacterMap.VIRTUAL_KEYBOARD)
+                .get(keyCode, event.metaState)
         val label = keyChar.toChar().toString()
 
         return when {

@@ -10,9 +10,11 @@
 #include <rime_api.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <sys/stat.h>
 
 #include <rime/schema.h>
 #include <rime/service.h>
@@ -115,38 +117,51 @@ Engine& Engine::Instance() {
 void Engine::Startup(const std::string& shared_dir,
                      const std::string& user_dir,
                      bool full_check) {
-  std::lock_guard<std::mutex> lock(g_mutex);
   shared_dir_ = shared_dir;
   user_dir_ = user_dir;
-  if (!initialized_) {
-    RIME_STRUCT(RimeTraits, traits)
-    traits.shared_data_dir = shared_dir_.c_str();
-    traits.user_data_dir = user_dir_.c_str();
-    traits.log_dir = "";  // 不写日志文件
-    traits.app_name = "rime.yuyan";
-    traits.distribution_name = "YuyanIme";
-    traits.distribution_code_name = "yuyan";
-    traits.distribution_version = "1.0";
-    // deployer 组含 core+dict+levers（部署/同步任务），gears 是翻译组件，
-    // lua/octagram 是万象等方案的脚本与语言模型组件
-    static const char* kModules[] = {"deployer", "gears", "lua", "octagram",
-                                     nullptr};
-    traits.modules = kModules;
-    rime()->setup(&traits);
-    rime()->initialize(&traits);
-    initialized_ = true;
-    session_id_ = 0;
-  }
-  if (full_check) {
-    // 完整部署：重新编译方案文件
-    if (session_id_) {
-      rime()->destroy_session(session_id_);
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!initialized_) {
+      RIME_STRUCT(RimeTraits, traits)
+      traits.shared_data_dir = shared_dir_.c_str();
+      traits.user_data_dir = user_dir_.c_str();
+      // 引擎日志写 /sdcard/yuyan/logs（部署失败的真实原因都在这里，
+      // 比如 "error building config: default" / "schema list not defined"）；
+      // 无权限时退回空（只输出 stderr）
+      ::mkdir("/sdcard/yuyan", 0770);
+      static const char* kLogDir = "/sdcard/yuyan/logs";
+      traits.log_dir = (::mkdir(kLogDir, 0770) == 0 || errno == EEXIST) ? kLogDir : "";
+      traits.app_name = "rime.yuyan";
+      traits.distribution_name = "YuyanIme";
+      traits.distribution_code_name = "yuyan";
+      traits.distribution_version = "1.0";
+      // deployer 组含 core+dict+levers（部署/同步任务），gears 是翻译组件，
+      // lua/octagram 是万象等方案的脚本与语言模型组件
+      static const char* kModules[] = {"deployer", "gears", "lua", "octagram",
+                                       nullptr};
+      traits.modules = kModules;
+      rime()->setup(&traits);
+      rime()->initialize(&traits);
+      initialized_ = true;
       session_id_ = 0;
     }
+    if (full_check && session_id_) {
+      rime()->destroy_session(session_id_);
+      session_id_ = 0;
+      ResetPaging();
+    }
+  }
+  if (full_check) {
+    // 完整部署：重新编译方案文件。编译可达分钟级，必须在锁外等待，
+    // 否则期间所有按键/JNI 调用被阻塞（表现为打不出字、系统侧滑卡顿）。
     rime()->start_maintenance(True);
     rime()->join_maintenance_thread();
+    std::lock_guard<std::mutex> lock(g_mutex);
     ResetPaging();
+    EnsureSession();
+    return;
   }
+  std::lock_guard<std::mutex> lock(g_mutex);
   EnsureSession();
 }
 

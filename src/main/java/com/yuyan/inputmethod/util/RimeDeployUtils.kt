@@ -90,6 +90,7 @@ object RimeDeployUtils {
 
             log("====== 部署完成 ======")
             summary.append("✅ 部署完成，共 ").append(schemas.size).append(" 个方案")
+            appendEngineLogTail()
             val logFile = writeLogFile(context)
             if (logFile != null) {
                 summary.append("\n📄 详细日志: ").append(logFile.absolutePath)
@@ -102,6 +103,26 @@ object RimeDeployUtils {
             log("====== 部署失败 ======")
             val logFile = runCatching { writeLogFile(Launcher.instance.context) }.getOrNull()
             "❌ 部署失败: $e\n📄 详细日志: ${logFile?.absolutePath ?: "(写入失败)"}"
+        }
+    }
+
+    /** 把 librime 引擎日志（/sdcard/yuyan/logs 最新一个 glog 文件）的尾部并入部署日志——
+     *  部署失败的真实原因（config 构建失败、schema list not defined 等）只在这里 */
+    private fun appendEngineLogTail() {
+        try {
+            val logsDir = File(RimeWorkspace.SD_RIME_DIR, "logs")
+            val latest = logsDir.listFiles()?.filter { it.isFile }?.maxByOrNull { it.lastModified() }
+            if (latest == null) {
+                log("（无引擎日志文件 /sdcard/yuyan/logs）")
+                return
+            }
+            log("---- 引擎日志尾部 (${latest.name}) ----")
+            val lines = latest.readLines()
+            lines.takeLast(60).forEach { log("  $it") }
+            val errors = lines.count { it.contains(" E") || it.contains("[ERROR]") }
+            log("---- 引擎日志统计: ${lines.size} 行, $errors 条错误 ----")
+        } catch (e: Exception) {
+            log("读取引擎日志失败: $e")
         }
     }
 
