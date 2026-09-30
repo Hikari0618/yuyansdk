@@ -170,7 +170,7 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
         }
         // 模糊音设置
         screen.addPreference("🈳 模糊音设置", "自由开关模糊音，保存后自动部署生效") {
-            com.yuyan.imemodule.keyboard.showFuzzyPinyinDialog()
+            com.yuyan.imemodule.keyboard.showFuzzyPinyinDialog(ctx)
         }
         // Rime 原生同步
         screen.addPreference("🔄 同步用户数据", "上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {

@@ -3,6 +3,8 @@
 //   yuyan_test <用户目录> [--deploy] [--schema ID] [--type 键序列] [--assoc 文本] [--select N]
 #include <cstdio>
 #include <cstring>
+#include <chrono>
+#include <thread>
 #include <memory>
 #include <string>
 #include <vector>
@@ -107,6 +109,8 @@ int main(int argc, char** argv) {
   std::string type_keys;
   std::string assoc;
   std::string gen_reverse;
+  int bench_assoc = 0;
+  int idle_seconds = 0;
   bool deploy = false;
   bool sync = false;
   int page = 0;
@@ -123,6 +127,8 @@ int main(int argc, char** argv) {
     else if (!strcmp(argv[i], "--assoc") && i + 1 < argc) assoc = argv[++i];
     else if (!strcmp(argv[i], "--select") && i + 1 < argc) select = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--gen-reverse") && i + 1 < argc) gen_reverse = argv[++i];
+    else if (!strcmp(argv[i], "--bench-assoc") && i + 1 < argc) bench_assoc = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--idle") && i + 1 < argc) idle_seconds = atoi(argv[++i]);
   }
 
   yuyan::Engine& engine = yuyan::Engine::Instance();
@@ -172,6 +178,20 @@ int main(int argc, char** argv) {
       engine.SelectAssociate(0);
       CheckCommit();
     }
+  }
+  if (bench_assoc > 0) {
+    for (int i = 0; i < bench_assoc; i++) {
+      auto t0 = std::chrono::steady_clock::now();
+      auto words = engine.AssociateList(assoc.empty() ? "你好" : assoc);
+      auto t1 = std::chrono::steady_clock::now();
+      double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      printf("[bench-assoc] %d: %.2f ms (%zu words)\n", i, ms, words.size());
+    }
+  }
+  if (idle_seconds > 0) {
+    printf("[idle] sleeping %d s ...\n", idle_seconds);
+    std::this_thread::sleep_for(std::chrono::seconds(idle_seconds));
+    printf("[idle] done\n");
   }
   return 0;
 }

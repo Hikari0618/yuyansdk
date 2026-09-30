@@ -168,14 +168,14 @@ object RimeWorkspace {
     }
 
     /**
-     * 生成 default.yaml，schema_list 包含全部可用方案。
-     * 以用户目录中的 default.yaml（assets 模板）为底，仅替换 schema_list 段，
+     * 生成 default.yaml，schema_list 合并全部可用方案。
+     * 以用户目录中的 default.yaml（assets 模板或用户自己的）为底，仅替换 schema_list 段，
      * 保留 switcher/punctuator/key_binder 等标准段（方案配置 import_preset 需要）。
-     * 若用户在 /sdcard/rime 放置了自己的 default.yaml（导入时已复制），则尊重用户版本。
+     * 注意：schema_list 始终以扫描结果为准——用户版本的 schema_list 可能指向
+     * 已不存在的方案，若听信它会导致部署后无可用方案、打不出字。
      */
-    fun writeDefaultYamlIfNeeded(userProvided: Boolean): Boolean {
+    fun writeDefaultYamlIfNeeded(): Boolean {
         val target = File(userDir, "default.yaml")
-        if (userProvided && target.exists()) return false
         val schemas = allSchemas()
         if (schemas.isEmpty()) return false
         val newItems = schemas.map { "  - schema: $it" }

@@ -42,10 +42,13 @@ class ImeService : InputMethodService() {
     private var isSoftKeyboard = false
     private lateinit var mInputView: InputView
     private lateinit var mCandidateView: CandidateView
-    private val onThemeChangeListener = OnThemeChangeListener { _: Theme? -> if (isHardwareKeyboard) mCandidateView.updateTheme() else mInputView.updateTheme()}
+    private val onThemeChangeListener = OnThemeChangeListener { _: Theme? ->
+        if (isHardwareKeyboard) { if (::mCandidateView.isInitialized) mCandidateView.updateTheme() }
+        else if (::mInputView.isInitialized) mInputView.updateTheme()
+    }
     private val clipboardUpdateContent = getInstance().internal.clipboardUpdateContent
     private val clipboardUpdateContentListener = ManagedPreference.OnChangeListener<String> { _, value ->
-        if(isSoftKeyboard && getInstance().clipboard.clipboardSuggestion.getValue()){
+        if(isSoftKeyboard && ::mInputView.isInitialized && getInstance().clipboard.clipboardSuggestion.getValue()){
             if(value.isNotBlank()) {
                 if(KeyboardManager.instance.currentContainer is ClipBoardContainer
                     && (KeyboardManager.instance.currentContainer as ClipBoardContainer).getMenuMode() == SkbMenuMode.ClipBoard ){
@@ -63,12 +66,14 @@ class ImeService : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
-        mInputView = InputView(baseContext, this)
+        // 缓存视图：Android 每次 startInput（含侧滑返回转场聚焦）都可能调用本方法，
+        // 每次重建会 inflate 整个键盘布局树，严重拖慢系统返回手势
+        if (!::mInputView.isInitialized) mInputView = InputView(baseContext, this)
         return mInputView
     }
 
     override fun onCreateCandidatesView(): View {
-        mCandidateView = CandidateView(baseContext, this)
+        if (!::mCandidateView.isInitialized) mCandidateView = CandidateView(baseContext, this)
         return mCandidateView
     }
 
@@ -79,12 +84,12 @@ class ImeService : InputMethodService() {
     override fun onStartInput(editorInfo: EditorInfo?, restarting: Boolean) {
         YuyanEmojiCompat.setEditorInfo(editorInfo)
         handleHardwareKeyboard()
-        if (isHardwareKeyboard)mCandidateView.onStartInput(editorInfo, restarting)
+        if (isHardwareKeyboard && ::mCandidateView.isInitialized)mCandidateView.onStartInput(editorInfo, restarting)
         super.onStartInput(editorInfo, restarting)
     }
 
     override fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
-        if (isSoftKeyboard)mInputView.onStartInputView(editorInfo, restarting)
+        if (isSoftKeyboard && ::mInputView.isInitialized)mInputView.onStartInputView(editorInfo, restarting)
         super.onStartInputView(editorInfo, restarting)
     }
 
@@ -107,7 +112,7 @@ class ImeService : InputMethodService() {
                 KeyboardLoaderUtil.instance.clearKeyboardMap()
                 KeyboardManager.instance.clearKeyboard()
                 KeyboardManager.instance.switchKeyboard()
-            } else if(isHardwareKeyboard){
+            } else if(isHardwareKeyboard && ::mCandidateView.isInitialized){
                 mCandidateView.initView()
             }
         }
@@ -118,16 +123,16 @@ class ImeService : InputMethodService() {
         // 0 != event.getRepeatCount()  长按物理按键或 Shift/Meta/Ctrl的组合按键时，交由系统处理;有个特殊组合键：Ctrl+SPACE切换语言
         return if (0 != event.repeatCount || event.isShiftPressed || event.isMetaPressed) super.onKeyDown(keyCode, event)
         else if(event.isCtrlPressed && keyCode != KeyEvent.KEYCODE_SPACE)super.onKeyDown(keyCode, event)
-        else if (isSoftKeyboard) mInputView.processKeyDown(keyCode, event) || super.onKeyUp(keyCode, event)
-        else if (isHardwareKeyboard) mCandidateView.processKeyDown(keyCode, event) || super.onKeyUp(keyCode, event)
+        else if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.processKeyDown(keyCode, event) || super.onKeyUp(keyCode, event)
+        else if (isHardwareKeyboard && ::mCandidateView.isInitialized) mCandidateView.processKeyDown(keyCode, event) || super.onKeyUp(keyCode, event)
         else super.onKeyDown(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         return if (0 != event.repeatCount || event.isShiftPressed || event.isMetaPressed) super.onKeyDown(keyCode, event)
         else if(event.isCtrlPressed && keyCode != KeyEvent.KEYCODE_SPACE)super.onKeyDown(keyCode, event)
-        else if (isSoftKeyboard) mInputView.processKeyUp(event) || super.onKeyUp(keyCode, event)
-        else if (isHardwareKeyboard) mCandidateView.processKeyUp(event) || super.onKeyUp(keyCode, event)
+        else if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.processKeyUp(event) || super.onKeyUp(keyCode, event)
+        else if (isHardwareKeyboard && ::mCandidateView.isInitialized) mCandidateView.processKeyUp(event) || super.onKeyUp(keyCode, event)
         else super.onKeyDown(keyCode, event)
     }
 
@@ -171,7 +176,7 @@ class ImeService : InputMethodService() {
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
-        if (isSoftKeyboard) mInputView.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesEnd)
+        if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesEnd)
     }
 
     private val cursorAnchorPosition = FloatArray(2)

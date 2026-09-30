@@ -166,7 +166,10 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             }.start()
         }
         SkbMenuMode.FuzzyPinyin -> {
-            showFuzzyPinyinDialog()
+            // AlertDialog 需要 Activity 窗口 token，键盘内用 Service context 会崩溃；
+            // 模糊音设置入口在「设置 → 输入设置 → 模糊音」中，这里跳转过去
+            AppUtil.launchSettingsToKeyboard(Launcher.instance.context)
+            showToast("请在「设置 → 输入设置 → 模糊音」中修改")
         }
         else ->{}
     }
@@ -174,13 +177,14 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
 
 private fun showToast(message: String) {
     android.os.Handler(android.os.Looper.getMainLooper()).post {
-        android.widget.Toast.makeText(Launcher.instance.context, message, android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(Launcher.instance.context, message, android.widget.Toast.LENGTH_LONG).show()
     }
 }
 
-/** 模糊音设置对话框：自由开关模糊音，保存后自动重新部署生效 */
-fun showFuzzyPinyinDialog() {
-    val context = Launcher.instance.context
+/** 模糊音设置对话框：自由开关模糊音，保存后自动重新部署生效。
+ *  必须传 Activity 的 context（AlertDialog 需要有效的窗口 token，
+ *  IME Service 的 context 弹窗会抛 BadTokenException）。 */
+fun showFuzzyPinyinDialog(context: android.content.Context) {
     val schemaId = com.yuyan.imemodule.prefs.AppPrefs.getInstance().internal.pinyinModeRime.getValue()
     if (schemaId == com.yuyan.imemodule.application.CustomConstant.SCHEMA_ZH_HANDWRITING) {
         showToast("手写模式不支持模糊音设置")

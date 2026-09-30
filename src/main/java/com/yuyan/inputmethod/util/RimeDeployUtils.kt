@@ -24,18 +24,15 @@ object RimeDeployUtils {
             val summary = StringBuilder()
 
             // 1. 导入 /sdcard/rime 下的方案文件（如已授权）
-            val userProvidedDefault: Boolean
             if (RimeWorkspace.hasStoragePermission(Launcher.instance.context)) {
                 summary.append(RimeWorkspace.importFromSdcard()).append("\n")
-                userProvidedDefault = File(RimeWorkspace.SD_RIME_DIR, "default.yaml").exists()
             } else {
                 summary.append("未授予文件访问权限，跳过 /sdcard/rime 导入\n")
-                userProvidedDefault = false
             }
 
-            // 2. 生成/刷新 default.yaml（schema_list 包含全部方案）
+            // 2. 生成/刷新 default.yaml（schema_list 始终合并全部方案，防止失效列表导致打不出字）
             val schemas = RimeWorkspace.allSchemas()
-            RimeWorkspace.writeDefaultYamlIfNeeded(userProvidedDefault)
+            RimeWorkspace.writeDefaultYamlIfNeeded()
 
             // 3. 停止引擎并以完整检查模式重启，触发方案编译
             Rime.destroy()
