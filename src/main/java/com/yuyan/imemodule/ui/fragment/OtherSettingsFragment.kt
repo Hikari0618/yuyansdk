@@ -151,12 +151,12 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
-        // Rime 重新部署（导入 /sdcard/rime 方案 + 重新编译）
-        screen.addPreference("⚙️ 重新部署", "导入 /sdcard/rime 方案并重新编译（部署期间输入法暂不可用）") {
+        // Rime 重新部署（导入 /sdcard/yuyan 方案 + 重新编译）
+        screen.addPreference("⚙️ 重新部署", "导入 /sdcard/yuyan 方案并重新编译（部署期间输入法暂不可用）") {
             if (!RimeWorkspace.ensureStoragePermission(ctx)) return@addPreference
             AlertDialog.Builder(ctx)
                 .setTitle("重新部署")
-                .setMessage("将从 /sdcard/rime 导入方案文件并重新编译，部署期间输入法暂时不可用。")
+                .setMessage("将从 /sdcard/yuyan 导入方案文件并重新编译，部署期间输入法暂时不可用。\n（请把万象等方案资料放到 /sdcard/yuyan/ 目录，不要放 /sdcard/rime——那是同文输入法的工作区）")
                 .setPositiveButton("开始部署") { _, _ ->
                     lifecycleScope.launch {
                         val result = withContext(Dispatchers.IO) {
@@ -205,7 +205,7 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
             } else {
                 AlertDialog.Builder(ctx)
                     .setTitle("需要存储权限")
-                    .setMessage("Rime 同步需要写入 /sdcard/rime/sync/ 目录，请授予「所有文件访问」权限。")
+                    .setMessage("Rime 同步需要写入 /sdcard/yuyan/sync/ 目录，请授予「所有文件访问」权限。")
                     .setPositiveButton("去授权") { _, _ ->
                         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                             data = Uri.parse("package:${ctx.packageName}")

@@ -6,13 +6,14 @@ import java.io.File
 
 /**
  * Rime 工作区管理：
- *  - 从 /sdcard/rime 导入用户放置的方案文件
+ *  - 从 /sdcard/yuyan 导入用户放置的方案文件
  *  - 扫描用户目录中的自定义方案
  *  - 生成 default.yaml（schema_list 含全部可用方案）
  */
 object RimeWorkspace {
 
-    const val SD_RIME_DIR = "/sdcard/rime"
+    /** 语燕专属的 sdcard 目录（勿用 /sdcard/rime：那是同文输入法等工作区，文件混入会破坏部署） */
+    const val SD_RIME_DIR = "/sdcard/yuyan"
 
     /** 内置方案（随 APK 附带，不作为“自定义方案”展示） */
     private val BUILTIN_SCHEMAS = setOf(
@@ -29,7 +30,7 @@ object RimeWorkspace {
         "double_pinyin_ziguang",
     )
 
-    private val userDir: File get() = File(CustomConstant.RIME_DICT_PATH)
+    val userDir: File get() = File(CustomConstant.RIME_DICT_PATH)
 
     /** 所有可部署方案（内置 + 自定义），返回 (schemaId, 名称) */
     fun allSchemas(): List<Pair<String, String>> {
@@ -129,7 +130,7 @@ object RimeWorkspace {
         }
         android.widget.Toast.makeText(
             context,
-            "需要文件访问权限才能读取 /sdcard/rime，请授权后重新操作",
+            "需要文件访问权限才能读取 /sdcard/yuyan，请授权后重新操作",
             android.widget.Toast.LENGTH_LONG
         ).show()
         return false
@@ -146,7 +147,10 @@ object RimeWorkspace {
         var fileCount = 0
         var schemaCount = 0
         fun skip(name: String): Boolean {
-            return name.contains("userdb") || name == "user.yaml" || name == "build"
+            // 用户数据与工作区配置不导入：default/installation/user.yaml 由 App 管理，
+            // 同文等其他输入法的同名文件混入会让引擎配置构建失败（打不出字）
+            return name.contains("userdb") || name == "user.yaml" || name == "build" ||
+                name == "default.yaml" || name == "installation.yaml"
         }
         fun copyRecursively(src: File, dst: File) {
             if (src.isDirectory) {

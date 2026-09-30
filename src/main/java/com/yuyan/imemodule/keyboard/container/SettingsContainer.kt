@@ -188,7 +188,7 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 SkbMenuMode.PinyinStroke
             )
         )
-        // 自定义方案（/sdcard/rime 导入的任意拼音方案，如万象拼音等）
+        // 自定义方案（/sdcard/yuyan 导入的任意拼音方案，如万象拼音等）
         com.yuyan.inputmethod.util.RimeWorkspace.customSchemas()
             .filter { it.first != CustomConstant.SCHEMA_ZH_WANXIANG_PRO }
             .forEach { (schemaId, schemaName) ->
