@@ -146,6 +146,9 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
                 else InputModeSwitcher.USER_KEYCODE_TEXTEDIT)
         }
         SkbMenuMode.RimeSync -> {
+            if (!com.yuyan.inputmethod.util.RimeWorkspace.ensureStoragePermission(Launcher.instance.context)) {
+                return
+            }
             showToast("正在同步用户数据…")
             Thread {
                 val result = com.yuyan.inputmethod.util.RimeSyncUtils.sync()
@@ -153,6 +156,9 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             }.start()
         }
         SkbMenuMode.RimeDeploy -> {
+            if (!com.yuyan.inputmethod.util.RimeWorkspace.ensureStoragePermission(Launcher.instance.context)) {
+                return
+            }
             showToast("正在部署，期间输入法暂不可用…")
             Thread {
                 val result = com.yuyan.inputmethod.util.RimeDeployUtils.deploy()

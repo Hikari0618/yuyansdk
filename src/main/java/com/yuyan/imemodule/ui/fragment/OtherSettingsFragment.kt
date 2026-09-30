@@ -32,6 +32,7 @@ import com.yuyan.imemodule.utils.queryFileName
 import com.yuyan.imemodule.utils.TimeUtils
 import com.yuyan.inputmethod.util.RimeDeployUtils
 import com.yuyan.inputmethod.util.RimeSyncScheduler
+import com.yuyan.inputmethod.util.RimeWorkspace
 import com.yuyan.imemodule.view.preference.ManagedPreference
 import com.yuyan.imemodule.view.widget.withLoadingDialog
 import kotlinx.coroutines.Dispatchers
@@ -152,6 +153,7 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
         }
         // Rime 重新部署（导入 /sdcard/rime 方案 + 重新编译）
         screen.addPreference("⚙️ 重新部署", "导入 /sdcard/rime 方案并重新编译（部署期间输入法暂不可用）") {
+            if (!RimeWorkspace.ensureStoragePermission(ctx)) return@addPreference
             AlertDialog.Builder(ctx)
                 .setTitle("重新部署")
                 .setMessage("将从 /sdcard/rime 导入方案文件并重新编译，部署期间输入法暂时不可用。")

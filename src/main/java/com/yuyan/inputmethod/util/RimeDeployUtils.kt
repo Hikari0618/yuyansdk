@@ -25,7 +25,7 @@ object RimeDeployUtils {
 
             // 1. 导入 /sdcard/rime 下的方案文件（如已授权）
             val userProvidedDefault: Boolean
-            if (RimeWorkspace.hasStoragePermission()) {
+            if (RimeWorkspace.hasStoragePermission(Launcher.instance.context)) {
                 summary.append(RimeWorkspace.importFromSdcard()).append("\n")
                 userProvidedDefault = File(RimeWorkspace.SD_RIME_DIR, "default.yaml").exists()
             } else {

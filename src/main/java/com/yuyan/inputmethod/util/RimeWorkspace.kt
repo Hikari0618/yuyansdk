@@ -87,13 +87,52 @@ object RimeWorkspace {
         }
     }
 
-    /** 是否已授予所有文件访问权限（Android 11+ 读 /sdcard 需要） */
-    fun hasStoragePermission(): Boolean {
+    /** 是否已授予文件访问权限（Android 11+ 需“所有文件访问”，6-10 需存储运行时权限） */
+    fun hasStoragePermission(context: android.content.Context): Boolean {
         return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else {
-            true
+            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
         }
+    }
+
+    /**
+     * 确保已授予文件访问权限。未授权时 Toast 提示并跳转系统授权页，返回 false。
+     * Android 11+：跳“所有文件访问”授权页（部分 ROM 不支持时回退应用详情页）；
+     * Android 6-10：跳应用详情页手动开启存储权限。
+     */
+    fun ensureStoragePermission(context: android.content.Context): Boolean {
+        if (hasStoragePermission(context)) return true
+        val pkg = context.packageName
+        val detailIntent = android.content.Intent(
+            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            android.net.Uri.parse("package:$pkg")
+        )
+        val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                android.content.Intent(
+                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    android.net.Uri.parse("package:$pkg")
+                )
+            } catch (e: Exception) {
+                detailIntent
+            }
+        } else {
+            detailIntent
+        }
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            context.startActivity(detailIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        android.widget.Toast.makeText(
+            context,
+            "需要文件访问权限才能读取 /sdcard/rime，请授权后重新操作",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
+        return false
     }
 
     /**
