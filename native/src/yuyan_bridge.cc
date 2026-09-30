@@ -127,6 +127,11 @@ void Engine::Startup(const std::string& shared_dir,
     traits.distribution_name = "YuyanIme";
     traits.distribution_code_name = "yuyan";
     traits.distribution_version = "1.0";
+    // deployer 组含 core+dict+levers（部署/同步任务），gears 是翻译组件，
+    // lua/octagram 是万象等方案的脚本与语言模型组件
+    static const char* kModules[] = {"deployer", "gears", "lua", "octagram",
+                                     nullptr};
+    traits.modules = kModules;
     rime()->setup(&traits);
     rime()->initialize(&traits);
     initialized_ = true;
@@ -430,9 +435,13 @@ bool Engine::SyncUserData() {
     rime()->destroy_session(session_id_);
     session_id_ = 0;
   }
-  Bool ok = rime()->sync_user_data();
+  // 同步执行部署任务（installation_update 重建 sync 目录信息、
+  // backup_config_files 备份配置、user_dict_sync 导出+合并用户词典快照）
+  bool ok = rime()->run_task("installation_update") != 0;
+  ok = (rime()->run_task("backup_config_files") != 0) && ok;
+  ok = (rime()->run_task("user_dict_sync") != 0) && ok;
   EnsureSession();
-  return ok != 0;
+  return ok;
 }
 
 bool Engine::DeployWorkspace() {

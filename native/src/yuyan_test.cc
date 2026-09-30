@@ -108,12 +108,14 @@ int main(int argc, char** argv) {
   std::string assoc;
   std::string gen_reverse;
   bool deploy = false;
+  bool sync = false;
   int page = 0;
   bool page_down = false;
   int select = -1;
 
   for (int i = 2; i < argc; i++) {
     if (!strcmp(argv[i], "--deploy")) deploy = true;
+    else if (!strcmp(argv[i], "--sync")) sync = true;
     else if (!strcmp(argv[i], "--schema") && i + 1 < argc) schema = argv[++i];
     else if (!strcmp(argv[i], "--type") && i + 1 < argc) type_keys = argv[++i];
     else if (!strcmp(argv[i], "--page") && i + 1 < argc) page = atoi(argv[++i]);
@@ -127,6 +129,11 @@ int main(int argc, char** argv) {
   engine.Startup(user_dir, user_dir, deploy);
   if (deploy) {
     printf("[deploy] done\n");
+  }
+  if (sync) {
+    bool ok = engine.SyncUserData();
+    printf("[sync] %s\n", ok ? "OK" : "FAILED");
+    return ok ? 0 : 1;
   }
   if (!gen_reverse.empty()) {
     return GenReverse(user_dir, gen_reverse);
