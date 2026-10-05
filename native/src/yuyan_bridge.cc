@@ -458,7 +458,9 @@ std::string Engine::GetSwitches() {
     }
     rime()->config_end(&iter);
   }
-  rime()->config_close(&cfg);
+  // 注意：这里**不要** config_close。schema_open 返回的 Config 与引擎当前 schema
+  // 共享同一份 ConfigData（librime 的 ConfigComponent 用 weak 缓存共享数据），
+  // 真机点「输入选项」后键盘会卡一下再被杀掉重启，这个释放点最可疑，先去掉。
   dbg("done bytes=" + std::to_string(out.size()));
   return out;
 }

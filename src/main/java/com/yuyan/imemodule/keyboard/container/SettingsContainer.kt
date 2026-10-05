@@ -162,11 +162,8 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
             onKeyboardMenuClick(funItems[position])
         }
         mRVMenuLayout!!.setAdapter(adapter)
+        com.yuyan.inputmethod.util.ImeLog.d("[switches] adapter 已设置 items=${funItems.size}")
     }
-
-    /**
-     * 弹出键盘界面
-     */
     fun showSkbSelelctModeView() {
         val funItems: MutableList<SkbFunItem> = LinkedList()
         funItems.add(

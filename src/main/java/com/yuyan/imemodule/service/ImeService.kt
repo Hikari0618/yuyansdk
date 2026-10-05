@@ -156,9 +156,11 @@ class ImeService : InputMethodService() {
             view.setLayoutParams(layoutParams)
         }
         // 侧滑返回失效时看这行：窗口是不是又变成整屏了（整屏会吃掉系统边缘手势）
+        val winAttrs = (window as? android.app.Dialog)?.window?.attributes
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[window] float=$floatMode addPhrases=$addPhrases height=" +
-                (if (target == ViewGroup.LayoutParams.MATCH_PARENT) "MATCH_PARENT" else "WRAP_CONTENT")
+            "[window] float=$floatMode addPhrases=$addPhrases target=" +
+                (if (target == ViewGroup.LayoutParams.MATCH_PARENT) "MATCH_PARENT" else "WRAP_CONTENT") +
+                " winH=" + winAttrs?.height + " viewH=" + view.height
         )
     }
 

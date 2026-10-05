@@ -800,7 +800,8 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 if (textBeforeCursor.isBlank()) resetCandidateWindow()
                 else CustomEngine.parseExpressionAtEnd(textBeforeCursor).let { CustomEngine.expressionCalculator(textBeforeCursor, it).let(::showSymbols) }
             }
-            chinesePrediction && InputModeSwitcher.isChinese-> {
+            chinesePrediction && InputModeSwitcher.isChinese
+                    && KeyboardManager.instance.currentContainer !is com.yuyan.imemodule.keyboard.container.SettingsContainer -> {
                 val textBeforeCursor = service.getTextBeforeCursor(10)
                 if (textBeforeCursor.isBlank()) resetCandidateWindow()
                 else {

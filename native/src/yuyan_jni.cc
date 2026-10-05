@@ -192,7 +192,18 @@ Java_com_yuyan_inputmethod_core_Rime_setRimeOption(JNIEnv* env, jclass,
 
 JNIEXPORT jstring JNICALL
 Java_com_yuyan_inputmethod_core_Rime_getRimeSwitches(JNIEnv* env, jclass) {
-  return JFromString(env, yuyan::Engine::Instance().GetSwitches());
+  std::string s = yuyan::Engine::Instance().GetSwitches();
+  // 崩溃边界埋点：判断进程是不是死在 NewStringUTF（真机崩溃日志为空 = native 崩溃）
+  {
+    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
+    if (f) { fprintf(f, "[switches] jni 准备 NewStringUTF len=%zu\n", s.size()); fclose(f); }
+  }
+  jstring js = env->NewStringUTF(s.c_str());
+  {
+    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
+    if (f) { fprintf(f, "[switches] jni NewStringUTF 完成 ok=%d\n", js != nullptr ? 1 : 0); fclose(f); }
+  }
+  return js;
 }
 
 JNIEXPORT jboolean JNICALL
