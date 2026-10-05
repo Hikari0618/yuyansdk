@@ -180,7 +180,12 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
             }
             Character.isLetter(keyChar) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH -> {
                 DecodingInfo.inputAction(event)
-                updateCandidate()
+                val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
+                if (raw.isNotEmpty()) {
+                    // 引擎没消费这个键（ascii 直输 / 方案不认）→ 原样上屏
+                    com.yuyan.inputmethod.RimeEngine.pendingRawCommit = ""
+                    commitDecInfoText(raw)
+                } else updateCandidate()
                 true
             }
             else -> {

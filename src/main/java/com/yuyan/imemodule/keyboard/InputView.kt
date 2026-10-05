@@ -285,7 +285,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         }
 
         when (mode) {
-            PopupMenuMode.Text -> if (SymbolPreset.containsKey(value)) commitPairSymbol(value) else commitText(value)
+            PopupMenuMode.Text -> {
+                // 上滑/长按打出的符号：中文模式下 "/" 交给引擎（万象命令模式），
+                // 否则直接上屏（此前所有来源的 "/" 都是直接上屏，命令永远触发不了）
+                if (!inputSlashToEngineIfChinese(value)) {
+                    if (SymbolPreset.containsKey(value)) commitPairSymbol(value) else commitText(value)
+                }
+            }
             PopupMenuMode.SwitchIME -> InputMethodUtil.showPicker()
             PopupMenuMode.EMOJI -> onSettingsMenuClick(SkbMenuMode.Emojicon)
             PopupMenuMode.EnglishCell -> {
@@ -317,13 +323,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         else if(sKey.isUniStrKey){
             // 中文模式下符号页的 "/" 是 rime 的功能键（万象用它进入命令模式），
             // 必须送进引擎进组合区（待编辑区），否则会被当普通符号直接上屏。
-            if (InputModeSwitcher.isChinese && sKey.label == "/") {
-                DecodingInfo.inputAction(
-                    KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SLASH, 0, 0, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
-                )
-                updateCandidate()
-                return
-            }
+            if (inputSlashToEngineIfChinese(sKey.label)) return
             if (!DecodingInfo.isAssociate && !DecodingInfo.isCandidatesEmpty) chooseAndUpdate()
             sKey.label.takeIf(String::isNotEmpty)?.let {
                 if (SymbolPreset.containsKey(it)) commitPairSymbol(it) else commitText(it)
@@ -366,7 +366,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     private fun processEnglishKey(event: KeyEvent): Boolean {
         val keyCode = event.keyCode
-        val keyChar = event.unicodeChar
+        // 软键盘合成的 KeyEvent unicodeChar 恒为 0，必须经 KeyCharacterMap 解析，
+        // 否则这里提交出去的是 NUL 字符（英文模式打不出字母）
+        val keyChar = if (event.unicodeChar != 0) event.unicodeChar
+            else android.view.KeyCharacterMap.load(android.view.KeyCharacterMap.VIRTUAL_KEYBOARD)
+                .get(keyCode, event.metaState)
         val label = keyChar.toChar().toString()
         var result = true
         when {
@@ -497,7 +501,16 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             (Character.isLetterOrDigit(keyChar) && keyCode != KeyEvent.KEYCODE_0) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH -> {
                 textBeforeCursors.clear()
                 DecodingInfo.inputAction(event)
-                updateCandidate()
+                val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
+                if (raw.isNotEmpty()) {
+                    // 引擎没消费这个键（ascii 直输 / 方案不认）→ 原样上屏，
+                    // 否则字符被静默丢弃（英文模式打不出字母）
+                    com.yuyan.inputmethod.RimeEngine.pendingRawCommit = ""
+                    commitText(raw)
+                    resetToIdleState()
+                } else {
+                    updateCandidate()
+                }
                 true
             }
             keyCode != 0 -> {
@@ -518,6 +531,21 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     fun resetToIdleState() {
         resetCandidateWindow()
         if (hasSelectionAll) hasSelectionAll = false
+    }
+
+    /** 中文模式下符号键 "/" 是 rime 的功能键（万象用它进入命令模式），
+     *  必须送进引擎进组合区；返回 true 表示已按引擎处理（不再当普通符号上屏）。 */
+    private fun inputSlashToEngineIfChinese(value: String): Boolean {
+        if (!InputModeSwitcher.isChinese || value != "/") return false
+        DecodingInfo.inputAction(
+            KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SLASH, 0, 0, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
+        )
+        val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
+        if (raw.isNotEmpty()) {
+            com.yuyan.inputmethod.RimeEngine.pendingRawCommit = ""
+            commitText(raw)
+        } else updateCandidate()
+        return true
     }
 
     fun chooseAndUpdate(candId: Int = mSkbCandidatesBarView.getActiveCandNo()) {

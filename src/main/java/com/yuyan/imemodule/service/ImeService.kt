@@ -138,9 +138,20 @@ class ImeService : InputMethodService() {
 
     override fun setInputView(view: View) {
         super.setInputView(view)
-        val layoutParams = view.layoutParams
-        if (layoutParams != null && layoutParams.height != ViewGroup.LayoutParams.MATCH_PARENT) {
-            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+        applyInputViewHeight(view)
+    }
+
+    /** IME 窗口高度：只有浮键盘（可拖到屏幕任意位置）和加词面板需要整屏窗口。
+     *  普通模式让窗口只占键盘高度——窗口盖满整屏会把系统侧滑返回手势整个吃掉，
+     *  表现为「从边缘滑了完全没反应，换其他输入法就正常」。 */
+    private fun applyInputViewHeight(view: View) {
+        val needFullScreen =
+            EnvironmentSingleton.instance.keyboardModeFloat || (view as? InputView)?.isAddPhrases == true
+        val target = if (needFullScreen) ViewGroup.LayoutParams.MATCH_PARENT
+        else ViewGroup.LayoutParams.WRAP_CONTENT
+        val layoutParams = view.layoutParams ?: return
+        if (layoutParams.height != target) {
+            layoutParams.height = target
             view.setLayoutParams(layoutParams)
         }
     }
@@ -194,6 +205,8 @@ class ImeService : InputMethodService() {
 
     override fun onWindowShown() {
         if (isSoftKeyboard) mInputView.onWindowShown()
+        // 浮键盘开关可能在两次 startInput 之间被切换，每次显示窗口时重新定高
+        if (isSoftKeyboard && ::mInputView.isInitialized) applyInputViewHeight(mInputView)
         super.onWindowShown()
     }
 

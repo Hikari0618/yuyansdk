@@ -23,6 +23,9 @@ object RimeEngine {
     var showCandidates: List<CandidateListItem> = emptyList() // 所有待展示的候选词
     var showComposition: String = "" // 候选词上方展示的拼音
     var preCommitText: String = "" // 待提交的文字
+    /** 引擎拒绝按键（ascii 直输模式 / 方案不认的键）时，该按键应原样上屏的字符。
+     *  没有这个回退，英文模式下的按键会被静默丢弃 → 打不出字母。 */
+    var pendingRawCommit: String = ""
     private var customPhraseSize: Int = 0 // 自定义引擎候选词长度
     const val MASK_CASE_LOWER = 0
     private var charCase = 0x0000
@@ -58,6 +61,10 @@ object RimeEngine {
         val pushed = keyRecordStack.pushKey(event)
         val ret = if (pushed) Rime.processKey(keyChar, 0) else false
         ImeLog.d("[${Rime.getCurrentRimeSchema()}] key char=$keyChar('${keyChar.toChar()}') pushed=$pushed rimeRet=$ret")
+        // 引擎没消费这个键（ascii 直输模式，或方案不认这个键）且当前没有组合：
+        // 记下原样字符交给上层上屏。此前直接丢弃，表现为英文模式打不出字母。
+        pendingRawCommit =
+            if (!ret && keyChar > 0 && Rime.compositionText.isEmpty()) keyChar.toChar().toString() else ""
         updateCandidatesOrCommitText()
     }
 
