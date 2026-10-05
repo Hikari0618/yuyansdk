@@ -204,7 +204,9 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
 
     private fun updateCandidate() {
         DecodingInfo.updateDecodingCandidate()
-        if (DecodingInfo.isCandidatesEmpty) resetToIdleState()
+        // 同 InputView.updateCandidate：组合未结束时（拼音还没攒够、候选暂空）不能复位，
+        // 否则会清掉引擎组合与 preedit，拼音每键归零、永远打不出字
+        if (DecodingInfo.isCandidatesEmpty && DecodingInfo.isEngineFinish) resetToIdleState()
     }
 
     inner class ChoiceNotifier internal constructor() : CandidateViewListener {

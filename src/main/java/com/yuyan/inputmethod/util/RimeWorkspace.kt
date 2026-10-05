@@ -171,8 +171,14 @@ object RimeWorkspace {
         var schemaCount = 0
         fun skip(name: String): Boolean {
             // 用户数据与运行时文件不导入；default.yaml 不跳过——它就是 rime 标准的
-            // 方案列表文件（万象包自带、用户在里面 patch 方案 id），必须尊重
-            return name.contains("userdb") || name == "user.yaml" || name == "build" ||
+            // 方案列表文件（万象包自带、用户在里面 patch 方案 id），必须尊重。
+            // 注意：不能笼统用 contains("userdb")——方案包的 lua 模块
+            // lua/wanxiang/userdb.lua 会被误伤，导致万象 super_replacer /
+            // super_sequence 等 lua 组件加载失败（module 'wanxiang/userdb' not found，
+            // 间接辅助码等功能全部失效）。只过滤真正的用户词典产物。
+            val isUserDbArtifact = name == "userdb" || name.endsWith(".userdb") ||
+                name.endsWith(".userdb.txt")
+            return isUserDbArtifact || name == "user.yaml" || name == "build" ||
                 name == "installation.yaml"
         }
         fun copyRecursively(src: File, dst: File) {

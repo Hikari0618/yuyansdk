@@ -534,7 +534,10 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         DecodingInfo.updateDecodingCandidate()
         if (!DecodingInfo.isCandidatesEmpty) {
             (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
-        } else {
+        } else if (DecodingInfo.isEngineFinish) {
+            // 只在引擎确实没有待上屏输入时才复位。候选暂空但仍在组合（拼音还没攒够）时
+            // 复位会经 Kernel.reset → Rime.clearComposition 清掉引擎组合与 preedit，
+            // 导致拼音每按一键都归零、永远攒不起来（表现为打不出字）。
             resetToIdleState()
         }
         if (InputModeSwitcher.isEnglish) setComposingText(DecodingInfo.composingStrForCommit)
