@@ -178,7 +178,7 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
                 chooseAndUpdate(label.toInt() - 1)
                 true
             }
-            Character.isLetter(keyChar) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON -> {
+            Character.isLetter(keyChar) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH -> {
                 DecodingInfo.inputAction(event)
                 updateCandidate()
                 true

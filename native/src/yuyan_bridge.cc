@@ -42,6 +42,20 @@ namespace {
 
 std::mutex g_mutex;
 
+// 联想词用到的反查词典/词典缓存。创建 + Load 开销极大（pinyin.table.bin 68MB），
+// 且整个过程持着 g_mutex；此前每次调用都重建，于是光标一变
+// （含系统返回手势转场时的聚焦变化）就把主线程卡住数秒，
+// 表现为「侧滑返回失效」。这里按方案词典名缓存，方案不变即复用。
+std::string g_assoc_dict_name;
+std::unique_ptr<rime::ReverseLookupDictionary> g_assoc_rev;
+std::unique_ptr<rime::Dictionary> g_assoc_dict;
+
+void ResetAssociateCache() {
+  g_assoc_rev.reset();
+  g_assoc_dict.reset();
+  g_assoc_dict_name.clear();
+}
+
 RimeApi* rime() {
   static RimeApi* api = rime_get_api();
   return api;
@@ -158,6 +172,7 @@ void Engine::Startup(const std::string& shared_dir,
       rime()->initialize(&traits);
       initialized_ = true;
       session_id_ = 0;
+      ResetAssociateCache();
     }
     if (full_check && session_id_) {
       rime()->destroy_session(session_id_);
@@ -188,6 +203,7 @@ void Engine::Shutdown() {
   }
   rime()->finalize();
   initialized_ = false;
+  ResetAssociateCache();
   ResetPaging();
 }
 
@@ -466,19 +482,26 @@ std::vector<std::string> Engine::AssociateList(const std::string& text) {
   std::string dict_name = DictName();
   if (dict_name.empty()) return associate_words_;
 
-  // 反查词根读音
-  std::string codes;
-  {
-    rime::ReverseLookupDictionaryComponent component;
-    std::unique_ptr<rime::ReverseLookupDictionary> rev(component.Create(dict_name));
+  // 词典/反查词典只在方案变化时构建一次（见 g_assoc_* 的注释）
+  if (g_assoc_dict_name != dict_name || !g_assoc_rev || !g_assoc_dict) {
+    ResetAssociateCache();
+    rime::ReverseLookupDictionaryComponent rev_component;
+    std::unique_ptr<rime::ReverseLookupDictionary> rev(rev_component.Create(dict_name));
     if (!rev || !rev->Load()) return associate_words_;
-    if (!rev->ReverseLookup(stem, &codes)) return associate_words_;
+    rime::DictionaryComponent dict_component;
+    std::unique_ptr<rime::Dictionary> dict(dict_component.Create(dict_name, dict_name, {}));
+    if (!dict || !dict->Load()) return associate_words_;
+    g_assoc_rev = std::move(rev);
+    g_assoc_dict = std::move(dict);
+    g_assoc_dict_name = dict_name;
   }
 
+  // 反查词根读音
+  std::string codes;
+  if (!g_assoc_rev->ReverseLookup(stem, &codes)) return associate_words_;
+
   // 用读音做前缀预测式查询，取以词根开头的组词
-  rime::DictionaryComponent component;
-  std::unique_ptr<rime::Dictionary> dict(component.Create(dict_name, dict_name, {}));
-  if (!dict || !dict->Load()) return associate_words_;
+  rime::Dictionary* dict = g_assoc_dict.get();
 
   std::vector<std::string> raw;
   for (const auto& code : SplitWords(codes)) {
@@ -533,6 +556,7 @@ bool Engine::SyncUserData() {
   bool ok = rime()->run_task("installation_update") != 0;
   ok = (rime()->run_task("backup_config_files") != 0) && ok;
   ok = (rime()->run_task("user_dict_sync") != 0) && ok;
+  ResetAssociateCache();  // 用户词典快照被合并，旧缓存必须失效
   EnsureSession();
   return ok;
 }
@@ -545,6 +569,7 @@ bool Engine::DeployWorkspace() {
     session_id_ = 0;
   }
   Bool ok = rime()->deploy();
+  ResetAssociateCache();  // 词典已被重新编译，旧缓存必须失效
   EnsureSession();
   ResetPaging();
   return ok != 0;

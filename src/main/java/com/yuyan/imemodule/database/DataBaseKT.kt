@@ -65,6 +65,7 @@ abstract class DataBaseKT : RoomDatabase() {
                     super.onOpen(db)
                     ThreadPoolUtils.executeSingleton {
                         initPhrasesDb()
+                        ensureNewMenuItems()
                     }
                 }
             })
@@ -112,9 +113,22 @@ abstract class DataBaseKT : RoomDatabase() {
                     SkbFun(name = SkbMenuMode.Custom.name, isKeep = 0, position = 13),
                     SkbFun(name = SkbMenuMode.Settings.name, isKeep = 0, position = 14),
                     SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 0, position = 15),
+                    SkbFun(name = SkbMenuMode.RimeSwitches.name, isKeep = 0, position = 16),
                 )
                 instance.skbFunDao().insertAll(skbFuns)
             }
+        }
+
+        /** 补齐后续版本新增的菜单项。
+         *  老用户的库是旧种子建的，里面没有「输入选项」(RimeSwitches)，
+         *  不补这一条，键盘菜单里就永远看不到 schema 的开关列表（同文那套动态选项）。 */
+        private fun ensureNewMenuItems() {
+            val menu = instance.skbFunDao().getAllMenu()
+            if (menu.any { it.name == SkbMenuMode.RimeSwitches.name }) return
+            val nextPosition = (menu.maxOfOrNull { it.position } ?: -1) + 1
+            instance.skbFunDao().insert(
+                SkbFun(name = SkbMenuMode.RimeSwitches.name, isKeep = 0, position = nextPosition)
+            )
         }
     }
 }

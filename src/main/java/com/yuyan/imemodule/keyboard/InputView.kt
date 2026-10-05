@@ -315,6 +315,15 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         val keyCode = sKey.code
         if(sKey.isUserDefKey)processUserDefKey(keyCode, sKey.keyLabel)
         else if(sKey.isUniStrKey){
+            // 中文模式下符号页的 "/" 是 rime 的功能键（万象用它进入命令模式），
+            // 必须送进引擎进组合区（待编辑区），否则会被当普通符号直接上屏。
+            if (InputModeSwitcher.isChinese && sKey.label == "/") {
+                DecodingInfo.inputAction(
+                    KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SLASH, 0, 0, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
+                )
+                updateCandidate()
+                return
+            }
             if (!DecodingInfo.isAssociate && !DecodingInfo.isCandidatesEmpty) chooseAndUpdate()
             sKey.label.takeIf(String::isNotEmpty)?.let {
                 if (SymbolPreset.containsKey(it)) commitPairSymbol(it) else commitText(it)
@@ -483,7 +492,9 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 }
                 true
             }
-            (Character.isLetterOrDigit(keyChar) && keyCode != KeyEvent.KEYCODE_0) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON -> {
+            // KEYCODE_SLASH 同样交给引擎：万象用 "/" 触发命令模式，
+            // 落到默认分支会被直接上屏（不进待编辑区）。
+            (Character.isLetterOrDigit(keyChar) && keyCode != KeyEvent.KEYCODE_0) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH -> {
                 textBeforeCursors.clear()
                 DecodingInfo.inputAction(event)
                 updateCandidate()
