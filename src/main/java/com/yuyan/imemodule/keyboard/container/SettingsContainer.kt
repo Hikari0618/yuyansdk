@@ -128,7 +128,15 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
      *  部署好方案后其中的选项（中英、中英标点、半角全角等）自动出现 */
     fun showRimeSwitchesView() {
         val funItems: MutableList<SkbFunItem> = LinkedList()
-        com.yuyan.inputmethod.core.Rime.getRimeSwitches().lines()
+        // 读方案 switcher：native 调用单独包一层，异常直接落 ime.log
+        val rawSwitches = try {
+            com.yuyan.inputmethod.core.Rime.getRimeSwitches()
+        } catch (ex: Throwable) {
+            com.yuyan.inputmethod.util.ImeLog.d("[switches] getRimeSwitches 异常: " + android.util.Log.getStackTraceString(ex))
+            ""
+        }
+        com.yuyan.inputmethod.util.ImeLog.d("[switches] getRimeSwitches -> ${rawSwitches.length} 字符")
+        rawSwitches.lines()
             .filter { it.isNotBlank() }
             .forEach { line ->
                 val p = line.split("\t")

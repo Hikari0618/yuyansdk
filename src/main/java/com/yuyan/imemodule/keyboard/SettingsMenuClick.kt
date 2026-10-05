@@ -168,8 +168,14 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
         SkbMenuMode.RimeSwitches -> {
             // 动态选项（同文机制）：从当前方案的 switcher 配置自动读取，
             // 部署好方案后选项自动出现，无需硬编码
-            KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
-            (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showRimeSwitchesView()
+            try {
+                KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
+                (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showRimeSwitchesView()
+            } catch (ex: Throwable) {
+                // 真机点「输入选项」闪退：把异常落到 ime.log，并且不让输入法整个挂掉
+                com.yuyan.inputmethod.util.ImeLog.d("[switches] 输入选项异常: " + android.util.Log.getStackTraceString(ex))
+                showToast("读取输入选项失败: " + (ex.message ?: ex.javaClass.simpleName))
+            }
         }
         SkbMenuMode.RimeSwitchToggle -> {
             // 由 SettingsContainer.onKeyboardMenuClick 处理（需要 switch 名），此处兜底

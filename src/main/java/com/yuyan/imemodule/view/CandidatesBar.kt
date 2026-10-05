@@ -285,17 +285,24 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             }
         } else if (DecodingInfo.isCandidatesEmpty) {
             mRightArrowBtn.drawable.setLevel(0)
-            showViewVisibility(mCandidatesMenuContainer)
-            val mFunItems: MutableList<SkbFunItem> = mutableListOf()
-            val barMenus = DataBaseKT.instance.skbFunDao().getALlBarMenu()
-            for (item in barMenus) {
-                val skbMenuMode = SkbMenuMode.decode(item.name)
-                val skbFunItem = menuSkbFunsPreset[skbMenuMode]
-                if (skbFunItem != null) {
-                    mFunItems.add(skbFunItem)
+            // 引擎仍在组合（万象的 / 命令、未成词的拼音等）却没有候选时，必须继续显示组合串。
+            // 组合串 mComposingView 是 mCandidatesDataContainer 的子视图，此前这里直接切到
+            // 菜单条，把组合串一起藏掉了 → 表现为「打几个键待编辑区突然全部消失」。
+            if (DecodingInfo.composingStrForDisplay.isNotEmpty()) {
+                showViewVisibility(mCandidatesDataContainer)
+            } else {
+                showViewVisibility(mCandidatesMenuContainer)
+                val mFunItems: MutableList<SkbFunItem> = mutableListOf()
+                val barMenus = DataBaseKT.instance.skbFunDao().getALlBarMenu()
+                for (item in barMenus) {
+                    val skbMenuMode = SkbMenuMode.decode(item.name)
+                    val skbFunItem = menuSkbFunsPreset[skbMenuMode]
+                    if (skbFunItem != null) {
+                        mFunItems.add(skbFunItem)
+                    }
                 }
+                mCandidatesMenuAdapter.items = mFunItems
             }
-            mCandidatesMenuAdapter.items = mFunItems
         } else {
             if (DecodingInfo.candidateSize > DecodingInfo.activeCandidateBar) mRVCandidates.layoutManager?.scrollToPosition(DecodingInfo.activeCandidateBar)
             showViewVisibility(mCandidatesDataContainer)
