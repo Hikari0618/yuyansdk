@@ -145,8 +145,9 @@ class ImeService : InputMethodService() {
      *  普通模式让窗口只占键盘高度——窗口盖满整屏会把系统侧滑返回手势整个吃掉，
      *  表现为「从边缘滑了完全没反应，换其他输入法就正常」。 */
     private fun applyInputViewHeight(view: View) {
-        val needFullScreen =
-            EnvironmentSingleton.instance.keyboardModeFloat || (view as? InputView)?.isAddPhrases == true
+        val floatMode = EnvironmentSingleton.instance.keyboardModeFloat
+        val addPhrases = (view as? InputView)?.isAddPhrases == true
+        val needFullScreen = floatMode || addPhrases
         val target = if (needFullScreen) ViewGroup.LayoutParams.MATCH_PARENT
         else ViewGroup.LayoutParams.WRAP_CONTENT
         val layoutParams = view.layoutParams ?: return
@@ -154,6 +155,11 @@ class ImeService : InputMethodService() {
             layoutParams.height = target
             view.setLayoutParams(layoutParams)
         }
+        // 侧滑返回失效时看这行：窗口是不是又变成整屏了（整屏会吃掉系统边缘手势）
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[window] float=$floatMode addPhrases=$addPhrases height=" +
+                (if (target == ViewGroup.LayoutParams.MATCH_PARENT) "MATCH_PARENT" else "WRAP_CONTENT")
+        )
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false //修复横屏之后输入框遮挡问题

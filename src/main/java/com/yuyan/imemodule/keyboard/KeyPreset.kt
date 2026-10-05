@@ -40,6 +40,9 @@ object KeyPreset {
         InputModeSwitcher.USER_KEYCODE_SYMBOL to arrayOf("符号"),
         InputModeSwitcher.USER_KEYCODE_NUMBER to arrayOf("123"),
         InputModeSwitcher.USER_KEYCODE_EMOJI to arrayOf("表情"),
+        // 中英切换键的上滑输入：万象用反引号 ` 呼出另一套命令模式，
+        // 而主键盘没有这个键，所以挂在「中/英」键的上滑上（label 留空 → 仍画图标）
+        InputModeSwitcher.USER_KEYCODE_LANG to arrayOf("", "`"),
     )
 
     val qwertyKeyNumberPreset: Map<Int, Array<String>> = hashMapOf(
@@ -78,6 +81,9 @@ object KeyPreset {
         InputModeSwitcher.USER_KEYCODE_SYMBOL to arrayOf("符号"),
         InputModeSwitcher.USER_KEYCODE_NUMBER to arrayOf("123"),
         InputModeSwitcher.USER_KEYCODE_EMOJI to arrayOf("表情"),
+        // 中英切换键的上滑输入：万象用反引号 ` 呼出另一套命令模式，
+        // 而主键盘没有这个键，所以挂在「中/英」键的上滑上（label 留空 → 仍画图标）
+        InputModeSwitcher.USER_KEYCODE_LANG to arrayOf("", "`"),
     )
 
     val qwertyPYKeyPreset: Map<Int, Array<String>> = hashMapOf(
@@ -116,6 +122,9 @@ object KeyPreset {
         InputModeSwitcher.USER_KEYCODE_SYMBOL to arrayOf("符号"),
         InputModeSwitcher.USER_KEYCODE_NUMBER to arrayOf("123"),
         InputModeSwitcher.USER_KEYCODE_EMOJI to arrayOf("表情"),
+        // 中英切换键的上滑输入：万象用反引号 ` 呼出另一套命令模式，
+        // 而主键盘没有这个键，所以挂在「中/英」键的上滑上（label 留空 → 仍画图标）
+        InputModeSwitcher.USER_KEYCODE_LANG to arrayOf("", "`"),
     )
 
     val qwertyPYKeyNumberPreset: Map<Int, Array<String>> = hashMapOf(
@@ -154,6 +163,9 @@ object KeyPreset {
         InputModeSwitcher.USER_KEYCODE_SYMBOL to arrayOf("符号"),
         InputModeSwitcher.USER_KEYCODE_NUMBER to arrayOf("123"),
         InputModeSwitcher.USER_KEYCODE_EMOJI to arrayOf("表情"),
+        // 中英切换键的上滑输入：万象用反引号 ` 呼出另一套命令模式，
+        // 而主键盘没有这个键，所以挂在「中/英」键的上滑上（label 留空 → 仍画图标）
+        InputModeSwitcher.USER_KEYCODE_LANG to arrayOf("", "`"),
     )
 
     val lx17PYKeyPreset: Map<Int, Array<String>> = hashMapOf(
@@ -181,6 +193,9 @@ object KeyPreset {
         InputModeSwitcher.USER_KEYCODE_SYMBOL to arrayOf("符号"),
         InputModeSwitcher.USER_KEYCODE_NUMBER to arrayOf("123"),
         InputModeSwitcher.USER_KEYCODE_EMOJI to arrayOf("表情"),
+        // 中英切换键的上滑输入：万象用反引号 ` 呼出另一套命令模式，
+        // 而主键盘没有这个键，所以挂在「中/英」键的上滑上（label 留空 → 仍画图标）
+        InputModeSwitcher.USER_KEYCODE_LANG to arrayOf("", "`"),
     )
 
     val lx17PYKeyNumberPreset: Map<Int, Array<String>> = hashMapOf(
@@ -208,6 +223,9 @@ object KeyPreset {
         InputModeSwitcher.USER_KEYCODE_SYMBOL to arrayOf("符号"),
         InputModeSwitcher.USER_KEYCODE_NUMBER to arrayOf("123"),
         InputModeSwitcher.USER_KEYCODE_EMOJI to arrayOf("表情"),
+        // 中英切换键的上滑输入：万象用反引号 ` 呼出另一套命令模式，
+        // 而主键盘没有这个键，所以挂在「中/英」键的上滑上（label 留空 → 仍画图标）
+        InputModeSwitcher.USER_KEYCODE_LANG to arrayOf("", "`"),
     )
 
     val t9PYKeyPreset: Map<Int, Array<String>> = hashMapOf(

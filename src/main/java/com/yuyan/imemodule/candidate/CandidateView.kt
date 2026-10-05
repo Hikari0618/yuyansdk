@@ -178,7 +178,7 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
                 chooseAndUpdate(label.toInt() - 1)
                 true
             }
-            Character.isLetter(keyChar) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH -> {
+            Character.isLetter(keyChar) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH || keyCode == KeyEvent.KEYCODE_GRAVE -> {
                 DecodingInfo.inputAction(event)
                 val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
                 if (raw.isNotEmpty()) {

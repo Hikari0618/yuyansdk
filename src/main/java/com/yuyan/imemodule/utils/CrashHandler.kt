@@ -48,6 +48,16 @@ class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
         if (ex == null) {
             return false
         }
+        // 把崩溃栈也追加到 /sdcard/yuyan/ime.log：内部 filesDir/crash_logs 要手动导出，
+        // 而 ime.log 是日常就在传的日志，这样排查不用再来回要文件
+        try {
+            val sw = java.io.StringWriter()
+            ex.printStackTrace(java.io.PrintWriter(sw))
+            java.io.File("/sdcard/yuyan/ime.log")
+                .appendText("\n===== CRASH =====\n" + sw.toString() + "\n")
+        } catch (e: Throwable) {
+            // 落盘失败不能影响原有崩溃处理流程
+        }
         collectDeviceInfo(mContext)
         saveCrashInfoToFile(ex)
         return true

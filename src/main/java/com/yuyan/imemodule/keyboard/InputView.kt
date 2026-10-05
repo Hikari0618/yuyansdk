@@ -288,7 +288,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             PopupMenuMode.Text -> {
                 // 上滑/长按打出的符号：中文模式下 "/" 交给引擎（万象命令模式），
                 // 否则直接上屏（此前所有来源的 "/" 都是直接上屏，命令永远触发不了）
-                if (!inputSlashToEngineIfChinese(value)) {
+                if (!inputRimeFuncKeyIfChinese(value)) {
                     if (SymbolPreset.containsKey(value)) commitPairSymbol(value) else commitText(value)
                 }
             }
@@ -323,7 +323,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         else if(sKey.isUniStrKey){
             // 中文模式下符号页的 "/" 是 rime 的功能键（万象用它进入命令模式），
             // 必须送进引擎进组合区（待编辑区），否则会被当普通符号直接上屏。
-            if (inputSlashToEngineIfChinese(sKey.label)) return
+            if (inputRimeFuncKeyIfChinese(sKey.label)) return
             if (!DecodingInfo.isAssociate && !DecodingInfo.isCandidatesEmpty) chooseAndUpdate()
             sKey.label.takeIf(String::isNotEmpty)?.let {
                 if (SymbolPreset.containsKey(it)) commitPairSymbol(it) else commitText(it)
@@ -498,7 +498,8 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             }
             // KEYCODE_SLASH 同样交给引擎：万象用 "/" 触发命令模式，
             // 落到默认分支会被直接上屏（不进待编辑区）。
-            (Character.isLetterOrDigit(keyChar) && keyCode != KeyEvent.KEYCODE_0) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH -> {
+            // KEYCODE_SLASH / KEYCODE_GRAVE 同样交给引擎：万象用 "/" 和 "`" 触发命令模式
+            (Character.isLetterOrDigit(keyChar) && keyCode != KeyEvent.KEYCODE_0) || keyCode == KeyEvent.KEYCODE_APOSTROPHE || keyCode == KeyEvent.KEYCODE_SEMICOLON || keyCode == KeyEvent.KEYCODE_SLASH || keyCode == KeyEvent.KEYCODE_GRAVE -> {
                 textBeforeCursors.clear()
                 DecodingInfo.inputAction(event)
                 val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
@@ -533,12 +534,17 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         if (hasSelectionAll) hasSelectionAll = false
     }
 
-    /** 中文模式下符号键 "/" 是 rime 的功能键（万象用它进入命令模式），
-     *  必须送进引擎进组合区；返回 true 表示已按引擎处理（不再当普通符号上屏）。 */
-    private fun inputSlashToEngineIfChinese(value: String): Boolean {
-        if (!InputModeSwitcher.isChinese || value != "/") return false
+    /** 中文模式下 rime 的功能键必须送进引擎进组合区（万象用 "/" 和 "`" 进入命令模式），
+     *  否则会被当普通符号直接上屏；返回 true 表示已按引擎处理。 */
+    private fun inputRimeFuncKeyIfChinese(value: String): Boolean {
+        if (!InputModeSwitcher.isChinese) return false
+        val keyCode = when (value) {
+            "/" -> KeyEvent.KEYCODE_SLASH
+            "`" -> KeyEvent.KEYCODE_GRAVE
+            else -> return false
+        }
         DecodingInfo.inputAction(
-            KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SLASH, 0, 0, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
+            KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, 0, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
         )
         val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
         if (raw.isNotEmpty()) {
