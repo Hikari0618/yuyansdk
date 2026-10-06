@@ -417,46 +417,42 @@ std::string Engine::GetSwitches() {
     dbg("schema_open failed");
     return out;
   }
-  // 用列表迭代器遍历 switches（同文机制），iter.path 是列表项路径
-  RimeConfigIterator iter = {nullptr};
-  if (rime()->config_begin_list(&iter, &cfg, "switches")) {
-    int guard = 0;
-    while (guard++ < 128 && rime()->config_next(&iter)) {
-      std::string base = iter.path ? iter.path : "";
-      if (base.empty()) continue;
-      // 立刻拷贝成 std::string：config_get_cstring 返回的是配置内部指针，
-      // 后续任何 config_* 调用都可能让它失效（真机点「输入选项」闪退的嫌疑点）
-      const char* nameRaw =
-          rime()->config_get_cstring(&cfg, (base + "/name").c_str());
-      std::string name = nameRaw ? nameRaw : "";
-      if (name.empty()) continue;
-      // states 是内联列表，用迭代器取标量值
-      std::string s0s, s1s;
-      RimeConfigIterator siter = {nullptr};
-      if (rime()->config_begin_list(&siter, &cfg,
-                                   (base + "/states").c_str())) {
-        int si = 0;
-        int sguard = 0;
-        while (sguard++ < 16 && rime()->config_next(&siter)) {
-          const char* v = rime()->config_get_cstring(
-              &cfg, siter.path ? siter.path : "");
-          if (si == 0 && v) s0s = v;
-          if (si == 1 && v) s1s = v;
-          si++;
-        }
-        rime()->config_end(&siter);
-      }
-      bool val = session_id_ && rime()->get_option(session_id_, name.c_str());
-      out += name;
-      out += "\t";
-      out += s0s;
-      out += "\t";
-      out += s1s;
-      out += "\t";
-      out += val ? "1" : "0";
-      out += "\n";
+  // 两步走，关键是**不要把迭代器和其它配置调用交叉**：
+  // 之前是 config_begin_list 拿迭代器后，在循环里又对同一个配置做
+  // config_get_cstring / 嵌套 GetList（都是 Traverse，会改动配置树），
+  // 配置树一变迭代器就失效，踩内存后崩在函数返回处——真机点「输入选项」
+  // 就是崩在这里（连没有开关的 t9_pinyin 也崩，说明与开关内容无关）。
+  int count = 0;
+  {
+    RimeConfigIterator iter = {nullptr};
+    if (rime()->config_begin_list(&iter, &cfg, "switches")) {
+      while (count < 64 && rime()->config_next(&iter)) ++count;
+      rime()->config_end(&iter);
     }
-    rime()->config_end(&iter);
+  }
+  dbg("count=" + std::to_string(count));
+  // 逐项用纯路径查询取值，全程不持有迭代器；取到就立刻拷成 std::string
+  for (int i = 0; i < count; ++i) {
+    std::string base = "switches/@" + std::to_string(i);
+    const char* nameRaw =
+        rime()->config_get_cstring(&cfg, (base + "/name").c_str());
+    std::string name = nameRaw ? nameRaw : "";
+    if (name.empty()) continue;
+    const char* v0 =
+        rime()->config_get_cstring(&cfg, (base + "/states/@0").c_str());
+    std::string s0s = v0 ? v0 : "";
+    const char* v1 =
+        rime()->config_get_cstring(&cfg, (base + "/states/@1").c_str());
+    std::string s1s = v1 ? v1 : "";
+    bool val = session_id_ && rime()->get_option(session_id_, name.c_str());
+    out += name;
+    out += "\t";
+    out += s0s;
+    out += "\t";
+    out += s1s;
+    out += "\t";
+    out += val ? "1" : "0";
+    out += "\n";
   }
   // 注意：这里**不要** config_close。schema_open 返回的 Config 与引擎当前 schema
   // 共享同一份 ConfigData（librime 的 ConfigComponent 用 weak 缓存共享数据），
