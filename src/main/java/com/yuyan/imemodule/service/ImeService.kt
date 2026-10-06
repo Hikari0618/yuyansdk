@@ -182,10 +182,18 @@ class ImeService : InputMethodService() {
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.set(x, y, x + mInputView.mSkbRoot.width, y + mInputView.mSkbRoot.height)
                 } else {
-                    contentTopInsets = y
-                    touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
-                    touchableRegion.setEmpty()
-                    visibleTopInsets = y
+                    // contentTopInsets 是窗口内相对坐标，直接用键盘的屏幕 y 会把候选栏
+                    // 那一整条划到触摸区外面 → 点那里的事件穿透给 App，App 当作点了输入框
+                    // 外面就把键盘收了。改成显式触摸区：覆盖整个输入视图（候选栏+键盘），
+                    // 用屏幕坐标；这样键盘区域全可点，键盘上方仍能透传系统返回手势。
+                    val loc = IntArray(2)
+                    if (::mInputView.isInitialized) mInputView.getLocationOnScreen(loc)
+                    val vw = if (::mInputView.isInitialized) mInputView.width else 0
+                    val vh = if (::mInputView.isInitialized) mInputView.height else 0
+                    contentTopInsets = loc[1]
+                    visibleTopInsets = loc[1]
+                    touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+                    touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
                 }
             } else {
                 contentTopInsets = EnvironmentSingleton.instance.mScreenHeight

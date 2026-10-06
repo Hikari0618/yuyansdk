@@ -163,7 +163,9 @@ class Rime(fullCheck: Boolean) {
 
         @JvmStatic
         external fun setRimeOption(option: String, value: Boolean, )
+        @JvmStatic
         external fun setRimeOptionGroup(options: String, index: Int, )
+        @JvmStatic
         external fun setRimeCaretPos(caretPos: Int): Boolean
 
         /** 当前方案的 switcher 选项：每行 name\t状态0\t状态1\t当前值(0/1) */
