@@ -181,6 +181,14 @@ class ImeService : InputMethodService() {
                     visibleTopInsets = EnvironmentSingleton.instance.mScreenHeight
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.set(x, y, x + mInputView.mSkbRoot.width, y + mInputView.mSkbRoot.height)
+                } else if (!isInputViewShown) {
+                    // 键盘已收起（requestHideSelf）：窗口还在，但不能继续占着触摸区，
+                    // 否则收起后系统边缘返回手势会被输入法吃掉
+                    // （用户反馈：收起键盘后侧滑失效，杀进程才好、重开输入法又坏）。
+                    contentTopInsets = EnvironmentSingleton.instance.mScreenHeight
+                    visibleTopInsets = EnvironmentSingleton.instance.mScreenHeight
+                    touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+                    touchableRegion.setEmpty()
                 } else {
                     // contentTopInsets 是窗口内相对坐标，直接用键盘的屏幕 y 会把候选栏
                     // 那一整条划到触摸区外面 → 点那里的事件穿透给 App，App 当作点了输入框
@@ -201,12 +209,10 @@ class ImeService : InputMethodService() {
                     // 触摸区仍用显式 REGION 覆盖整个输入视图（候选栏+键盘），
                     // 保证待编辑区/候选栏都能点；VISIBLE 会把候选栏一起划出去。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    // 触摸区顶部跳过候选栏里当前空着的部分：空着时那一段是透明的、
-                    // 透出 App 内容，若仍圈进触摸区，边缘返回手势会被输入法吃掉
-                    // （Bilibili/MT 管理器里滑不动就是这个原因）。有内容时照常覆盖。
-                    val tTop = if (::mInputView.isInitialized) mInputView.touchableTop() else 0
-                    val regionTop = if (tTop > loc[1]) tTop else loc[1]
-                    touchableRegion.set(loc[0], regionTop, loc[0] + vw, loc[1] + vh)
+                    // 触摸区覆盖整个输入视图（候选栏+键盘）。不要按「当前是否有内容」动态缩小：
+                    // insets 只在窗口变化时重算，待编辑文字出现时不会重算，缩小后待编辑区
+                    // 就落在触摸区外面，点它直接穿透（实测）。收起状态由上面的分支处理。
+                    touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +

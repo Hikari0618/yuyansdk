@@ -665,7 +665,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         DecodingInfo.cacheCandidates(list, true)
     }
 
-    fun requestHideSelf() = service.requestHideSelf(0)
+    fun requestHideSelf() {
+        service.requestHideSelf(0)
+        // 收起后立刻重算 insets，把触摸区让出去。
+        // 否则收起的输入法窗口仍占着触摸区，系统边缘返回手势会被吃掉。
+        service.updateInputViewShown()
+    }
 
     private fun sendKeyEvent(keyCode: Int) {
         if (isAddPhrases) {
