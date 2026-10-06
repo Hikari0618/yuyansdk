@@ -30,6 +30,8 @@ __attribute__((used)) static const void* const kForceLinkModules[] = {
 #include <mutex>
 #include <sys/stat.h>
 
+#include <rime/config.h>
+#include <rime/context.h>
 #include <rime/schema.h>
 #include <rime/service.h>
 #include <rime/key_table.h>
@@ -402,49 +404,49 @@ std::string Engine::GetSwitches() {
     FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
     if (f) { fprintf(f, "[switches] %s\n", m.c_str()); fclose(f); }
   };
-  // 读取当前方案配置（schema_open 指向当前 schema:/ 命名空间）
-  RimeStatus status = {0};
-  status.data_size = sizeof(RimeStatus);
-  std::string schema_id;
-  if (session_id_ && rime()->get_status(session_id_, &status)) {
-    schema_id = status.schema_id ? status.schema_id : "";
-    rime()->free_status(&status);
-  }
-  dbg("enter schema=" + schema_id);
-  if (schema_id.empty()) return out;
-  RimeConfig cfg = {nullptr};
-  if (!rime()->schema_open(schema_id.c_str(), &cfg)) {
-    dbg("schema_open failed");
-    return out;
-  }
-  // 两步走，关键是**不要把迭代器和其它配置调用交叉**：
-  // 之前是 config_begin_list 拿迭代器后，在循环里又对同一个配置做
-  // config_get_cstring / 嵌套 GetList（都是 Traverse，会改动配置树），
-  // 配置树一变迭代器就失效，踩内存后崩在函数返回处——真机点「输入选项」
-  // 就是崩在这里（连没有开关的 t9_pinyin 也崩，说明与开关内容无关）。
-  int count = 0;
-  {
-    RimeConfigIterator iter = {nullptr};
-    if (rime()->config_begin_list(&iter, &cfg, "switches")) {
-      while (count < 64 && rime()->config_next(&iter)) ++count;
-      rime()->config_end(&iter);
-    }
-  }
-  dbg("count=" + std::to_string(count));
-  // 逐项用纯路径查询取值，全程不持有迭代器；取到就立刻拷成 std::string
-  for (int i = 0; i < count; ++i) {
-    std::string base = "switches/@" + std::to_string(i);
-    const char* nameRaw =
-        rime()->config_get_cstring(&cfg, (base + "/name").c_str());
-    std::string name = nameRaw ? nameRaw : "";
+  // 照同文/引擎自己的做法：直接用 C++ 接口拿当前 session 的 schema 配置。
+  // 之前用 get_status + RimeStatus 结构体（以及 schema_open/config_* 这套过时
+  // C API）在真机上会踩内存、崩在函数返回处。CurrentSchema() 走字符缓冲的
+  // get_current_schema 一直很稳，这里同样避开结构体。
+  if (!session_id_) return out;
+  rime::an<rime::Session> session =
+      rime::Service::instance().GetSession(session_id_);
+  if (!session) { dbg("no session"); return out; }
+  rime::Schema* schema = session->schema();
+  if (!schema) { dbg("no schema"); return out; }
+  rime::Config* cfg = schema->config();
+  if (!cfg) { dbg("no config"); return out; }
+  dbg("enter schema=" + schema->schema_id());
+  // 用引擎自己的 C++ 配置对象读 switches（同文也是这么读的），
+  // 不再碰 config_begin_list/config_get_cstring 那套过时 C API
+  rime::an<rime::ConfigList> list = cfg->GetList("switches");
+  if (!list) { dbg("no switches"); return out; }
+  dbg("count=" + std::to_string(list->size()));
+  for (size_t i = 0; i < list->size(); ++i) {
+    rime::an<rime::ConfigMap> item = rime::As<rime::ConfigMap>(list->GetAt(i));
+    if (!item) continue;
+    rime::an<rime::ConfigValue> nameVal =
+        rime::As<rime::ConfigValue>(item->Get("name"));
+    if (!nameVal) continue;
+    std::string name = nameVal->str();
     if (name.empty()) continue;
-    const char* v0 =
-        rime()->config_get_cstring(&cfg, (base + "/states/@0").c_str());
-    std::string s0s = v0 ? v0 : "";
-    const char* v1 =
-        rime()->config_get_cstring(&cfg, (base + "/states/@1").c_str());
-    std::string s1s = v1 ? v1 : "";
-    bool val = session_id_ && rime()->get_option(session_id_, name.c_str());
+    std::string s0s, s1s;
+    rime::an<rime::ConfigList> states =
+        rime::As<rime::ConfigList>(item->Get("states"));
+    if (states) {
+      if (states->size() > 0) {
+        rime::an<rime::ConfigValue> v =
+            rime::As<rime::ConfigValue>(states->GetAt(0));
+        if (v) s0s = v->str();
+      }
+      if (states->size() > 1) {
+        rime::an<rime::ConfigValue> v =
+            rime::As<rime::ConfigValue>(states->GetAt(1));
+        if (v) s1s = v->str();
+      }
+    }
+    rime::Context* ctx = session->context();
+    bool val = ctx ? ctx->get_option(name) : false;
     out += name;
     out += "\t";
     out += s0s;
@@ -454,9 +456,6 @@ std::string Engine::GetSwitches() {
     out += val ? "1" : "0";
     out += "\n";
   }
-  // 注意：这里**不要** config_close。schema_open 返回的 Config 与引擎当前 schema
-  // 共享同一份 ConfigData（librime 的 ConfigComponent 用 weak 缓存共享数据），
-  // 真机点「输入选项」后键盘会卡一下再被杀掉重启，这个释放点最可疑，先去掉。
   dbg("done bytes=" + std::to_string(out.size()));
   return out;
 }

@@ -168,8 +168,11 @@ class ImeService : InputMethodService() {
 
 
     override fun onComputeInsets(outInsets: Insets) {
-        val (x, y) = if (isSoftKeyboard && ::mInputView.isInitialized) intArrayOf(0, 0).also {if(mInputView.isAddPhrases) mInputView.mAddPhrasesLayout.getLocationInWindow(it) else mInputView.mSkbRoot.getLocationInWindow(it) }
-        else if (isHardwareKeyboard && ::mCandidateView.isInitialized) intArrayOf(0, 0).also {mCandidateView.mSkbRoot.getLocationInWindow(it) }
+        // 注意：Insets 用的是屏幕坐标，之前用 getLocationInWindow（窗口坐标）算。
+        // 窗口一旦被撑大，contentTopInsets 就变成 0，整个窗口都算可触摸区，
+        // 系统边缘返回手势会被吃掉（同文等输入法正常就是这个差别）。改用屏幕坐标。
+        val (x, y) = if (isSoftKeyboard && ::mInputView.isInitialized) intArrayOf(0, 0).also {if(mInputView.isAddPhrases) mInputView.mAddPhrasesLayout.getLocationOnScreen(it) else mInputView.mSkbRoot.getLocationOnScreen(it) }
+        else if (isHardwareKeyboard && ::mCandidateView.isInitialized) intArrayOf(0, 0).also {mCandidateView.mSkbRoot.getLocationOnScreen(it) }
         else intArrayOf(0, 0)
         outInsets.apply {
             if(isSoftKeyboard || !isHardwareKeyboard){
@@ -191,6 +194,9 @@ class ImeService : InputMethodService() {
                 touchableRegion.set(x, y, x + mCandidateView.mSkbRoot.width, y + mCandidateView.mSkbRoot.height)
             }
         }
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[insets] x=$x y=$y contentTop=${outInsets.contentTopInsets} visibleTop=${outInsets.visibleTopInsets} screenH=${EnvironmentSingleton.instance.mScreenHeight}"
+        )
     }
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
