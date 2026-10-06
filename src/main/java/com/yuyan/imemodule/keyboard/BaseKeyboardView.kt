@@ -169,6 +169,7 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 mCurrentKey = getKeyIndices(me.x.toInt(), me.y.toInt())
                 mAbortKey = false
                 mLongPressKey = false
+                mSwipeUpFired = false
                 if(mCurrentKey != null){
                     if (mCurrentKey!!.repeatable()) {
                         val msg = mHandler!!.obtainMessage(MSG_REPEAT)
@@ -202,6 +203,9 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     private var currentDistanceY:Float = 0f
     private var currentDistanceX:Float = 0f
     private var lastEventActionIndex:Int = 0
+    // 一次触摸只允许触发一次上滑：否则手指连续滑动时每个 ACTION_MOVE 都会再发一次键
+    // （日志里 47ms 内连发 3 个 ` 就是这么来的）
+    private var mSwipeUpFired:Boolean = false
     // 处理手势滑动
     private fun dispatchGestureEvent(downEvent: MotionEvent?, currentEvent: MotionEvent, distanceX: Float, distanceY: Float) : Boolean {
         var result = false
@@ -239,17 +243,18 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 result = true
             }
         } else if(keyLableSmall?.isNotBlank() == true){
-            if (isVertical && distanceY > 0 && relDiffY > symbolSlideUp && ThemeManager.prefs.keyboardSymbol.getValue()){   // 向上滑动
+            if (!mSwipeUpFired && isVertical && distanceY > 0 && relDiffY > symbolSlideUp && ThemeManager.prefs.keyboardSymbol.getValue()){   // 向上滑动
                 lastEventX = currentX
                 lastEventY = currentY
                 lastEventActionIndex = currentEvent.actionIndex
                 mLongPressKey = true
+                mSwipeUpFired = true
                 removeMessages()
                 mService?.responseLongKeyEvent(Pair(PopupMenuMode.Text, keyLableSmall))
                 result = true
             }
         } else {  // 菜单
-            if (isVertical && relDiffY > symbolSlideUp * 2) {   // 向上滑动
+            if (!mSwipeUpFired && isVertical && relDiffY > symbolSlideUp * 2) {   // 向上滑动
                 lastEventX = currentX
                 lastEventY = currentY
                 lastEventActionIndex = currentEvent.actionIndex

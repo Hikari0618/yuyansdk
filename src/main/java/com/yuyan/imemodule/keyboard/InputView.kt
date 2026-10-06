@@ -280,7 +280,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     override fun responseLongKeyEvent(result: Pair<PopupMenuMode, String>) {
         val (mode, value) = result
-        if (mode != PopupMenuMode.None && !DecodingInfo.isAssociate && !DecodingInfo.isCandidatesEmpty) {
+        // "/" 和 "`" 在中文模式下要送进引擎（万象命令前缀 / 输入中反查引导符），
+        // 此时绝不能先自动选词：否则「lk 上滑 /」会先把 lk 的候选上屏，
+        // 用户就打不出 lk/mm 这类间接辅助（同文输入法下正常，差别就在这里）
+        val isRimeFuncKey = InputModeSwitcher.isChinese && (value == "/" || value == "`")
+        if (!isRimeFuncKey && mode != PopupMenuMode.None && !DecodingInfo.isAssociate && !DecodingInfo.isCandidatesEmpty) {
             if (InputModeSwitcher.isChinese || InputModeSwitcher.isEnglish) chooseAndUpdate()
         }
 
