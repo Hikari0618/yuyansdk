@@ -414,8 +414,13 @@ void Engine::SetOptionGroup(const std::string& options, int index) {
   }
   if (!cur.empty()) items.push_back(cur);
   for (size_t i = 0; i < items.size(); ++i) {
-    rime()->set_option(session_id_, items[i].c_str(),
-                       static_cast<int>(i) == index ? True : False);
+    bool on = static_cast<int>(i) == index;
+    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
+    if (f) {
+      fprintf(f, "[switches] group %s -> %s\n", items[i].c_str(), on ? "1" : "0");
+      fclose(f);
+    }
+    rime()->set_option(session_id_, items[i].c_str(), on ? True : False);
   }
 }
 

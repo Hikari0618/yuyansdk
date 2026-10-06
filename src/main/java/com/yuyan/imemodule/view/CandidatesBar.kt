@@ -55,6 +55,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private lateinit var mComposingView: TextView // 组成字符串的View，用于显示输入的拼音。
     private var mCaretPos = -1        // 组合区光标位置（去掉分隔符后的下标），-1 = 未设置
     private var mCaretBaseText = ""   // 设置光标时的组合串，串一变标记作废
+    private var mComposingExpanded = false  // 待编辑区是否已放大（点击定位后放大，上屏恢复）
     private lateinit var mRVCandidates: RecyclerView    //候选词列表
     private lateinit var mIvMenuSetting: ImageView
     private lateinit var mLlContainer: LinearLayout
@@ -284,6 +285,8 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         val raw = DecodingInfo.composingStrForDisplay
         // 组合串变了（又按了键）→ 之前点出来的光标标记作废
         if (mCaretPos >= 0 && raw != mCaretBaseText) mCaretPos = -1
+        // 上屏了（组合清空）→ 待编辑区恢复原大小
+        if (raw.isEmpty()) setComposingExpanded(false)
         if (mCaretPos < 0 || raw.isEmpty()) {
             mComposingView.text = raw
             return
@@ -306,7 +309,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         val lay: android.text.Layout? = mComposingView.layout
         if (lay == null) return
         val shown = mComposingView.text?.toString() ?: return
-        var off = lay.getOffsetForHorizontal(lay.getLineForVertical(y.toInt()), x)
+        // Layout 不含 padding，坐标要先扣掉内边距
+        val px = x - mComposingView.paddingLeft
+        val py = y - mComposingView.paddingTop
+        var off = lay.getOffsetForHorizontal(lay.getLineForVertical(py.toInt()), px)
         // 减掉自己插的光标标记
         val marker = shown.indexOf('|')
         if (marker in 0 until off) off -= 1
@@ -318,9 +324,32 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         if (com.yuyan.inputmethod.core.Rime.setCaretPos(caret)) {
             mCaretPos = caret
             mCaretBaseText = raw
+            // 点击定位后把待编辑区放大，方便继续精确修改（上屏后自动恢复）
+            setComposingExpanded(true)
             DecodingInfo.updateDecodingCandidate()
             showCandidates()
         }
+    }
+
+    /** 待编辑区放大/恢复：点击定位后放大，组合清空（上屏）后恢复 */
+    private fun setComposingExpanded(expand: Boolean) {
+        if (mComposingExpanded == expand) return
+        mComposingExpanded = expand
+        val composingH = if (expand) instance.heightForcomposing * 2 else instance.heightForcomposing
+        val candH = instance.heightForCandidates
+        mComposingView.layoutParams =
+            LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, composingH)
+        mComposingView.setTextSize(
+            TypedValue.COMPLEX_UNIT_DIP,
+            if (expand) instance.composingTextSize * 1.8f else instance.composingTextSize
+        )
+        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candH)
+        // 候选栏整体跟着变高，键盘窗口（WRAP_CONTENT）会一起撑开
+        layoutParams?.let {
+            it.height = composingH + candH
+            layoutParams = it
+        }
+        requestLayout()
     }
 
     /**

@@ -270,6 +270,7 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 // 动态选项：翻转 Rime 开关并刷新列表（data.schemaId 存 switch 名）
                 // 开关组（s2s,s2t,s2hk,s2tw）按成员列表轮询到下一项
                 val key = data.schemaId
+                com.yuyan.inputmethod.util.ImeLog.d("[switches] click key=$key")
                 if (key.contains(",")) {
                     val opts = key.split(",")
                     var cur = 0
