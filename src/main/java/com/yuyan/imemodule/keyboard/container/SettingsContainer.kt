@@ -126,6 +126,21 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
 
     /** 动态输入选项（同文机制）：从当前方案的 switcher 配置自动读取并展示，
      *  部署好方案后其中的选项（中英、中英标点、半角全角等）自动出现 */
+    /** 常见 Rime 开关的中文名（菜单里不再直接显示英文原名） */
+    private val RIME_SWITCH_LABELS = mapOf(
+        "ascii_mode" to "中英",
+        "ascii_punct" to "标点",
+        "full_shape" to "全半角",
+        "emoji" to "表情",
+        "chinese_english" to "翻译",
+        "context_reorder" to "上下文调频",
+        "abbrev" to "简码",
+        "super_tips" to "提示",
+        "charset_filter" to "字集",
+        "char_priority" to "单字词组",
+        "english" to "英文输入"
+    )
+
     fun showRimeSwitchesView() {
         val funItems: MutableList<SkbFunItem> = LinkedList()
         // 读方案 switcher：native 调用单独包一层，异常直接落 ime.log
@@ -139,18 +154,22 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
         rawSwitches.lines()
             .filter { it.isNotBlank() }
             .forEach { line ->
+                // 格式：key \t 状态0 \t 状态1 ... \t 当前状态下标
+                // key 是普通开关名（ascii_mode），或开关组成员列表（s2s,s2t,s2hk,s2tw）
                 val p = line.split("\t")
-                val name = p[0]
-                val state0 = p.getOrElse(1) { "" }
-                val state1 = p.getOrElse(2) { "" }
-                val value = p.getOrElse(3) { "0" } == "1"
-                val currentLabel = if (value) state1.ifEmpty { "开" } else state0.ifEmpty { "关" }
+                val key = p[0]
+                val cur = p.lastOrNull()?.toIntOrNull() ?: 0
+                val states = if (p.size > 2) p.subList(1, p.size - 1) else emptyList()
+                val currentLabel = states.getOrElse(cur) {
+                    if (cur != 0) "开" else "关"
+                }
+                val cn = RIME_SWITCH_LABELS[key] ?: ""
                 funItems.add(
                     SkbFunItem(
-                        "$currentLabel（$name）",
+                        if (cn.isEmpty()) currentLabel else "$currentLabel（$cn）",
                         R.drawable.ic_menu_setting,
                         SkbMenuMode.RimeSwitchToggle,
-                        name
+                        key
                     )
                 )
             }
@@ -249,9 +268,22 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
         val value = when (data.skbMenuMode) {
             SkbMenuMode.RimeSwitchToggle -> {
                 // 动态选项：翻转 Rime 开关并刷新列表（data.schemaId 存 switch 名）
-                val name = data.schemaId
-                val cur = com.yuyan.inputmethod.core.Rime.getRimeOption(name)
-                com.yuyan.inputmethod.core.Rime.setOption(name, !cur)
+                // 开关组（s2s,s2t,s2hk,s2tw）按成员列表轮询到下一项
+                val key = data.schemaId
+                if (key.contains(",")) {
+                    val opts = key.split(",")
+                    var cur = 0
+                    for (i in opts.indices) {
+                        if (com.yuyan.inputmethod.core.Rime.getRimeOption(opts[i])) {
+                            cur = i
+                            break
+                        }
+                    }
+                    com.yuyan.inputmethod.core.Rime.setOptionGroup(key, (cur + 1) % opts.size)
+                } else {
+                    val cur = com.yuyan.inputmethod.core.Rime.getRimeOption(key)
+                    com.yuyan.inputmethod.core.Rime.setOption(key, !cur)
+                }
                 showRimeSwitchesView()
                 return
             }

@@ -104,6 +104,21 @@ class Rime(fullCheck: Boolean) {
             setRimeOption(option, value)
         }
 
+        /** 开关组切换：options 是逗号分隔的成员名，index 为要打开的那一项 */
+        @JvmStatic
+        fun setOptionGroup(options: String, index: Int) {
+            setRimeOptionGroup(options, index)
+            updateContext()
+        }
+
+        /** 移动组合区光标（点击待编辑区字母用），返回是否成功 */
+        @JvmStatic
+        fun setCaretPos(caretPos: Int): Boolean {
+            return setRimeCaretPos(caretPos).also {
+                if (it) updateContext()
+            }
+        }
+
         @JvmStatic
         fun selectSchema(schemaId: String): Boolean {
             return selectRimeSchema(schemaId).also {
@@ -148,6 +163,8 @@ class Rime(fullCheck: Boolean) {
 
         @JvmStatic
         external fun setRimeOption(option: String, value: Boolean, )
+        external fun setRimeOptionGroup(options: String, index: Int, )
+        external fun setRimeCaretPos(caretPos: Int): Boolean
 
         /** 当前方案的 switcher 选项：每行 name\t状态0\t状态1\t当前值(0/1) */
         @JvmStatic

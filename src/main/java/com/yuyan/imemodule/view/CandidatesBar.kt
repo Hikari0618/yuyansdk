@@ -53,6 +53,8 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private lateinit var mCandidatesDataContainer: LinearLayout //候选词视图
     private lateinit var mCandidatesMenuContainer: LinearLayout //控制菜单视图
     private lateinit var mComposingView: TextView // 组成字符串的View，用于显示输入的拼音。
+    private var mCaretPos = -1        // 组合区光标位置（去掉分隔符后的下标），-1 = 未设置
+    private var mCaretBaseText = ""   // 设置光标时的组合串，串一变标记作废
     private lateinit var mRVCandidates: RecyclerView    //候选词列表
     private lateinit var mIvMenuSetting: ImageView
     private lateinit var mLlContainer: LinearLayout
@@ -79,6 +81,14 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             mComposingView = TextView(context).apply {
                 includeFontPadding = false
                 setPadding(dp(10), 0, dp(10), 0)
+                // 点击待编辑区里的字母 → 光标移到该字母后面（方便改前面的错字）
+                setOnTouchListener { v, event ->
+                    if (event.action == android.view.MotionEvent.ACTION_UP) {
+                        moveCaretByTouch(event.x, event.y)
+                        v.performClick()
+                    }
+                    true
+                }
             }
             candidatesData = LinearLayout(context).apply {
                 gravity = Gravity.CENTER_VERTICAL
@@ -269,11 +279,55 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         }
     }
 
+    /** 待编辑区文本（点击定位的光标用 | 标出来） */
+    private fun refreshComposingText() {
+        val raw = DecodingInfo.composingStrForDisplay
+        // 组合串变了（又按了键）→ 之前点出来的光标标记作废
+        if (mCaretPos >= 0 && raw != mCaretBaseText) mCaretPos = -1
+        if (mCaretPos < 0 || raw.isEmpty()) {
+            mComposingView.text = raw
+            return
+        }
+        // mCaretPos 是去掉分隔符后的下标，映射回显示串
+        var idx = 0
+        var cnt = 0
+        while (idx < raw.length && cnt < mCaretPos) {
+            val c = raw[idx]
+            if (c != ' ' && c != '\'') cnt++
+            idx++
+        }
+        mComposingView.text = raw.substring(0, idx) + "|" + raw.substring(idx)
+    }
+
+    /** 点击待编辑区某个字母：把组合区光标移到该字母后面 */
+    private fun moveCaretByTouch(x: Float, y: Float) {
+        val raw = DecodingInfo.composingStrForDisplay
+        if (raw.isEmpty()) return
+        val lay: android.text.Layout? = mComposingView.layout
+        if (lay == null) return
+        val shown = mComposingView.text?.toString() ?: return
+        var off = lay.getOffsetForHorizontal(lay.getLineForVertical(y.toInt()), x)
+        // 减掉自己插的光标标记
+        val marker = shown.indexOf('|')
+        if (marker in 0 until off) off -= 1
+        off = off.coerceIn(0, raw.length)
+        // 点在字母上时把光标落到该字母后面（方便改前面的错字）
+        if (off < raw.length && raw[off].isLetter()) off += 1
+        // 显示串里的空格/撇号只是分隔符，引擎里的真实下标要去掉它们
+        val caret = raw.substring(0, off).count { it != ' ' && it != '\'' }
+        if (com.yuyan.inputmethod.core.Rime.setCaretPos(caret)) {
+            mCaretPos = caret
+            mCaretBaseText = raw
+            DecodingInfo.updateDecodingCandidate()
+            showCandidates()
+        }
+    }
+
     /**
      * 显示候选词
      */
     fun showCandidates() {
-        mComposingView.text = DecodingInfo.composingStrForDisplay
+        refreshComposingText()
         val container = KeyboardManager.instance.currentContainer
         mIvMenuSetting.drawable.setLevel( if(container is InputBaseContainer) 0 else 1)
         if (container is ClipBoardContainer) {

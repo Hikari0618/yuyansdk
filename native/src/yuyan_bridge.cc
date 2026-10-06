@@ -28,6 +28,7 @@ __attribute__((used)) static const void* const kForceLinkModules[] = {
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <vector>
 #include <sys/stat.h>
 
 #include <rime/config.h>
@@ -396,6 +397,36 @@ void Engine::SetOption(const std::string& name, bool value) {
   rime()->set_option(session_id_, name.c_str(), value ? True : False);
 }
 
+void Engine::SetOptionGroup(const std::string& options, int index) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  EnsureSession();
+  if (!session_id_) return;
+  // options 是逗号分隔的开关名（schema 里的开关组），index 为要打开的那一项
+  std::vector<std::string> items;
+  std::string cur;
+  for (char ch : options) {
+    if (ch == ',') {
+      if (!cur.empty()) items.push_back(cur);
+      cur.clear();
+    } else {
+      cur += ch;
+    }
+  }
+  if (!cur.empty()) items.push_back(cur);
+  for (size_t i = 0; i < items.size(); ++i) {
+    rime()->set_option(session_id_, items[i].c_str(),
+                       static_cast<int>(i) == index ? True : False);
+  }
+}
+
+bool Engine::SetCaretPos(int pos) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  EnsureSession();
+  if (!session_id_) return false;
+  rime()->set_caret_pos(session_id_, static_cast<size_t>(pos < 0 ? 0 : pos));
+  return true;
+}
+
 std::string Engine::GetSwitches() {
   std::lock_guard<std::mutex> lock(g_mutex);
   EnsureSession();
@@ -425,35 +456,63 @@ std::string Engine::GetSwitches() {
   for (size_t i = 0; i < list->size(); ++i) {
     rime::an<rime::ConfigMap> item = rime::As<rime::ConfigMap>(list->GetAt(i));
     if (!item) continue;
+    // 两种写法：普通开关用 name:（2 态），开关组用 options: [a,b,c]（多态）
+    std::string key;
+    std::vector<std::string> opts;
     rime::an<rime::ConfigValue> nameVal =
         rime::As<rime::ConfigValue>(item->Get("name"));
-    if (!nameVal) continue;
-    std::string name = nameVal->str();
-    if (name.empty()) continue;
-    std::string s0s, s1s;
-    rime::an<rime::ConfigList> states =
-        rime::As<rime::ConfigList>(item->Get("states"));
-    if (states) {
-      if (states->size() > 0) {
+    if (nameVal && !nameVal->str().empty()) {
+      key = nameVal->str();
+      opts.push_back(key);
+    } else {
+      rime::an<rime::ConfigList> optList =
+          rime::As<rime::ConfigList>(item->Get("options"));
+      if (!optList) continue;
+      for (size_t k = 0; k < optList->size(); ++k) {
         rime::an<rime::ConfigValue> v =
-            rime::As<rime::ConfigValue>(states->GetAt(0));
-        if (v) s0s = v->str();
+            rime::As<rime::ConfigValue>(optList->GetAt(k));
+        if (!v) continue;
+        std::string o = v->str();
+        if (o.empty()) continue;
+        if (!key.empty()) key += ",";
+        key += o;
+        opts.push_back(o);
       }
-      if (states->size() > 1) {
+      if (key.empty()) continue;
+    }
+    // states 全部带上（原来只带 2 个，三态/四态开关表达不出来）
+    std::vector<std::string> states;
+    rime::an<rime::ConfigList> stList =
+        rime::As<rime::ConfigList>(item->Get("states"));
+    if (stList) {
+      for (size_t k = 0; k < stList->size(); ++k) {
         rime::an<rime::ConfigValue> v =
-            rime::As<rime::ConfigValue>(states->GetAt(1));
-        if (v) s1s = v->str();
+            rime::As<rime::ConfigValue>(stList->GetAt(k));
+        states.push_back(v ? v->str() : std::string());
       }
     }
+    // 当前状态：开关组取第一个为 true 的项下标，普通开关取 0/1
     rime::Context* ctx = session->context();
-    bool val = ctx ? ctx->get_option(name) : false;
-    out += name;
+    int cur = 0;
+    if (ctx) {
+      if (opts.size() > 1) {
+        for (size_t k = 0; k < opts.size(); ++k) {
+          if (ctx->get_option(opts[k])) {
+            cur = static_cast<int>(k);
+            break;
+          }
+        }
+      } else {
+        cur = ctx->get_option(opts[0]) ? 1 : 0;
+      }
+    }
+    out += key;
+    for (size_t k = 0; k < states.size(); ++k) {
+      out += "\t";
+      out += states[k];
+    }
     out += "\t";
-    out += s0s;
-    out += "\t";
-    out += s1s;
-    out += "\t";
-    out += val ? "1" : "0";
+    out += std::to_string(cur);
     out += "\n";
   }
   dbg("done bytes=" + std::to_string(out.size()));

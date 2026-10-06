@@ -190,6 +190,22 @@ Java_com_yuyan_inputmethod_core_Rime_setRimeOption(JNIEnv* env, jclass,
                                       value == JNI_TRUE);
 }
 
+JNIEXPORT void JNICALL
+Java_com_yuyan_inputmethod_core_Rime_setRimeOptionGroup(JNIEnv* env, jclass,
+                                                        jstring options,
+                                                        jint index) {
+  yuyan::Engine::Instance().SetOptionGroup(JToStdString(env, options),
+                                           static_cast<int>(index));
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_yuyan_inputmethod_core_Rime_setRimeCaretPos(JNIEnv*, jclass,
+                                                     jint caret_pos) {
+  return yuyan::Engine::Instance().SetCaretPos(static_cast<int>(caret_pos))
+             ? JNI_TRUE
+             : JNI_FALSE;
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_yuyan_inputmethod_core_Rime_getRimeSwitches(JNIEnv* env, jclass) {
   std::string s = yuyan::Engine::Instance().GetSwitches();

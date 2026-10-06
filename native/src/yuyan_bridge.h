@@ -67,6 +67,8 @@ class Engine {
   bool ProcessKey(int keycode, int mask);
   // 将输入串 [caret_pos, caret_pos+length) 替换为 key（用于 9 键/双拼转换）
   bool ReplaceKey(int caret_pos, int length, const std::string& key);
+  // 移动组合区光标（点击待编辑区字母时用）
+  bool SetCaretPos(int pos);
   void ClearComposition();
 
   bool GetCommit(std::string* out);
@@ -74,6 +76,8 @@ class Engine {
   // 读取当前方案的 switcher 选项（name\t状态0\t状态1\t当前值 每行一条），
   // 供键盘菜单动态展示（同文机制：部署后选项自动出现，无需硬编码）
   std::string GetSwitches();
+  // 开关组（schema 里用 options: 定义的组，如 s2s/s2t/s2hk/s2tw）切换
+  void SetOptionGroup(const std::string& options, int index);
   bool GetContext(ContextInfo* out);
   bool GetStatus(StatusInfo* out);
 
