@@ -335,18 +335,24 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         }
     }
 
-    /** 候选栏里当前真正有内容的起始偏移：待编辑区和候选词都空着时，
-     *  上方那部分候选栏是透明的（透出 App 内容），触摸区应当跳过它，
-     *  否则系统边缘返回手势会被输入法吃掉。 */
+    /** 候选栏里当前真正有内容的起始偏移（相对候选栏顶部）：待编辑区和候选词都空着时，
+     *  上方那部分是透明的（透出 App 内容），触摸区应当跳过它。
+     *  注意工具栏（菜单/表情/剪贴板/收起）永远可见，所以最差也要从工具栏顶部开始，
+     *  不能按 heightForcomposing+heightForCandidates 硬算 —— 那个和会超过候选栏实际高度，
+     *  把工具栏一起切出触摸区（菜单键点了没反应）。 */
     fun contentTopOffset(): Int {
         val composingShown = mComposingView.visibility == View.VISIBLE &&
             !mComposingView.text.isNullOrEmpty()
-        val candShown = !DecodingInfo.isCandidatesEmpty
-        return when {
-            composingShown -> 0
-            candShown -> instance.heightForcomposing
-            else -> instance.heightForcomposing + instance.heightForCandidates
+        val target = when {
+            composingShown -> mComposingView
+            !DecodingInfo.isCandidatesEmpty -> mRVCandidates
+            else -> mCandidatesMenuContainer   // 工具栏，永远可见
         }
+        val t = IntArray(2)
+        target.getLocationOnScreen(t)
+        val s = IntArray(2)
+        getLocationOnScreen(s)
+        return (t[1] - s[1]).coerceAtLeast(0)
     }
 
     /** 点击定位后把待编辑区加高：候选行高度不变，候选栏 wrap_content 自然长高，
