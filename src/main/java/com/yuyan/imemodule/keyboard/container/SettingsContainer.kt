@@ -126,6 +126,9 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
 
     /** 动态输入选项（同文机制）：从当前方案的 switcher 配置自动读取并展示，
      *  部署好方案后其中的选项（中英、中英标点、半角全角等）自动出现 */
+    // 开关组当前下标（UI 侧记录：万象方案会把开关组重置，引擎读回全是 false）
+    private val mSwitchGroupIndex = mutableMapOf<String, Int>()
+
     /** 常见 Rime 开关的中文名（菜单里不再直接显示英文原名） */
     private val RIME_SWITCH_LABELS = mapOf(
         "ascii_mode" to "中英",
@@ -158,7 +161,9 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 // key 是普通开关名（ascii_mode），或开关组成员列表（s2s,s2t,s2hk,s2tw）
                 val p = line.split("\t")
                 val key = p[0]
-                val cur = p.lastOrNull()?.toIntOrNull() ?: 0
+                var cur = p.lastOrNull()?.toIntOrNull() ?: 0
+                // 开关组用 UI 侧记的下标（引擎读不到组状态）
+                mSwitchGroupIndex[key]?.let { cur = it }
                 val states = if (p.size > 2) p.subList(1, p.size - 1) else emptyList()
                 val currentLabel = states.getOrElse(cur) {
                     if (cur != 0) "开" else "关"
@@ -273,14 +278,22 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 com.yuyan.inputmethod.util.ImeLog.d("[switches] click key=$key")
                 if (key.contains(",")) {
                     val opts = key.split(",")
-                    var cur = 0
-                    for (i in opts.indices) {
-                        if (com.yuyan.inputmethod.core.Rime.getRimeOption(opts[i])) {
-                            cur = i
-                            break
+                    // 万象的方案会把开关组重置掉，get_option 读回全是 false，
+                    // 只靠引擎状态会一直算出 0（表现为点一次有效果、之后没反应）。
+                    // 组内下标 UI 侧自己记，读不到就用记住的值。
+                    var cur = mSwitchGroupIndex[key] ?: -1
+                    if (cur < 0) {
+                        cur = 0
+                        for (i in opts.indices) {
+                            if (com.yuyan.inputmethod.core.Rime.getRimeOption(opts[i])) {
+                                cur = i
+                                break
+                            }
                         }
                     }
-                    com.yuyan.inputmethod.core.Rime.setOptionGroup(key, (cur + 1) % opts.size)
+                    val next = (cur + 1) % opts.size
+                    mSwitchGroupIndex[key] = next
+                    com.yuyan.inputmethod.core.Rime.setOptionGroup(key, next)
                 } else {
                     val cur = com.yuyan.inputmethod.core.Rime.getRimeOption(key)
                     com.yuyan.inputmethod.core.Rime.setOption(key, !cur)

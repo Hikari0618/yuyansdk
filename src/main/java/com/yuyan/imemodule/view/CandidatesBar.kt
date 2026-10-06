@@ -317,8 +317,6 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         val marker = shown.indexOf('|')
         if (marker in 0 until off) off -= 1
         off = off.coerceIn(0, raw.length)
-        // 点在字母上时把光标落到该字母后面（方便改前面的错字）
-        if (off < raw.length && raw[off].isLetter()) off += 1
         // 显示串里的空格/撇号只是分隔符，引擎里的真实下标要去掉它们
         val caret = raw.substring(0, off).count { it != ' ' && it != '\'' }
         if (com.yuyan.inputmethod.core.Rime.setCaretPos(caret)) {
@@ -335,8 +333,11 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private fun setComposingExpanded(expand: Boolean) {
         if (mComposingExpanded == expand) return
         mComposingExpanded = expand
-        val composingH = if (expand) instance.heightForcomposing * 2 else instance.heightForcomposing
-        val candH = instance.heightForCandidates
+        // 待编辑区变高、候选行同步变矮：候选栏总高度不变，
+        // 键盘和候选词的位置都不动（否则候选词会被键盘顶掉/盖住）
+        val total = instance.heightForcomposing + instance.heightForCandidates
+        val composingH = if (expand) total * 2 / 3 else instance.heightForcomposing
+        val candH = total - composingH
         mComposingView.layoutParams =
             LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, composingH)
         mComposingView.setTextSize(
@@ -344,11 +345,6 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             if (expand) instance.composingTextSize * 1.8f else instance.composingTextSize
         )
         candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candH)
-        // 候选栏整体跟着变高，键盘窗口（WRAP_CONTENT）会一起撑开
-        layoutParams?.let {
-            it.height = composingH + candH
-            layoutParams = it
-        }
         requestLayout()
     }
 
