@@ -355,7 +355,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_APOSTROPHE, KeyEvent.KEYCODE_SPACE,
-            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_BACK -> return true
+            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DEL -> return true
+            // 返回键只在键盘显示时消费（此时用来收起键盘）。
+            // 之前无条件 return true，DOWN 就被吃掉，processSystemKeys 那个
+            // “键盘没显示就不消费”的判断永远走不到 —— 结果输入法运行期间
+            // 系统返回（含边缘侧滑手势）全被吞掉，杀进程才好、重开又坏。
+            KeyEvent.KEYCODE_BACK -> return service.isInputViewShown
         }
         return false
     }
