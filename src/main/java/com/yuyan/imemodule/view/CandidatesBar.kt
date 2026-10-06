@@ -335,6 +335,20 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         }
     }
 
+    /** 候选栏里当前真正有内容的起始偏移：待编辑区和候选词都空着时，
+     *  上方那部分候选栏是透明的（透出 App 内容），触摸区应当跳过它，
+     *  否则系统边缘返回手势会被输入法吃掉。 */
+    fun contentTopOffset(): Int {
+        val composingShown = mComposingView.visibility == View.VISIBLE &&
+            !mComposingView.text.isNullOrEmpty()
+        val candShown = !DecodingInfo.isCandidatesEmpty
+        return when {
+            composingShown -> 0
+            candShown -> instance.heightForcomposing
+            else -> instance.heightForcomposing + instance.heightForCandidates
+        }
+    }
+
     /** 点击定位后把待编辑区加高：候选行高度不变，候选栏 wrap_content 自然长高，
      *  键盘窗口跟着向上变高（上屏后恢复原高度） */
     private fun setComposingExpanded(expand: Boolean) {

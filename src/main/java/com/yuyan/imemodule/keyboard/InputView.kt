@@ -237,6 +237,14 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         return false
     }
 
+    /** 触摸区应当从哪个屏幕 y 开始：跳过候选栏里当前空着的那部分（透明，透出 App 内容），
+     *  只圈住真有内容的区域 + 键盘。空着时若仍圈进触摸区，系统边缘返回手势会被吃掉。 */
+    fun touchableTop(): Int {
+        val loc = IntArray(2)
+        mSkbCandidatesBarView.getLocationOnScreen(loc)
+        return loc[1] + mSkbCandidatesBarView.contentTopOffset()
+    }
+
     fun updateTheme() {
         LogUtil.d("1111111111111", "InputView updateTheme")
         setBackgroundResource(android.R.color.transparent)

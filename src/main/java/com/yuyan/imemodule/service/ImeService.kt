@@ -201,7 +201,12 @@ class ImeService : InputMethodService() {
                     // 触摸区仍用显式 REGION 覆盖整个输入视图（候选栏+键盘），
                     // 保证待编辑区/候选栏都能点；VISIBLE 会把候选栏一起划出去。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
+                    // 触摸区顶部跳过候选栏里当前空着的部分：空着时那一段是透明的、
+                    // 透出 App 内容，若仍圈进触摸区，边缘返回手势会被输入法吃掉
+                    // （Bilibili/MT 管理器里滑不动就是这个原因）。有内容时照常覆盖。
+                    val tTop = if (::mInputView.isInitialized) mInputView.touchableTop() else 0
+                    val regionTop = if (tTop > loc[1]) tTop else loc[1]
+                    touchableRegion.set(loc[0], regionTop, loc[0] + vw, loc[1] + vh)
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +
