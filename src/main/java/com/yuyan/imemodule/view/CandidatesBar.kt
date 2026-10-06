@@ -333,11 +333,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private fun setComposingExpanded(expand: Boolean) {
         if (mComposingExpanded == expand) return
         mComposingExpanded = expand
-        // 待编辑区变高、候选行同步变矮：候选栏总高度不变，
-        // 键盘和候选词的位置都不动（否则候选词会被键盘顶掉/盖住）
-        val total = instance.heightForcomposing + instance.heightForCandidates
-        val composingH = if (expand) total * 2 / 3 else instance.heightForcomposing
-        val candH = total - composingH
+        // 以候选栏的**真实高度**为基准：两行高度之和（heightForcomposing +
+        // heightForCandidates）和实际高度对不上时，多出来的部分会压住候选词的上边。
+        val barH = if (height > 0) height
+                   else instance.heightForcomposing + instance.heightForCandidates
+        val composingH = if (expand) barH * 2 / 3 else instance.heightForcomposing
+        val candH = barH - composingH
         mComposingView.layoutParams =
             LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, composingH)
         mComposingView.setTextSize(

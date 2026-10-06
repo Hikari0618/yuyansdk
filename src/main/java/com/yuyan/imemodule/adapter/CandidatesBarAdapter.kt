@@ -37,7 +37,20 @@ class CandidatesBarAdapter(context: Context?) :
 
     override fun onBindViewHolder(holder: SymbolHolder, position: Int) {
         if(DecodingInfo.isCandidatesEmpty) return
-        holder.textView.text = DecodingInfo.candidates[position].text
+        val cand = DecodingInfo.candidates[position]
+        // 候选词的注释（万象的辅助码/读音、造词标记 *）跟在词后面显示，字号小一点。
+        // 之前只渲染 text，把 comment 整个丢了 —— 开关调成辅助/读音开也看不到东西。
+        if (cand.comment.isEmpty()) {
+            holder.textView.text = cand.text
+        } else {
+            val s = android.text.SpannableString("${cand.text} ${cand.comment}")
+            s.setSpan(
+                android.text.style.RelativeSizeSpan(0.7f),
+                cand.text.length, s.length,
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            holder.textView.text = s
+        }
         holder.textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, instance.candidateTextSize)
         holder.textView.setTextColor(if(mActiveCandNo-1 == position) activeTheme.accentKeyBackgroundColor else activeTheme.keyTextColor)
         if (mOnItemClickListener != null) {
