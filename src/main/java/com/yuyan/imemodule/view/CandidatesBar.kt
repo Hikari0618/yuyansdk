@@ -131,7 +131,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             (mRVCandidates.parent as ViewGroup).removeView(mRVCandidates)
         }
         var candidatesHeight = instance.heightForCandidates
-        mComposingView.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, instance.heightForcomposing)
+        mComposingView.layoutParams = LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            if (mComposingExpanded) instance.heightForcomposing * 2 else instance.heightForcomposing
+        )
         mRightArrowBtn.layoutParams = LinearLayout.LayoutParams(candidatesHeight, candidatesHeight, 0f).apply { marginEnd = dp(10) }
         candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candidatesHeight)
         mRightArrowBtn.setOnClickListener { view: View ->
@@ -152,7 +155,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             candidatesData.addView(mRVCandidates, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, candidatesHeight, 1f))
             candidatesData.addView(mRightArrowBtn)
         }
-        mComposingView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, instance.composingTextSize)
+        mComposingView.setTextSize(
+            TypedValue.COMPLEX_UNIT_DIP,
+            if (mComposingExpanded) instance.composingTextSize * 1.6f else instance.composingTextSize
+        )
         mCandidatesAdapter.notifyChanged()
     }
 
@@ -329,24 +335,21 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         }
     }
 
-    /** 待编辑区放大/恢复：点击定位后放大，组合清空（上屏）后恢复 */
+    /** 点击定位后把待编辑区加高：候选行高度不变，候选栏 wrap_content 自然长高，
+     *  键盘窗口跟着向上变高（上屏后恢复原高度） */
     private fun setComposingExpanded(expand: Boolean) {
         if (mComposingExpanded == expand) return
         mComposingExpanded = expand
-        // 以候选栏的**真实高度**为基准：两行高度之和（heightForcomposing +
-        // heightForCandidates）和实际高度对不上时，多出来的部分会压住候选词的上边。
-        val barH = if (height > 0) height
-                   else instance.heightForcomposing + instance.heightForCandidates
-        val composingH = if (expand) barH * 2 / 3 else instance.heightForcomposing
-        val candH = barH - composingH
+        val composingH = if (expand) instance.heightForcomposing * 2 else instance.heightForcomposing
         mComposingView.layoutParams =
             LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, composingH)
         mComposingView.setTextSize(
             TypedValue.COMPLEX_UNIT_DIP,
-            if (expand) instance.composingTextSize * 1.8f else instance.composingTextSize
+            if (expand) instance.composingTextSize * 1.6f else instance.composingTextSize
         )
-        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candH)
+        // 不动 candidatesData（候选行高度不变），让候选栏整体向上长高
         requestLayout()
+        (parent as? View)?.requestLayout()
     }
 
     /**
