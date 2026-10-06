@@ -202,6 +202,13 @@ class ImeService : InputMethodService() {
                     // 保证待编辑区/候选栏都能点；VISIBLE 会把候选栏一起划出去。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
+                    val dm = resources.displayMetrics
+                    com.yuyan.inputmethod.util.ImeLog.d(
+                        "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +
+                            "orientation=${resources.configuration.orientation} " +
+                            "inputView=${loc[0]},${loc[1]},${loc[0] + vw},${loc[1] + vh} " +
+                            "skbRootY=$y skbRootH=${if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0}"
+                    )
                 }
             } else {
                 contentTopInsets = EnvironmentSingleton.instance.mScreenHeight
