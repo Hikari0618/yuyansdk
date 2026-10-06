@@ -347,7 +347,16 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             TypedValue.COMPLEX_UNIT_DIP,
             if (expand) instance.composingTextSize * 1.6f else instance.composingTextSize
         )
-        // 不动 candidatesData（候选行高度不变），让候选栏整体向上长高
+        // 关键：候选栏自身高度也要跟着加高，否则总高度（inputAreaHeight）不变，
+        // 多出来的待编辑区只能把候选行往下挤、被键盘遮住。
+        val barH = instance.heightForCandidatesArea + (if (expand) instance.heightForcomposing else 0)
+        layoutParams?.let {
+            it.height = barH
+            layoutParams = it
+        }
+        candidatesData.layoutParams = LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT, instance.heightForCandidates
+        )
         requestLayout()
         (parent as? View)?.requestLayout()
     }

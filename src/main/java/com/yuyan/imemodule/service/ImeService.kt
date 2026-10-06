@@ -203,7 +203,7 @@ class ImeService : InputMethodService() {
             }
         }
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[insets] x=$x y=$y contentTop=${outInsets.contentTopInsets} visibleTop=${outInsets.visibleTopInsets} screenH=${EnvironmentSingleton.instance.mScreenHeight}"
+            "[insets] x=$x y=$y contentTop=${outInsets.contentTopInsets} visibleTop=${outInsets.visibleTopInsets} screenH=${EnvironmentSingleton.instance.mScreenHeight} touch=${outInsets.touchableInsets} region=${outInsets.touchableRegion.bounds.left},${outInsets.touchableRegion.bounds.top},${outInsets.touchableRegion.bounds.right},${outInsets.touchableRegion.bounds.bottom}"
         )
     }
 
