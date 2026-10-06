@@ -209,15 +209,10 @@ class ImeService : InputMethodService() {
                     // 触摸区仍用显式 REGION 覆盖整个输入视图（候选栏+键盘），
                     // 保证待编辑区/候选栏都能点；VISIBLE 会把候选栏一起划出去。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    // 触摸区顶部取「当前真正有内容的位置」：空着的候选栏那段是透明的、
-                    // 透出 App 内容，圈进来就成死区（点不动也不透传，用户实测键盘上方
-                    // 一大块没反应、调低键盘高度后死区更大）。偏移按实际视图位置算
-                    // （见 CandidatesBar.contentTopOffset），不能用算术值硬凑。
-                    // insets 只在窗口变化时重算，内容变化时靠 onUpdateSelection 里的
-                    // updateInputViewShown() 强制重算，否则待编辑区出现后仍落在区外。
-                    val tTop = if (::mInputView.isInitialized) mInputView.touchableTop() else 0
-                    val regionTop = if (tTop > loc[1]) tTop else loc[1]
-                    touchableRegion.set(loc[0], regionTop, loc[0] + vw, loc[1] + vh)
+                    // 触摸区 = 整个输入视图（可见的候选栏内容 + 键盘）。候选栏各行现在按内容
+                    // 收放（空行收成 0），窗口里不存在空带，所以用静态矩形就与键盘+候选栏
+                    // 天然重合；不再按内容动态收缩（那依赖 insets 重算时机，实测不可靠）。
+                    touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +

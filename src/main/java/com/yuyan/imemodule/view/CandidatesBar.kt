@@ -128,18 +128,27 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             })
             mCandidatesDataContainer.addView(mComposingView)
             mCandidatesDataContainer.addView(candidatesData)
-            this.addView(mCandidatesDataContainer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+            this.addView(mCandidatesDataContainer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         } else {
             (mRightArrowBtn.parent as ViewGroup).removeView(mRightArrowBtn)
             (mRVCandidates.parent as ViewGroup).removeView(mRVCandidates)
         }
         var candidatesHeight = instance.heightForCandidates
+        // 待编辑区/候选词为空时把对应行高收成 0：让候选栏高度永远等于可见内容，
+        // 窗口里就不会留下「认领了触摸、却没有任何内容」的死区
+        // （用户实测：键盘上方一大块点不动，调低键盘高度后死区更大）。
+        val composingShown = !mComposingView.text.isNullOrEmpty()
         mComposingView.layoutParams = LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
-            if (mComposingExpanded) instance.heightForcomposing * 2 else instance.heightForcomposing
+            when {
+                !composingShown -> 0
+                mComposingExpanded -> instance.heightForcomposing * 2
+                else -> instance.heightForcomposing
+            }
         )
+        val candRowH = if (DecodingInfo.isCandidatesEmpty) 0 else candidatesHeight
         mRightArrowBtn.layoutParams = LinearLayout.LayoutParams(candidatesHeight, candidatesHeight, 0f).apply { marginEnd = dp(10) }
-        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candidatesHeight)
+        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candRowH)
         mRightArrowBtn.setOnClickListener { view: View ->
             when (val level = (view as ImageView).drawable.level) {
                 2 -> mCvListener.onClickClearCandidate()
