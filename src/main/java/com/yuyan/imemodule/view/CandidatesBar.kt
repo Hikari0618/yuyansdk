@@ -367,16 +367,14 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 而且窗口已经占屏幕 91%，没有空间再长高 —— 只加高待编辑区就只会把候选行往下挤。
         // 所以：候选栏总高度保持不变，待编辑区加高多少，就从候选行和两行间距里让出多少，
         // 候选行仍完整可见、不会被键盘遮住。
-        val grow = instance.heightForcomposing / 2
-        val composingH = if (expand) instance.heightForcomposing + grow else instance.heightForcomposing
-        val candH = if (expand) instance.heightForCandidates - grow else instance.heightForCandidates
-        mComposingView.layoutParams =
-            LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, composingH)
         mComposingView.setTextSize(
             TypedValue.COMPLEX_UNIT_DIP,
             if (expand) instance.composingTextSize * 1.6f else instance.composingTextSize
         )
-        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candH)
+        // 行高交给 applyRowHeights()：放大状态在里面统一处理（待编辑行 +半行、
+        // 候选行 -半行，总高度不变）。不能在这里单独设候选行，否则下一次
+        // showCandidates 会把它覆盖回全高，候选又被挤下去。
+        applyRowHeights()
         requestLayout()
         (parent as? View)?.requestLayout()
         onContentChanged?.invoke()
@@ -385,26 +383,27 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     /**
      * 显示候选词
      */
-    fun showCandidates() {
-        refreshComposingText()
-        // 行高按当前内容收放：空行收成 0，让候选栏高度永远等于可见内容，
-        // 窗口里就不会留下「认领了触摸、却没有任何内容」的死区
-        // （触摸区=整块输入视图即可与键盘+候选栏天然重合）。
-        // 必须放在 refreshComposingText() 之后——那里才写入 mComposingView.text，
-        // 放到 initCandidateView()（只跑一次）会把两行高度永久钉成 0。
+    /** 按当前内容与放大状态重算两行高度（showCandidates 与 setComposingExpanded 共用）：
+     *  空行收成 0（窗口里不留「认领了触摸却没内容」的空带）；放大时待编辑行 +半行、
+     *  候选行 -半行，总高度不变，候选不会被挤下去。 */
+    private fun applyRowHeights() {
         val composingShown = !mComposingView.text.isNullOrEmpty()
+        val grow = if (mComposingExpanded) instance.heightForcomposing / 2 else 0
         mComposingView.layoutParams = LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
-            when {
-                !composingShown -> 0
-                mComposingExpanded -> instance.heightForcomposing * 2
-                else -> instance.heightForcomposing
-            }
+            if (!composingShown) 0 else instance.heightForcomposing + grow
         )
         candidatesData.layoutParams = LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
-            if (DecodingInfo.isCandidatesEmpty) 0 else instance.heightForCandidates
+            if (DecodingInfo.isCandidatesEmpty) 0 else instance.heightForCandidates - grow
         )
+    }
+
+    fun showCandidates() {
+        refreshComposingText()
+        // 行高按当前内容收放（必须放在 refreshComposingText() 之后——那里才写入
+        // mComposingView.text；放到 initCandidateView()（只跑一次）会把高度永久钉成 0）
+        applyRowHeights()
         val container = KeyboardManager.instance.currentContainer
         mIvMenuSetting.drawable.setLevel( if(container is InputBaseContainer) 0 else 1)
         if (container is ClipBoardContainer) {
