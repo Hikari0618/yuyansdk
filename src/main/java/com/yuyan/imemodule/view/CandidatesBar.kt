@@ -64,6 +64,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private lateinit var mRVContainerMenu:RecyclerView   // 候选词栏菜单
     private lateinit var mCandidatesMenuAdapter: CandidatesMenuAdapter
     private lateinit var candidatesData: LinearLayout //候选词视图
+    /** 候选栏内容变化（待编辑文字/候选词出现或消失）时的回调：
+     *  让 Service 重算 insets，触摸区才能跟着可见内容走。 */
+    var onContentChanged: (() -> Unit)? = null
     private var activeCandNo:Int = 0
 
     fun initialize(cvListener: CandidateViewListener) {
@@ -160,6 +163,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             if (mComposingExpanded) instance.composingTextSize * 1.6f else instance.composingTextSize
         )
         mCandidatesAdapter.notifyChanged()
+        // 内容变化后立刻通知 Service 重算 insets：onComputeInsets 只在窗口变化时重算，
+        // 不主动通知的话触摸区会停在旧位置（待编辑区出现后落在区外、点击直接穿透）。
+        onContentChanged?.invoke()
     }
 
     //初始化标题栏
@@ -374,12 +380,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             if (expand) instance.composingTextSize * 1.6f else instance.composingTextSize
         )
         candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candH)
-        layoutParams?.let {
-            it.height = instance.heightForCandidatesArea
-            layoutParams = it
-        }
         requestLayout()
         (parent as? View)?.requestLayout()
+        onContentChanged?.invoke()
     }
 
     /**

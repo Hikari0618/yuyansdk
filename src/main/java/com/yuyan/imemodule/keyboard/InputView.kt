@@ -133,6 +133,8 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             removeView(mAddPhrasesLayout)
         }
         mSkbCandidatesBarView.initialize(mChoiceNotifier)
+        // 候选栏内容变化时让 Service 重算 insets（触摸区跟随可见内容）
+        mSkbCandidatesBarView.onContentChanged = { service.updateInputViewShown() }
         val env = EnvironmentSingleton.instance
         val keyboardSetting = appPrefs.keyboardSetting
         val oneHandedModSwitch = keyboardSetting.oneHandedModSwitch.getValue()
