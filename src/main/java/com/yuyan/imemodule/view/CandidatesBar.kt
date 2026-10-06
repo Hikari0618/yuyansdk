@@ -134,21 +134,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             (mRVCandidates.parent as ViewGroup).removeView(mRVCandidates)
         }
         var candidatesHeight = instance.heightForCandidates
-        // 待编辑区/候选词为空时把对应行高收成 0：让候选栏高度永远等于可见内容，
-        // 窗口里就不会留下「认领了触摸、却没有任何内容」的死区
-        // （用户实测：键盘上方一大块点不动，调低键盘高度后死区更大）。
-        val composingShown = !mComposingView.text.isNullOrEmpty()
         mComposingView.layoutParams = LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
-            when {
-                !composingShown -> 0
-                mComposingExpanded -> instance.heightForcomposing * 2
-                else -> instance.heightForcomposing
-            }
+            if (mComposingExpanded) instance.heightForcomposing * 2 else instance.heightForcomposing
         )
-        val candRowH = if (DecodingInfo.isCandidatesEmpty) 0 else candidatesHeight
         mRightArrowBtn.layoutParams = LinearLayout.LayoutParams(candidatesHeight, candidatesHeight, 0f).apply { marginEnd = dp(10) }
-        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candRowH)
+        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candidatesHeight)
         mRightArrowBtn.setOnClickListener { view: View ->
             when (val level = (view as ImageView).drawable.level) {
                 2 -> mCvListener.onClickClearCandidate()
@@ -172,9 +163,6 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             if (mComposingExpanded) instance.composingTextSize * 1.6f else instance.composingTextSize
         )
         mCandidatesAdapter.notifyChanged()
-        // 内容变化后立刻通知 Service 重算 insets：onComputeInsets 只在窗口变化时重算，
-        // 不主动通知的话触摸区会停在旧位置（待编辑区出现后落在区外、点击直接穿透）。
-        onContentChanged?.invoke()
     }
 
     //初始化标题栏
@@ -399,6 +387,24 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
      */
     fun showCandidates() {
         refreshComposingText()
+        // 行高按当前内容收放：空行收成 0，让候选栏高度永远等于可见内容，
+        // 窗口里就不会留下「认领了触摸、却没有任何内容」的死区
+        // （触摸区=整块输入视图即可与键盘+候选栏天然重合）。
+        // 必须放在 refreshComposingText() 之后——那里才写入 mComposingView.text，
+        // 放到 initCandidateView()（只跑一次）会把两行高度永久钉成 0。
+        val composingShown = !mComposingView.text.isNullOrEmpty()
+        mComposingView.layoutParams = LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            when {
+                !composingShown -> 0
+                mComposingExpanded -> instance.heightForcomposing * 2
+                else -> instance.heightForcomposing
+            }
+        )
+        candidatesData.layoutParams = LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            if (DecodingInfo.isCandidatesEmpty) 0 else instance.heightForCandidates
+        )
         val container = KeyboardManager.instance.currentContainer
         mIvMenuSetting.drawable.setLevel( if(container is InputBaseContainer) 0 else 1)
         if (container is ClipBoardContainer) {
@@ -437,6 +443,8 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         mCandidatesAdapter.activeCandidates(activeCandNo)
         mCandidatesAdapter.notifyChanged()
         mCandidatesMenuAdapter.notifyChanged()
+        // 内容变化后通知 Service 重算 insets：保证触摸区紧跟可见内容。
+        onContentChanged?.invoke()
     }
 
     /**
