@@ -190,8 +190,16 @@ class ImeService : InputMethodService() {
                     if (::mInputView.isInitialized) mInputView.getLocationOnScreen(loc)
                     val vw = if (::mInputView.isInitialized) mInputView.width else 0
                     val vh = if (::mInputView.isInitialized) mInputView.height else 0
-                    contentTopInsets = loc[1]
-                    visibleTopInsets = loc[1]
+                    // contentTopInsets 决定 App 认为「键盘从哪开始」，它会把输入框顶到这条线上面。
+                    // 之前用输入视图的顶（= 键盘顶 - 候选栏高度），比键盘本体高出一整条候选栏，
+                    // App 就被顶到屏幕很上面（用户反馈「输入框顶到很上面」）。
+                    // 改用键盘本体 mSkbRoot 的屏幕 y：输入框就贴在键盘实际顶边上，
+                    // 候选栏/待编辑区作为浮层显示在键盘上方。
+                    val kbTop = if (y > 0) y else loc[1]
+                    contentTopInsets = kbTop
+                    visibleTopInsets = kbTop
+                    // 触摸区仍用显式 REGION 覆盖整个输入视图（候选栏+键盘），
+                    // 保证待编辑区/候选栏都能点；VISIBLE 会把候选栏一起划出去。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
                 }

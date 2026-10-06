@@ -340,23 +340,24 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private fun setComposingExpanded(expand: Boolean) {
         if (mComposingExpanded == expand) return
         mComposingExpanded = expand
-        val composingH = if (expand) instance.heightForcomposing * 2 else instance.heightForcomposing
+        // 输入区总高度（inputAreaHeight = skbHeight + heightForCandidatesArea）是算死的，
+        // 而且窗口已经占屏幕 91%，没有空间再长高 —— 只加高待编辑区就只会把候选行往下挤。
+        // 所以：候选栏总高度保持不变，待编辑区加高多少，就从候选行和两行间距里让出多少，
+        // 候选行仍完整可见、不会被键盘遮住。
+        val grow = instance.heightForcomposing / 2
+        val composingH = if (expand) instance.heightForcomposing + grow else instance.heightForcomposing
+        val candH = if (expand) instance.heightForCandidates - grow else instance.heightForCandidates
         mComposingView.layoutParams =
             LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, composingH)
         mComposingView.setTextSize(
             TypedValue.COMPLEX_UNIT_DIP,
             if (expand) instance.composingTextSize * 1.6f else instance.composingTextSize
         )
-        // 关键：候选栏自身高度也要跟着加高，否则总高度（inputAreaHeight）不变，
-        // 多出来的待编辑区只能把候选行往下挤、被键盘遮住。
-        val barH = instance.heightForCandidatesArea + (if (expand) instance.heightForcomposing else 0)
+        candidatesData.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, candH)
         layoutParams?.let {
-            it.height = barH
+            it.height = instance.heightForCandidatesArea
             layoutParams = it
         }
-        candidatesData.layoutParams = LinearLayout.LayoutParams(
-            LayoutParams.MATCH_PARENT, instance.heightForCandidates
-        )
         requestLayout()
         (parent as? View)?.requestLayout()
     }
