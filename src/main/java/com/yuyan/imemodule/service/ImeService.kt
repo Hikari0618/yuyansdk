@@ -224,7 +224,8 @@ class ImeService : InputMethodService() {
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +
                             "orientation=${resources.configuration.orientation} " +
                             "inputView=${loc[0]},${loc[1]},${loc[0] + vw},${loc[1] + vh} " +
-                            "skbRootY=$y skbRootH=${if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0}"
+                            "skbRootY=$y skbRootH=${if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0} " +
+                            (if (::mInputView.isInitialized) mInputView.mSkbCandidatesBarView.debugSize() else "")
                     )
                 }
             } else {

@@ -239,10 +239,13 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             mCandidatesMenuContainer.addView(mMenuRightArrowBtn)
             this.addView(
                 mCandidatesMenuContainer,
-                LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             )
         }
-        var menuHeight = (instance.heightForCandidatesArea * 0.8).toInt()
+        // 工具栏高度取「一个待编辑行」为上限：原来直接用 heightForCandidatesArea*0.8，
+        // 在候选栏被钉成固定高度时看不出来；现在候选栏按内容测量，那个值会撑出一条
+        // 巨大的空工具栏（用户实测：键盘上方一大块触摸无反应）。
+        var menuHeight = minOf((instance.heightForCandidatesArea * 0.8).toInt(), instance.heightForcomposing)
         mFlowerType.textSize = instance.candidateTextSize
         mIvMenuSetting.layoutParams = LinearLayout.LayoutParams(menuHeight, menuHeight, 0f).apply { marginStart = dp(10) }
         mMenuRightArrowBtn.layoutParams = LinearLayout.LayoutParams(menuHeight, menuHeight, 0f).apply { marginEnd = dp(10) }
@@ -505,10 +508,18 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val heightMeasure = MeasureSpec.makeMeasureSpec(instance.heightForCandidatesArea, MeasureSpec.EXACTLY)
+        // 高度按内容测量：候选栏高度 = 可见内容高度（待编辑行/候选行/工具栏实际高度之和），
+        // 不再强制 heightForCandidatesArea。否则即使把空行收成 0，候选栏仍被钉成那么高，
+        // 窗口里就留着一条「认领了触摸却没内容」的死区
+        //（用户实测：键盘上方一大块触摸无反应，悬浮模式同样）。
         val widthMeasure = MeasureSpec.makeMeasureSpec(instance.skbWidth, MeasureSpec.EXACTLY)
-        super.onMeasure(widthMeasure, heightMeasure)
+        super.onMeasure(widthMeasure, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     }
+
+    /** 触摸区/死区排查用：候选栏与两个容器的实际几何。 */
+    fun debugSize(): String =
+        "bar=$height dataVis=${mCandidatesDataContainer.visibility} dataH=${mCandidatesDataContainer.height}" +
+            " menuVis=${mCandidatesMenuContainer.visibility} menuH=${mCandidatesMenuContainer.height}"
 
     private fun showViewVisibility(candidatesContainer: View) {
         if(candidatesContainer === mCandidatesMenuContainer){
