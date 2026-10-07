@@ -180,13 +180,14 @@ class ImeService : InputMethodService() {
                     contentTopInsets = EnvironmentSingleton.instance.mScreenHeight
                     visibleTopInsets = EnvironmentSingleton.instance.mScreenHeight
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    // 浮键盘：触摸区必须覆盖整个输入视图（含候选栏/待编辑区）。
-                    // 只圈 mSkbRoot 会让待编辑区点击穿透（用户实测）。
-                    val floc = IntArray(2)
-                    if (::mInputView.isInitialized) mInputView.getLocationOnScreen(floc)
-                    val fw = if (::mInputView.isInitialized) mInputView.width else 0
-                    val fh = if (::mInputView.isInitialized) mInputView.height else 0
-                    touchableRegion.set(floc[0], floc[1], floc[0] + fw, floc[1] + fh)
+                    // 浮键盘：窗口是整屏的（可拖到任意位置），触摸区必须只圈 mSkbRoot
+                    // （键盘本体+候选栏，窗口内坐标）——之前圈整个输入视图等于全屏认领触摸，
+                    // 键盘外很大一块都是死区（用户实测悬浮模式一大块点不动）。
+                    val kbLoc = IntArray(2)
+                    if (::mInputView.isInitialized) mInputView.mSkbRoot.getLocationInWindow(kbLoc)
+                    val kbW = if (::mInputView.isInitialized) mInputView.mSkbRoot.width else 0
+                    val kbH = if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0
+                    touchableRegion.set(kbLoc[0], kbLoc[1], kbLoc[0] + kbW, kbLoc[1] + kbH)
                 } else if (!isInputViewShown) {
                     // 键盘已收起（requestHideSelf）：窗口还在，但不能继续占着触摸区，
                     // 否则收起后系统边缘返回手势会被输入法吃掉
