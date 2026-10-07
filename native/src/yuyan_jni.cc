@@ -210,16 +210,18 @@ JNIEXPORT jstring JNICALL
 Java_com_yuyan_inputmethod_core_Rime_getRimeSwitches(JNIEnv* env, jclass) {
   std::string s = yuyan::Engine::Instance().GetSwitches();
   // 崩溃边界埋点：判断进程是不是死在 NewStringUTF（真机崩溃日志为空 = native 崩溃）
-  {
-    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
-    if (f) { fprintf(f, "[switches] jni 准备 NewStringUTF len=%zu\n", s.size()); fclose(f); }
-  }
+  yuyan::DebugLog("[switches] jni 准备 NewStringUTF len=%zu\n", s.size());
   jstring js = env->NewStringUTF(s.c_str());
-  {
-    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
-    if (f) { fprintf(f, "[switches] jni NewStringUTF 完成 ok=%d\n", js != nullptr ? 1 : 0); fclose(f); }
-  }
+  yuyan::DebugLog("[switches] jni NewStringUTF 完成 ok=%d\n", js != nullptr ? 1 : 0);
   return js;
+}
+
+// 原生层日志开关：Java 侧 Rime.setDebugLog(BuildConfig.DEBUG) 启动时调用，
+// release 版传 false → 原生层不再写 /sdcard/yuyan/ime.log。
+JNIEXPORT void JNICALL
+Java_com_yuyan_inputmethod_core_Rime_setDebugLog(JNIEnv*, jclass,
+                                                jboolean enabled) {
+  yuyan::g_debug_log = (enabled == JNI_TRUE);
 }
 
 JNIEXPORT jboolean JNICALL

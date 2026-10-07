@@ -39,7 +39,22 @@ __attribute__((used)) static const void* const kForceLinkModules[] = {
 #include <rime/dict/dictionary.h>
 #include <rime/dict/reverse_lookup_dictionary.h>
 
+#include <cstdarg>
+
 namespace yuyan {
+
+bool g_debug_log = false;
+
+void DebugLog(const char* fmt, ...) {
+  if (!g_debug_log) return;
+  FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
+  if (!f) return;
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(f, fmt, ap);
+  va_end(ap);
+  fclose(f);
+}
 
 namespace {
 
@@ -219,11 +234,7 @@ void Engine::EnsureSession() {
   if (!session_id_) {
     session_id_ = rime()->create_session();
     ResetPaging();
-    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
-    if (f) {
-      fprintf(f, "[bridge] session created id=%d\n", (int)session_id_);
-      fclose(f);
-    }
+    DebugLog("[bridge] session created id=%d\n", (int)session_id_);
   }
 }
 
@@ -415,11 +426,7 @@ void Engine::SetOptionGroup(const std::string& options, int index) {
   if (!cur.empty()) items.push_back(cur);
   for (size_t i = 0; i < items.size(); ++i) {
     bool on = static_cast<int>(i) == index;
-    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
-    if (f) {
-      fprintf(f, "[switches] group %s -> %s\n", items[i].c_str(), on ? "1" : "0");
-      fclose(f);
-    }
+    DebugLog("[switches] group %s -> %s\n", items[i].c_str(), on ? "1" : "0");
     rime()->set_option(session_id_, items[i].c_str(), on ? True : False);
   }
 }
@@ -436,10 +443,7 @@ std::string Engine::GetSwitches() {
   std::lock_guard<std::mutex> lock(g_mutex);
   EnsureSession();
   std::string out;
-  auto dbg = [](const std::string& m) {
-    FILE* f = fopen("/sdcard/yuyan/ime.log", "a");
-    if (f) { fprintf(f, "[switches] %s\n", m.c_str()); fclose(f); }
-  };
+  auto dbg = [](const std::string& m) { DebugLog("[switches] %s\n", m.c_str()); };
   // 照同文/引擎自己的做法：直接用 C++ 接口拿当前 session 的 schema 配置。
   // 之前用 get_status + RimeStatus 结构体（以及 schema_open/config_* 这套过时
   // C API）在真机上会踩内存、崩在函数返回处。CurrentSchema() 走字符缓冲的

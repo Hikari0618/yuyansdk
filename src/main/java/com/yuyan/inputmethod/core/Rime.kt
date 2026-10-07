@@ -24,6 +24,12 @@ class Rime(fullCheck: Boolean) {
 
         init {
             System.loadLibrary("yuyanime")
+            // 原生层日志开关：release 版（BuildConfig.DEBUG=false）不再写
+            // /sdcard/yuyan/ime.log，debug 版保持完整埋点。
+            try {
+                setDebugLog(com.yuyan.imemodule.BuildConfig.DEBUG)
+            } catch (_: Throwable) {
+            }
         }
 
         fun startup(context: Context, fullCheck: Boolean) {
@@ -139,6 +145,10 @@ class Rime(fullCheck: Boolean) {
 
         @JvmStatic
         external fun exitRime()
+
+        /** 原生层调试日志开关（release 版传 false，不写 /sdcard/yuyan/ime.log） */
+        @JvmStatic
+        external fun setDebugLog(enabled: Boolean)
 
         @JvmStatic
         external fun setRimePageSize(pageSize:Int)

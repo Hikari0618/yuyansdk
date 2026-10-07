@@ -10,6 +10,13 @@
 
 namespace yuyan {
 
+// ---- 调试日志开关 ----
+// 默认关闭，由 Java 侧 Rime.setDebugLog(BuildConfig.DEBUG) 在启动时打开；
+// 这样 release 版（BuildConfig.DEBUG=false）原生层不再往 /sdcard/yuyan/ime.log
+// 写日志（Kotlin 侧 ImeLog 已由同一个 BuildConfig 开关控制）。
+extern bool g_debug_log;
+void DebugLog(const char* fmt, ...);
+
 struct CandidateInfo {
   std::string text;
   std::string comment;
