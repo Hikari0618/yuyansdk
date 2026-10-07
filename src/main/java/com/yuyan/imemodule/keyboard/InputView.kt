@@ -202,25 +202,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     private var bottomPaddingValue = 0
     private var mLastAlignFloat: Boolean? = null
 
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        // 非浮键盘模式把 mSkbRoot 改成顶部对齐：XML 里它是 layout_alignParentBottom，
-        // 窗口一旦被撑高，键盘就被顶到窗口底部、上方留出一条空带（死区）。
-        val float = EnvironmentSingleton.instance.keyboardModeFloat
-        if (mLastAlignFloat != float) {
-            mLastAlignFloat = float
-            (mSkbRoot.layoutParams as? RelativeLayout.LayoutParams)?.let { lp ->
-                if (float) lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                else lp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                mSkbRoot.layoutParams = lp
-            }
-        }
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        // 窗口高度只认「候选栏 + 键盘」的实际内容：PopupComponent（按键预览浮层）等
-        // 整屏高的子视图会把 wrap_content 的输入视图撑满整屏，键盘上方就多出一条
-        // 「认领了触摸却没有内容」的死区（用户实测：键盘上方一大块点不动，悬浮模式同样）。
-        // 浮键盘整屏窗口是有意为之，不动。
-        if (!float) setMeasuredDimension(measuredWidth, mSkbRoot.bottom)
-    }
+    // 窗口高度恢复「原行为」：保持 wrap_content、mSkbRoot 仍底对齐 XML（含全面屏
+    // 优化底部条）。之前在 onMeasure 里按 mSkbRoot.bottom 强行收缩窗口高度，导致
+    // 窗口高度随候选栏内容变化 → 键盘上下跳，且底部全面屏条被切掉（失效）。
+    // 死区问题改由 ImeService 的 touchableRegion 精确圈「候选栏+键盘」解决：
+    // 窗口里 region 之外的区域不认领触摸，同样没有死区。
 
     private var mSkbRootHeight = 0
     private var mSkbRootWidth = 0

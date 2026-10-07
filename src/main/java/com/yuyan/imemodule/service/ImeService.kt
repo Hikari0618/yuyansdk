@@ -196,28 +196,30 @@ class ImeService : InputMethodService() {
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.setEmpty()
                 } else {
-                    // 全部用「窗口内相对坐标」：窗口是 WRAP_CONTENT、顶=输入视图顶，
-                    // 用屏幕坐标（getLocationOnScreen）会把 region/contentTop 抬高一个
-                    // 窗口偏移——窗口收缩后正好把键盘上半划出触摸区（用户实测一半穿透）。
+                    // 全部用「窗口内相对坐标」：TOUCHABLE_INSETS_REGION 的坐标是窗口内的，
+                    // 用屏幕坐标（getLocationOnScreen）会把 region 顶抬高一个窗口偏移
+                    // （窗口收缩后正好把键盘上半划出触摸区 → 一半穿透）。
                     val wloc = IntArray(2)
                     if (::mInputView.isInitialized) mInputView.getLocationInWindow(wloc)
-                    val ww = if (::mInputView.isInitialized) mInputView.width else 0
-                    val wh = if (::mInputView.isInitialized) mInputView.height else 0
+                    val kbLoc = IntArray(2)
+                    if (::mInputView.isInitialized) mInputView.mSkbRoot.getLocationInWindow(kbLoc)
+                    val kbW = if (::mInputView.isInitialized) mInputView.mSkbRoot.width else 0
+                    val kbH = if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0
                     // contentTopInsets 决定 App 的输入框贴在哪：用键盘本体（mSkbRoot）
                     // 的窗口 y，输入框贴键盘实际顶边，候选栏/待编辑区浮在它上方。
-                    val kbTop = if (y > 0) y else wloc[1]
-                    contentTopInsets = kbTop
-                    // 触摸区：窗口高度已精确等于「候选栏+键盘」内容（InputView.onMeasure
-                    // 按 mSkbRoot.bottom 定高），REGION 圈整个输入视图即可：不多（无死区）
-                    // 不少（键盘/候选/待编辑全可点）。不用 VISIBLE——系统按可见帧推算，不精确。
+                    contentTopInsets = kbLoc[1]
+                    // 触摸区：窗口高度固定（wrap_content 原行为，含全面屏底部条），窗口比
+                    // 内容高时（顶部空带/底部条），用精确 REGION 只圈「键盘本体+底条」：
+                    // region 之外不认领触摸 → 无死区，键盘全可点。候选栏（待编辑区）在
+                    // mSkbRoot 内部，一起被圈住。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    touchableRegion.set(wloc[0], wloc[1], wloc[0] + ww, wloc[1] + wh)
+                    touchableRegion.set(kbLoc[0], kbLoc[1], kbLoc[0] + kbW, kbLoc[1] + kbH)
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +
                             "orientation=${resources.configuration.orientation} " +
-                            "inputView=${wloc[0]},${wloc[1]},${wloc[0] + ww},${wloc[1] + wh} " +
-                            "skbRootY=$y skbRootH=${if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0} " +
+                            "inputView=${wloc[0]},${wloc[1]},${wloc[0] + mInputView.width},${wloc[1] + mInputView.height} " +
+                            "skbRoot=${kbLoc[0]},${kbLoc[1]},${kbLoc[0] + kbW},${kbLoc[1] + kbH} " +
                             (if (::mInputView.isInitialized) mInputView.mSkbCandidatesBarView.debugSize() else "")
                     )
                 }
