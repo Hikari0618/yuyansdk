@@ -335,12 +335,16 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         val caret = raw.substring(0, off).count { it != ' ' && it != '\'' }
         if (com.yuyan.inputmethod.core.Rime.setCaretPos(caret)) {
             mCaretPos = caret
-            mCaretBaseText = raw
             // 点击定位后把待编辑区放大，方便继续精确修改（上屏后自动恢复）
             setComposingExpanded(true)
             // 引擎的候选菜单随 caret 重算，但 RimeEngine.showCandidates 是按键时缓存的，
             // 必须按新光标位置重新拉一次，否则候选区停在旧位置（要再按键才更新）。
             com.yuyan.inputmethod.RimeEngine.refreshCandidatesAfterCaretMove()
+            // 刷新后引擎的 preedit 会带上光标提示，组合串和点击前不一样，
+            // 基准串必须以刷新后的为准 —— 否则 refreshComposingText() 会认为
+            // “组合串变了 = 又按键了”而把光标标记作废，表现就是第一次点击不出光标、
+            // 要在同一位置点第二下才出。
+            mCaretBaseText = DecodingInfo.composingStrForDisplay
             DecodingInfo.updateDecodingCandidate()
             showCandidates()
         }
