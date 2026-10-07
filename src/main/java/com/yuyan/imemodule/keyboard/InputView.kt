@@ -514,7 +514,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
         return when {
             keyCode == KeyEvent.KEYCODE_DEL -> {
-                if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) {
+                // 引擎仍在组合（未结束）→ 退引擎；否则才发给编辑框删已上屏的字。
+                // 不能用 isCandidatesEmpty 判断：组合非空但没有候选词时（万象命令、
+                // 未成词、上屏瞬间）会误判成"没在输入"，于是删了编辑框的字、待编辑区
+                // 却不变，继续打字还在变多（用户实测）。
+                if (DecodingInfo.isEngineFinish || DecodingInfo.isAssociate) {
                     service.getTextBeforeCursor(1).takeIf { it.isNotEmpty() }?.let { textBeforeCursors.push(it) }
                     sendKeyEvent(keyCode)
                 } else {

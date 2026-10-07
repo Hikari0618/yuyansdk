@@ -230,13 +230,6 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
         )
         funItems.add(
             SkbFunItem(
-                mContext.getString(R.string.wanxiang_pro),
-                R.drawable.selece_input_mode_dpy26,
-                SkbMenuMode.PinyinWanxiangPro
-            )
-        )
-        funItems.add(
-            SkbFunItem(
                 mContext.getString(R.string.keyboard_name_pinyin_lx_17),
                 R.drawable.selece_input_mode_lx17,
                 SkbMenuMode.PinyinLx17

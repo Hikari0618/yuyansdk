@@ -293,7 +293,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
 
     /** 待编辑区文本（点击定位的光标用 | 标出来） */
     private fun refreshComposingText() {
-        val raw = DecodingInfo.composingStrForDisplay
+        // 引擎已结束（没有活动组合）时必须清空待编辑区：万象的 wordsShowPinyin 会把
+        // 已上屏的整句前缀一起返回，退格删的是编辑框里的字、组合串却不变 ——
+        // 表现为「待编辑区字母不减少、继续打字还在变多」（用户实测）。
+        val raw = if (DecodingInfo.isEngineFinish) "" else DecodingInfo.composingStrForDisplay
         // 组合串变了（又按了键）→ 之前点出来的光标标记作废
         if (mCaretPos >= 0 && raw != mCaretBaseText) mCaretPos = -1
         // 上屏了（组合清空）→ 待编辑区恢复原大小

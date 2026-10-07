@@ -14,7 +14,12 @@ object ImeLog {
 
     private val lock = Any()
 
+    /** release 版不写日志：直接用 BuildConfig.DEBUG，R8 在 release 里能常量折叠并把
+     *  整个写文件分支（含路径字符串）一并裁掉；debug 版 DEBUG=true 正常记录。 */
+    private val enabled = com.yuyan.imemodule.BuildConfig.DEBUG
+
     fun d(msg: String) {
+        if (!enabled) return
         synchronized(lock) {
             try {
                 val f = File(RimeWorkspace.SD_RIME_DIR, "ime.log")
