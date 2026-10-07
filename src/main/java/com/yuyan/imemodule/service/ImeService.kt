@@ -168,11 +168,11 @@ class ImeService : InputMethodService() {
 
 
     override fun onComputeInsets(outInsets: Insets) {
-        // 注意：Insets 用的是屏幕坐标，之前用 getLocationInWindow（窗口坐标）算。
-        // 窗口一旦被撑大，contentTopInsets 就变成 0，整个窗口都算可触摸区，
-        // 系统边缘返回手势会被吃掉（同文等输入法正常就是这个差别）。改用屏幕坐标。
-        val (x, y) = if (isSoftKeyboard && ::mInputView.isInitialized) intArrayOf(0, 0).also {if(mInputView.isAddPhrases) mInputView.mAddPhrasesLayout.getLocationOnScreen(it) else mInputView.mSkbRoot.getLocationOnScreen(it) }
-        else if (isHardwareKeyboard && ::mCandidateView.isInitialized) intArrayOf(0, 0).also {mCandidateView.mSkbRoot.getLocationOnScreen(it) }
+        // 注意：Insets/Region 都是「窗口内相对坐标」。窗口是 WRAP_CONTENT、顶=输入视图顶，
+        // 用 getLocationOnScreen（屏幕坐标）会把 region 顶抬高整整一个窗口偏移——
+        // 窗口收缩后正好把键盘上半划出触摸区（用户实测一半点击穿透）。一律用窗口坐标。
+        val (x, y) = if (isSoftKeyboard && ::mInputView.isInitialized) intArrayOf(0, 0).also {if(mInputView.isAddPhrases) mInputView.mAddPhrasesLayout.getLocationInWindow(it) else mInputView.mSkbRoot.getLocationInWindow(it) }
+        else if (isHardwareKeyboard && ::mCandidateView.isInitialized) intArrayOf(0, 0).also {mCandidateView.mSkbRoot.getLocationInWindow(it) }
         else intArrayOf(0, 0)
         outInsets.apply {
             if(isSoftKeyboard || !isHardwareKeyboard){
@@ -196,34 +196,27 @@ class ImeService : InputMethodService() {
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.setEmpty()
                 } else {
-                    // contentTopInsets 是窗口内相对坐标，直接用键盘的屏幕 y 会把候选栏
-                    // 那一整条划到触摸区外面 → 点那里的事件穿透给 App，App 当作点了输入框
-                    // 外面就把键盘收了。改成显式触摸区：覆盖整个输入视图（候选栏+键盘），
-                    // 用屏幕坐标；这样键盘区域全可点，键盘上方仍能透传系统返回手势。
-                    val loc = IntArray(2)
-                    if (::mInputView.isInitialized) mInputView.getLocationOnScreen(loc)
-                    val vw = if (::mInputView.isInitialized) mInputView.width else 0
-                    val vh = if (::mInputView.isInitialized) mInputView.height else 0
-                    // contentTopInsets 决定 App 认为「键盘从哪开始」，它会把输入框顶到这条线上面。
-                    // 之前用输入视图的顶（= 键盘顶 - 候选栏高度），比键盘本体高出一整条候选栏，
-                    // App 就被顶到屏幕很上面（用户反馈「输入框顶到很上面」）。
-                    // 改用键盘本体 mSkbRoot 的屏幕 y：输入框就贴在键盘实际顶边上，
-                    // 候选栏/待编辑区作为浮层显示在键盘上方。
-                    val kbTop = if (y > 0) y else loc[1]
-                    // contentTopInsets 决定 App 的输入框贴在哪：用键盘本体顶边，
-                    // 输入框就贴在键盘实际顶边上（候选栏/待编辑区浮在它上方）。
+                    // 全部用「窗口内相对坐标」：窗口是 WRAP_CONTENT、顶=输入视图顶，
+                    // 用屏幕坐标（getLocationOnScreen）会把 region/contentTop 抬高一个
+                    // 窗口偏移——窗口收缩后正好把键盘上半划出触摸区（用户实测一半穿透）。
+                    val wloc = IntArray(2)
+                    if (::mInputView.isInitialized) mInputView.getLocationInWindow(wloc)
+                    val ww = if (::mInputView.isInitialized) mInputView.width else 0
+                    val wh = if (::mInputView.isInitialized) mInputView.height else 0
+                    // contentTopInsets 决定 App 的输入框贴在哪：用键盘本体（mSkbRoot）
+                    // 的窗口 y，输入框贴键盘实际顶边，候选栏/待编辑区浮在它上方。
+                    val kbTop = if (y > 0) y else wloc[1]
                     contentTopInsets = kbTop
-                    // 窗口高度已精确等于「候选栏+键盘」内容（InputView.onMeasure 按
-                    // mSkbRoot.bottom 定高），所以直接圈整个输入视图即可：不多（无死区）
-                    // 不少（键盘/候选/待编辑全可点）。不再用 VISIBLE——它的触摸区由系统
-                    // 按「可见帧」推算，实测键盘一半点击穿透（touch=2 时）。
+                    // 触摸区：窗口高度已精确等于「候选栏+键盘」内容（InputView.onMeasure
+                    // 按 mSkbRoot.bottom 定高），REGION 圈整个输入视图即可：不多（无死区）
+                    // 不少（键盘/候选/待编辑全可点）。不用 VISIBLE——系统按可见帧推算，不精确。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
+                    touchableRegion.set(wloc[0], wloc[1], wloc[0] + ww, wloc[1] + wh)
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +
                             "orientation=${resources.configuration.orientation} " +
-                            "inputView=${loc[0]},${loc[1]},${loc[0] + vw},${loc[1] + vh} " +
+                            "inputView=${wloc[0]},${wloc[1]},${wloc[0] + ww},${wloc[1] + wh} " +
                             "skbRootY=$y skbRootH=${if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0} " +
                             (if (::mInputView.isInitialized) mInputView.mSkbCandidatesBarView.debugSize() else "")
                     )
