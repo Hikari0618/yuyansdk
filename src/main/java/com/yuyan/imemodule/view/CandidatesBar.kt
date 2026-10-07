@@ -242,10 +242,11 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             )
         }
-        // 工具栏高度取「一个待编辑行」为上限：原来直接用 heightForCandidatesArea*0.8，
-        // 在候选栏被钉成固定高度时看不出来；现在候选栏按内容测量，那个值会撑出一条
-        // 巨大的空工具栏（用户实测：键盘上方一大块触摸无反应）。
-        var menuHeight = minOf((instance.heightForCandidatesArea * 0.8).toInt(), instance.heightForcomposing)
+        // 工具栏高度取「一行候选词」为上限：原来直接用 heightForCandidatesArea*0.8，
+        // 在候选栏被钉成固定高度时看不出来；候选栏改为按内容测量后，那个值会撑出
+        // 一条巨大的空工具栏（死区），而压到 heightForcomposing 又会让菜单键变得很小、
+        // 图标被裁一半（用户实测），取一行候选词高度最合适。
+        var menuHeight = minOf((instance.heightForCandidatesArea * 0.8).toInt(), instance.heightForCandidates)
         mFlowerType.textSize = instance.candidateTextSize
         mIvMenuSetting.layoutParams = LinearLayout.LayoutParams(menuHeight, menuHeight, 0f).apply { marginStart = dp(10) }
         mMenuRightArrowBtn.layoutParams = LinearLayout.LayoutParams(menuHeight, menuHeight, 0f).apply { marginEnd = dp(10) }
