@@ -213,12 +213,12 @@ class ImeService : InputMethodService() {
                     // contentTopInsets 决定 App 的输入框贴在哪：用键盘本体顶边，
                     // 输入框就贴在键盘实际顶边上（候选栏/待编辑区浮在它上方）。
                     contentTopInsets = kbTop
-                    // 触摸区改用 VISIBLE（同文同款）：区域 = 从 visibleTopInsets 往下的
-                    // 整块可见区，边缘交给系统。候选栏的空行已收成 0，所以可见内容顶边
-                    // 就等于"候选栏+键盘"的真实顶边——区域随内容/皮肤高度自动变，
-                    // 既不产生死区，也不会把待编辑区划出去。
-                    visibleTopInsets = loc[1]
-                    touchableInsets = Insets.TOUCHABLE_INSETS_VISIBLE
+                    // 窗口高度已精确等于「候选栏+键盘」内容（InputView.onMeasure 按
+                    // mSkbRoot.bottom 定高），所以直接圈整个输入视图即可：不多（无死区）
+                    // 不少（键盘/候选/待编辑全可点）。不再用 VISIBLE——它的触摸区由系统
+                    // 按「可见帧」推算，实测键盘一半点击穿透（touch=2 时）。
+                    touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+                    touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +
