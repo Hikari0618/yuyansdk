@@ -338,6 +338,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             mCaretBaseText = raw
             // 点击定位后把待编辑区放大，方便继续精确修改（上屏后自动恢复）
             setComposingExpanded(true)
+            // 引擎的候选菜单随 caret 重算，但 RimeEngine.showCandidates 是按键时缓存的，
+            // 必须按新光标位置重新拉一次，否则候选区停在旧位置（要再按键才更新）。
+            com.yuyan.inputmethod.RimeEngine.refreshCandidatesAfterCaretMove()
             DecodingInfo.updateDecodingCandidate()
             showCandidates()
         }

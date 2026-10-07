@@ -177,6 +177,14 @@ object RimeEngine {
         }
     }
 
+    /** 光标在待编辑区里被移动后，按新位置重新向引擎取一次候选。
+     *  引擎的候选菜单本来就随 caret 重算（librime ConcreteEngine::Compose 用
+     *  input.substr(0, caret_pos) 重组），但 showCandidates 是按键时缓存下来的字段，
+     *  不主动刷新的话候选区会停在旧光标位置的结果上，要再按一次键才更新。 */
+    fun refreshCandidatesAfterCaretMove() {
+        updateCandidatesOrCommitText()
+    }
+
     private fun updateCandidatesOrCommitText(): String? {
         val rimeCommit = Rime.getRimeCommit()
         if (rimeCommit != null) {
