@@ -180,7 +180,13 @@ class ImeService : InputMethodService() {
                     contentTopInsets = EnvironmentSingleton.instance.mScreenHeight
                     visibleTopInsets = EnvironmentSingleton.instance.mScreenHeight
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    touchableRegion.set(x, y, x + mInputView.mSkbRoot.width, y + mInputView.mSkbRoot.height)
+                    // 浮键盘：触摸区必须覆盖整个输入视图（含候选栏/待编辑区）。
+                    // 只圈 mSkbRoot 会让待编辑区点击穿透（用户实测）。
+                    val floc = IntArray(2)
+                    if (::mInputView.isInitialized) mInputView.getLocationOnScreen(floc)
+                    val fw = if (::mInputView.isInitialized) mInputView.width else 0
+                    val fh = if (::mInputView.isInitialized) mInputView.height else 0
+                    touchableRegion.set(floc[0], floc[1], floc[0] + fw, floc[1] + fh)
                 } else if (!isInputViewShown) {
                     // 键盘已收起（requestHideSelf）：窗口还在，但不能继续占着触摸区，
                     // 否则收起后系统边缘返回手势会被输入法吃掉
@@ -204,15 +210,15 @@ class ImeService : InputMethodService() {
                     // 改用键盘本体 mSkbRoot 的屏幕 y：输入框就贴在键盘实际顶边上，
                     // 候选栏/待编辑区作为浮层显示在键盘上方。
                     val kbTop = if (y > 0) y else loc[1]
+                    // contentTopInsets 决定 App 的输入框贴在哪：用键盘本体顶边，
+                    // 输入框就贴在键盘实际顶边上（候选栏/待编辑区浮在它上方）。
                     contentTopInsets = kbTop
-                    visibleTopInsets = kbTop
-                    // 触摸区仍用显式 REGION 覆盖整个输入视图（候选栏+键盘），
-                    // 保证待编辑区/候选栏都能点；VISIBLE 会把候选栏一起划出去。
-                    touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    // 触摸区 = 整个输入视图（可见的候选栏内容 + 键盘）。候选栏各行现在按内容
-                    // 收放（空行收成 0），窗口里不存在空带，所以用静态矩形就与键盘+候选栏
-                    // 天然重合；不再按内容动态收缩（那依赖 insets 重算时机，实测不可靠）。
-                    touchableRegion.set(loc[0], loc[1], loc[0] + vw, loc[1] + vh)
+                    // 触摸区改用 VISIBLE（同文同款）：区域 = 从 visibleTopInsets 往下的
+                    // 整块可见区，边缘交给系统。候选栏的空行已收成 0，所以可见内容顶边
+                    // 就等于"候选栏+键盘"的真实顶边——区域随内容/皮肤高度自动变，
+                    // 既不产生死区，也不会把待编辑区划出去。
+                    visibleTopInsets = loc[1]
+                    touchableInsets = Insets.TOUCHABLE_INSETS_VISIBLE
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +
