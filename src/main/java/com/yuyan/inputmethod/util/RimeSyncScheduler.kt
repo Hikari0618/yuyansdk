@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.max
 
 /**
  * Rime 定时同步（借鉴同文输入法 WorkManager 方案）
@@ -111,8 +112,10 @@ class RimeSyncScheduler(
                 .setRequiresStorageNotLow(true)
                 .build()
 
+            // WorkManager 周期任务最短 15 分钟，传更小的值会抛 IllegalArgumentException
+            val effectiveInterval = max(15, interval)
             val request = PeriodicWorkRequestBuilder<RimeSyncScheduler>(
-                interval.toLong(), TimeUnit.MINUTES,
+                effectiveInterval.toLong(), TimeUnit.MINUTES,
                 5, TimeUnit.MINUTES,       // flex interval
             ).setConstraints(constraints).build()
 
@@ -121,7 +124,7 @@ class RimeSyncScheduler(
                 ExistingPeriodicWorkPolicy.UPDATE,
                 request,
             )
-            Log.i(TAG, "Sync scheduled every ${interval}min")
+            Log.i(TAG, "Sync scheduled every ${effectiveInterval}min (requested ${interval}min)")
         }
     }
 }

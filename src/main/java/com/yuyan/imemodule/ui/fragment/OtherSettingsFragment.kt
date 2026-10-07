@@ -176,22 +176,46 @@ class OtherSettingsFragment: ManagedPreferenceFragment(AppPrefs.getInstance().ot
         screen.addPreference("🔄 同步用户数据", "上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {
             checkPermissionAndSync()
         }
-        // 自动同步间隔
+        // 自动同步间隔（自由填数，照同文；0 = 关闭）
         val currentInterval = RimeSyncScheduler.getInterval(ctx)
         val intervalLabel = if (currentInterval > 0) "当前: ${currentInterval} 分钟" else "当前: 关闭"
         screen.addPreference("⏱️ 自动同步间隔", "$intervalLabel | 上次: ${RimeSyncScheduler.getLastSyncTimeStr(ctx)}") {
-            val options = arrayOf("关闭", "5 分钟", "15 分钟", "30 分钟", "60 分钟")
-            val values = intArrayOf(0, 5, 15, 30, 60)
+            val input = android.widget.EditText(ctx).apply {
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                setText(if (currentInterval > 0) currentInterval.toString() else "")
+                hint = "0 = 关闭"
+                setSelectAllOnFocus(true)
+            }
+            val density = resources.displayMetrics.density
+            val container = android.widget.FrameLayout(ctx).apply {
+                val pad = (20 * density).toInt()
+                setPadding(pad, (8 * density).toInt(), pad, 0)
+                addView(
+                    input,
+                    android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+                    )
+                )
+            }
             AlertDialog.Builder(ctx)
-                .setTitle("自动同步间隔")
-                .setItems(options) { _, which ->
-                    if (values[which] > 0) {
+                .setTitle("自动同步间隔（分钟）")
+                .setMessage("填多少就隔多少分钟同步一次；填 0 关闭自动同步。\n（系统限制：WorkManager 周期任务最短 15 分钟，填小于 15 的数按 15 分钟执行）")
+                .setView(container)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    val minutes = input.text.toString().trim().toIntOrNull() ?: 0
+                    if (minutes > 0) {
                         // 开启自动同步前先检查权限
                         checkPermissionAndSync()
                     }
-                    RimeSyncScheduler.setInterval(ctx, values[which])
-                    Toast.makeText(ctx, "已设为 ${options[which]}", Toast.LENGTH_SHORT).show()
+                    RimeSyncScheduler.setInterval(ctx, minutes)
+                    Toast.makeText(
+                        ctx,
+                        if (minutes > 0) "已设为 $minutes 分钟" else "已关闭自动同步",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+                .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
     }

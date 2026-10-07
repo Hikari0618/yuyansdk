@@ -55,6 +55,9 @@
     <string name="button_vibration_amplitude">触感强度</string>
     <string name="clipboard_listening">记录剪贴板历史</string>
     <string name="clipboard_limit">剪贴板历史记录上限</string>
+    <string name="clipboard_compare_rules">剪贴板去重规则</string>
+    <string name="clipboard_output_rules">剪贴板过滤规则</string>
+    <string name="regex_per_line_hint">每行一个正则表达式</string>
     <string name="clipboard_layout_compact_mode">剪贴板布局</string>
     <string name="clipboard_layout_mode_list">单列布局</string>
     <string name="clipboard_layout_mode_grid">双列布局</string>

@@ -9,6 +9,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import com.yuyan.imemodule.view.preference.DialogSeekBarPreference
 import com.yuyan.imemodule.view.preference.EditTextIntPreference
+import com.yuyan.imemodule.view.preference.EditTextStringPreference
 import com.yuyan.imemodule.view.preference.ImeSwitchPreference
 import com.yuyan.imemodule.view.preference.ManagedPreference
 import com.yuyan.imemodule.view.preference.TwinSeekBarPreference
@@ -98,6 +99,29 @@ abstract class ManagedPreferenceUi<T : Preference>(
             min = this@EditTextInt.min
             max = this@EditTextInt.max
             unit = this@EditTextInt.unit
+        }
+    }
+
+    class EditTextString(
+        @StringRes
+        val title: Int,
+        key: String,
+        val defaultValue: String,
+        @StringRes
+        val hint: Int? = null,
+        val multiline: Boolean = true,
+        enableUiOn: (() -> Boolean)? = null
+    ) : ManagedPreferenceUi<EditTextPreference>(key, enableUiOn) {
+        override fun createUi(context: Context) = EditTextStringPreference(context).apply {
+            key = this@EditTextString.key
+            isIconSpaceReserved = false
+            isSingleLineTitle = false
+            summaryProvider = EditTextStringPreference.SimpleSummaryProvider
+            setDefaultValue(this@EditTextString.defaultValue)
+            setTitle(this@EditTextString.title)
+            setDialogTitle(this@EditTextString.title)
+            hint = this@EditTextString.hint?.let { context.getString(it) } ?: ""
+            multiline = this@EditTextString.multiline
         }
     }
 

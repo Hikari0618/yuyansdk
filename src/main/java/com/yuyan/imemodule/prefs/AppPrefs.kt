@@ -240,12 +240,24 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val clipboardHistoryLimit = int(
             R.string.clipboard_limit,
             "clipboard_limit",
-            50,
-            10,
-            110,
-            "条",
-            10,
-            defaultLabel = R.string.num_50
+            1000,
+            1,
+            100000,
+            "条"
+        ) { clipboardListening.getValue() }
+        /** 去重规则（照同文）：每行一个正则，剪贴板文本删掉匹配内容后为空则不记录 */
+        val clipboardCompareRules = string(
+            R.string.clipboard_compare_rules,
+            "clipboard_compare_rules",
+            "",
+            R.string.regex_per_line_hint
+        ) { clipboardListening.getValue() }
+        /** 过滤规则（照同文）：每行一个正则，文本命中任一规则则不记录 */
+        val clipboardOutputRules = string(
+            R.string.clipboard_output_rules,
+            "clipboard_output_rules",
+            "",
+            R.string.regex_per_line_hint
         ) { clipboardListening.getValue() }
         val clipboardSuggestion = switch(
             R.string.clipboard_suggestion, "clipboard_suggestion", true

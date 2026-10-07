@@ -14,6 +14,9 @@ interface ClipboardDao : BaseDao<Clipboard> {
     @Query("delete from clipboard where content = :content")
     fun deleteByContent(content: String)
 
+    @Query("select * from clipboard where content = :content limit 1")
+    fun findByContent(content: String): Clipboard?
+
     @Query("delete from clipboard")
     fun deleteAll()
 
