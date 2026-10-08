@@ -35,6 +35,20 @@ class KeyboardLoaderUtil private constructor() {
         mSoftKeyboardMap.clear()
     }
 
+    /**
+     * 横竖屏切换后：按新几何重算所有已缓存键盘里按键的像素矩形。
+     * 皮肤 XML 不需要重新解析 —— SoftKey 里存的是相对比例（mLeftF/widthF/mTopF/heightF），
+     * 这里只按新的 skbWidth/skbHeight 重算一次矩形，比 clearKeyboardMap() + 重建键盘快得多。
+     */
+    fun reapplySkbCoreSize() {
+        val env = EnvironmentSingleton.instance
+        mSoftKeyboardMap.values.forEach { skb ->
+            skb?.mKeyRows?.forEach { row ->
+                row.forEach { it.setSkbCoreSize(env.skbWidth, env.skbHeight) }
+            }
+        }
+    }
+
     private fun loadBaseSkb(skbValue: Int): SoftKeyboard {
         skbStyleMode = ThemeManager.prefs.skbStyleMode.getValue()
         mSkbValue = skbValue

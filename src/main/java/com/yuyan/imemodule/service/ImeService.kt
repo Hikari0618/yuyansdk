@@ -101,22 +101,35 @@ class ImeService : InputMethodService() {
 
     /**
      * 横竖屏切换
+     *
+     * 只重算几何 + 让「已有键盘」按新尺寸重新布局，不重建键盘。
+     * 原来是 clearKeyboardMap() + clearKeyboard() + switchKeyboard()：在主线程重新解析
+     * 皮肤 XML、丢掉并重建键盘容器与视图 —— 这就是「开着键盘旋转要卡一会」的来源。
+     * 同文输入法旋转时几乎什么都不做（只清一下组合），键盘靠布局自适应。
      */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         handleHardwareKeyboard(newConfig)
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(200) //延时，解决获取屏幕尺寸不准确。
-            EnvironmentSingleton.instance.initData(baseContext)
-            if (isSoftKeyboard) {
-                KeyboardLoaderUtil.instance.clearKeyboardMap()
-                KeyboardManager.instance.clearKeyboard()
-                KeyboardManager.instance.switchKeyboard()
-            } else if(isHardwareKeyboard && ::mCandidateView.isInitialized){
-                mCandidateView.initView()
-            }
+        relayoutForRotation()
+        if (isSoftKeyboard && ::mInputView.isInitialized) {
+            // 旋转瞬间 resources 里的屏幕尺寸可能还没更新（原来的 delay(200) 就是为这个），
+            // 等布局稳定后再校正一次；这次顺便重新应用皮肤（位图缩放只做一次）
+            mInputView.postDelayed({ relayoutForRotation(applyTheme = true) }, 120)
         }
         onSystemDarkModeChange(newConfig.isDarkMode())
+    }
+
+    /** 横竖屏切换后的重新布局：纯几何计算 + 重新测量，不重建视图 */
+    private fun relayoutForRotation(applyTheme: Boolean = false) {
+        EnvironmentSingleton.instance.initData(baseContext)
+        if (isSoftKeyboard && ::mInputView.isInitialized) {
+            // 已缓存的键盘按新几何重算按键矩形（SoftKey 存的是相对比例，不重新解析皮肤）
+            KeyboardLoaderUtil.instance.reapplySkbCoreSize()
+            KeyboardManager.instance.relayoutCurrentKeyboard()
+            if (applyTheme) mInputView.initView(baseContext)
+        } else if (isHardwareKeyboard && ::mCandidateView.isInitialized) {
+            mCandidateView.initView()
+        }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {

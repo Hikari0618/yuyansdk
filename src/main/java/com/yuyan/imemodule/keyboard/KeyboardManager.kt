@@ -39,6 +39,16 @@ class KeyboardManager {
         if (::mInputView.isInitialized) mInputView.initView(mInputView.context)
     }
 
+    /**
+     * 横竖屏切换后：复用已缓存容器，只让当前键盘按新几何重新布局（不重建视图）。
+     * 原来旋转时走 clearKeyboard() + switchKeyboard()，会把容器和键盘视图全部丢掉重建。
+     */
+    fun relayoutCurrentKeyboard() {
+        if (!::mKeyboardRootView.isInitialized) return
+        currentContainer?.updateSkbLayout()
+        if (::mInputView.isInitialized) mInputView.updateCandidateBar()
+    }
+
     fun switchKeyboard(layout: Int = InputModeSwitcher.skbLayout) {
         val keyboardName = when (layout) {
             0x1000 -> KeyboardType.QWERTY
