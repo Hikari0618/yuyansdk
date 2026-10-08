@@ -168,6 +168,7 @@ object DecodingInfo {
             return false
         }
         com.yuyan.imemodule.keyboard.container.SegmentsContainer.sourceText = content
+        com.yuyan.imemodule.keyboard.container.SegmentsContainer.pendingReset = true
         val km = com.yuyan.imemodule.keyboard.KeyboardManager.instance
         com.yuyan.inputmethod.util.ImeLog.d("[seg] 切换前 current=${km.currentContainer?.javaClass?.simpleName}")
         km.switchKeyboard(com.yuyan.imemodule.keyboard.KeyboardManager.KeyboardType.SEGMENTS)

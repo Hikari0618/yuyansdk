@@ -281,6 +281,42 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     /** 点建议行里被复制的内容时的回调（由 InputView 接上「直接上屏」） */
     var onSuggestionClick: ((String) -> Unit)? = null
 
+    /** 候选栏里放自定义内容的那一行（分词页工具栏等） */
+    private var mCustomRow: LinearLayout? = null
+
+    /**
+     * 用候选栏这一行显示自定义内容（如分词页的工具栏）；传 null 恢复候选栏。
+     * 直接占用候选栏那一行，就不用担心分词页「盖不住」候选栏/菜单栏的问题。
+     */
+    fun setCustomRow(row: View?) {
+        if (!::mCandidatesDataContainer.isInitialized) return
+        val holder = mCustomRow ?: LinearLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, instance.heightForCandidates
+            )
+        }.also {
+            mCustomRow = it
+            mCandidatesDataContainer.addView(it)
+        }
+        holder.removeAllViews()
+        if (row == null) {
+            holder.visibility = GONE
+            if (::candidatesData.isInitialized) candidatesData.visibility = VISIBLE
+            showCandidates()
+        } else {
+            holder.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
+                )
+            )
+            holder.visibility = VISIBLE
+            candidatesData.visibility = GONE
+            showViewVisibility(mCandidatesDataContainer)
+            applyRowHeights()
+        }
+    }
+
     /**
      * 剪贴板建议（照同文样式）：居中一行 —— 「分词」入口 + 图标 + 内容（小字、单行省略）+ 关闭。
      * 内容再长也不影响「分词」按钮：它在最前面，不会被顶到屏幕外。

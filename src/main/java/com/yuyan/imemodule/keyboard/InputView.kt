@@ -866,17 +866,23 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         }
     }
 
+    /**
+     * 分词页会把工具栏挂到候选栏那一行上。回到普通输入时恢复候选栏 ——
+     * 从分享/别的 App 回来时 onStartInputView 不一定被调到，所以 onWindowShown 也要兜一次。
+     */
+    private fun restoreCandidatesBarIfNeeded() {
+        if (KeyboardManager.instance.currentContainer is
+            com.yuyan.imemodule.keyboard.container.SegmentsContainer) return
+        if (mSkbCandidatesBarView.visibility != View.VISIBLE) {
+            mSkbCandidatesBarView.visibility = View.VISIBLE
+        }
+        mSkbCandidatesBarView.setCustomRow(null)
+        updateCandidateBar()
+    }
+
     fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
         InputModeSwitcher.requestInputWithSkb(editorInfo)
-        // 分词页会把候选栏整条藏掉（visibility=GONE）。输入视图重新显示时必须恢复，
-        // 否则从分享/别的 App 回来后菜单栏一直不显示，只能杀进程。
-        if (KeyboardManager.instance.currentContainer !is
-            com.yuyan.imemodule.keyboard.container.SegmentsContainer) {
-            if (mSkbCandidatesBarView.visibility != View.VISIBLE) {
-                mSkbCandidatesBarView.visibility = View.VISIBLE
-            }
-            updateCandidateBar()
-        }
+        restoreCandidatesBarIfNeeded()
         if (!restarting) {
             resetToIdleState()
             val clipboard = appPrefs.clipboard
@@ -896,6 +902,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     fun onWindowShown() {
         chinesePrediction = appPrefs.input.chinesePrediction.getValue()
+        restoreCandidatesBarIfNeeded()
     }
 
     fun onWindowHidden() {

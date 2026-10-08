@@ -47,14 +47,17 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
     companion object {
         /** 待分词的原文。容器是按类型新建的、没法从构造函数带参数，所以放这里传 */
         var sourceText: String = ""
+
+        /** 每次从外部请求分词时置 true：进去要重新切词并清空上次的选中 */
+        var pendingReset: Boolean = false
     }
 
     private val segments = mutableListOf<String>()
     private val selected = mutableSetOf<Int>()
     private lateinit var adapter: SegmentAdapter
     private var selectAllButton: TextView? = null
-    /** 上一次切词用的原文：原文没变就不重切（否则每次显示都会清掉用户已选中的词） */
-    private var lastSourceText: String? = null
+    /** 工具栏（返回/全选/复制/收藏/分享），挂在候选栏那一行上 */
+    private var topBar: LinearLayout? = null
 
     init {
         initView()
@@ -74,17 +77,17 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         if (visibility == View.VISIBLE) {
             if (isAttachedToWindow) onShown()
         } else {
-            // 离开分词页（返回、切键盘、输入法收起都算）：把组合区的词收尾上屏。
-            // 不提交的话它就停在组合态（字下面带横线），下次分词 setComposingText 会把它覆盖掉。
+            // 离开分词页（返回、切键盘、输入法收起都算）：工具栏交还候选栏，
+            // 并把组合区的词收尾上屏（不提交会停在组合态，下次分词把它覆盖掉）
+            inputView.mSkbCandidatesBarView.setCustomRow(null)
             inputView.commitSegmentComposing()
         }
     }
 
     private fun onShown() {
         if (!::adapter.isInitialized) return
-        val sourceChanged = lastSourceText != sourceText
-        if (sourceChanged) {
-            lastSourceText = sourceText
+        if (pendingReset) {
+            pendingReset = false
             segments.clear()
             segments.addAll(WordTokenizer.tokenize(sourceText))
             selected.clear()
@@ -93,11 +96,11 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
             inputView.updateSegmentComposing("")
             playDropDownAnimation()
         }
-        // 分词页面不需要候选栏（引擎会跟着组合区出候选，看着就是「候选栏里还有被复制的内容」）
-        inputView.mSkbCandidatesBarView.visibility = View.GONE
+        // 工具栏直接放到候选栏那一行上（页面里不再单独占一行，也不存在盖不住候选栏的问题）
+        inputView.mSkbCandidatesBarView.setCustomRow(topBar)
         inputView.hideClipboardSuggestionBar()
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[seg] 分词页面显示 原文长度=${sourceText.length} 重切词=$sourceChanged 词数=${segments.size}"
+            "[seg] 分词页面显示 原文长度=${sourceText.length} 重切词=${!pendingReset && segments.isEmpty()} 词数=${segments.size}"
         )
     }
 
@@ -210,16 +213,10 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
             addView(collectButton)
             addView(shareButton)
         }
+        this.topBar = topBar
 
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            addView(
-                topBar,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
             addView(
                 recyclerView,
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
