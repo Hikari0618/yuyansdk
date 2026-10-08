@@ -164,6 +164,15 @@ class ImeService : InputMethodService() {
     }
 
     override fun setInputView(view: View) {
+        // 框架在「输入视图已经显示」的情况下会反复调用 setInputView
+        // （旋转时：onConfigurationChanged → resetStateForNewConfiguration → showWindow
+        //   → prepareWindow → updateInputViewShown → setInputView），
+        // 而 framework 内部是直接往 mInputFrame 上 addView(view)：此时 view 还挂在原父容器上，
+        // 于是抛 IllegalStateException: The specified child already has a parent
+        // —— 用户日志里刷屏的 15 次 CRASH，每次横竖屏切换必崩。
+        // 关闭键盘时旋转不崩，正是因为不走 showWindow/updateInputViewShown 这条链路。
+        // 交给框架前先把 view 从原父容器摘下来。
+        (view.parent as? ViewGroup)?.removeView(view)
         super.setInputView(view)
         applyInputViewHeight(view)
     }
