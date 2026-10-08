@@ -121,7 +121,10 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         val copyButton = toolButton("复制").apply {
             setOnClickListener {
                 val text = joinedSelection()
-                if (text.isEmpty()) return@setOnClickListener
+                if (text.isEmpty()) {
+                    toast("请先选择词语")
+                    return@setOnClickListener
+                }
                 context.getSystemService(ClipboardManager::class.java)
                     ?.setPrimaryClip(ClipData.newPlainText("", text))
                 toast("已复制")
@@ -130,17 +133,20 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         val collectButton = toolButton("收藏").apply {
             setOnClickListener {
                 val text = joinedSelection()
-                if (text.isEmpty()) return@setOnClickListener
+                if (text.isEmpty()) {
+                    toast("请先选择词语")
+                    return@setOnClickListener
+                }
                 val dao = DataBaseKT.instance.phraseDao()
                 val message = runCatching {
                     val exist = dao.queryByContent(text)
                     if (exist != null) {
                         exist.isKeep = 1
                         dao.update(exist)
-                        "已在短语中，已置顶"
+                        "已在常用语中，已置顶"
                     } else {
                         dao.insert(Phrase(content = text, t9 = "", qwerty = "", lx17 = ""))
-                        "已收藏到短语"
+                        "已收藏到常用语"
                     }
                 }.getOrElse { "收藏失败：${it.message}" }
                 toast(message)
@@ -149,7 +155,12 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         val shareButton = toolButton("分享").apply {
             setOnClickListener {
                 val text = joinedSelection()
-                if (text.isEmpty()) return@setOnClickListener
+                if (text.isEmpty()) {
+                    toast("请先选择词语")
+                    return@setOnClickListener
+                }
+                // 先收起键盘：否则分享面板会被输入法窗口挡在后面，看起来像「点了没反应」
+                inputView.requestHideSelf()
                 runCatching {
                     val send = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
@@ -160,7 +171,7 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                     )
-                }
+                }.onFailure { toast("分享失败：${it.message}") }
             }
         }
 
@@ -201,7 +212,12 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
     }
 
     private fun toast(message: String) {
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        // 用 App 上下文弹 Toast：用输入法服务的上下文在部分 ROM（澎湃OS 等）上会被吞掉
+        Toast.makeText(
+            com.yuyan.imemodule.application.Launcher.instance.context,
+            message,
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     /** 选中的词拼起来 */

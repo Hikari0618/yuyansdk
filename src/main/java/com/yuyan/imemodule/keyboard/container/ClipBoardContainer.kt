@@ -227,7 +227,10 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
                 "已收藏到短语"
             }
         }.getOrElse { "收藏失败：${it.message}" }
-        Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show()
+        // 用 App 上下文弹 Toast（输入法服务上下文在部分 ROM 上会被吞）
+        Toast.makeText(
+            com.yuyan.imemodule.application.Launcher.instance.context, message, Toast.LENGTH_SHORT
+        ).show()
     }
 
     private val mHashMapSymbols = HashMap<Int, Int>() //候选词索引列数对应表

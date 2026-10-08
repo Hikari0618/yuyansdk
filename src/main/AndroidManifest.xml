@@ -36,6 +36,8 @@
             android:name=".ui.activity.ClipEditActivity"
             android:exported="false"
             android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:launchMode="singleInstance"
             android:theme="@style/Theme.AppCompat.Dialog" />
 
         <activity android:name=".ui.setup.SetupActivity"

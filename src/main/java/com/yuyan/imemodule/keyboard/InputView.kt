@@ -133,6 +133,10 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             removeView(mAddPhrasesLayout)
         }
         mSkbCandidatesBarView.initialize(mChoiceNotifier)
+        // 点建议行里被复制的内容 = 直接上屏（原来它是候选词，改成自定义行后丢了点击）
+        mSkbCandidatesBarView.onSuggestionClick = { content ->
+            service.currentInputConnection?.commitText(content, 1)
+        }
         // 候选栏内容变化时让 Service 重算 insets（触摸区跟随可见内容）
         mSkbCandidatesBarView.onContentChanged = { service.updateInputViewShown() }
         val env = EnvironmentSingleton.instance
@@ -729,7 +733,23 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     /** 分词页面用：把选中的词拼进组合区（选一个变一次），传空串表示收尾上屏 */
     fun updateSegmentComposing(text: String) {
-        if (text.isEmpty()) service.finishComposingText() else service.setComposingText(text)
+        val ic = service.currentInputConnection ?: return
+        com.yuyan.inputmethod.util.ImeLog.d("[seg] 组合区更新 len=${text.length} text='${text.take(30)}'")
+        // 照同文：整批编辑，并先清掉可能存在的选中 —— 否则 App 会在中途把组合区提交掉，
+        // 已提交的部分就再也撤不回来了（症状：取消选择时前面的词撤不掉）
+        ic.beginBatchEdit()
+        try {
+            if (!ic.getSelectedText(0).isNullOrEmpty()) {
+                ic.deleteSurroundingText(1, 0)
+            }
+            if (text.isEmpty()) {
+                ic.finishComposingText()
+            } else {
+                ic.setComposingText(text, 1)
+            }
+        } finally {
+            ic.endBatchEdit()
+        }
     }
 
     /** 分词页面用：进去时把候选栏的剪贴板建议行收起来 */

@@ -278,6 +278,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private val serviceScope = MainScope()
     private var mClipboardSuggestionView: LinearLayout? = null
 
+    /** 点建议行里被复制的内容时的回调（由 InputView 接上「直接上屏」） */
+    var onSuggestionClick: ((String) -> Unit)? = null
+
     /**
      * 剪贴板建议（照同文样式）：居中一行 —— 「分词」入口 + 图标 + 内容（小字、单行省略）+ 关闭。
      * 内容再长也不影响「分词」按钮：它在最前面，不会被顶到屏幕外。
@@ -296,13 +299,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             )
         }
         row.removeAllViews()
-        row.addView(suggestionItem("分词") {
+        row.addView(suggestionItem("✂") {
             com.yuyan.imemodule.service.DecodingInfo.segmentClipboardSuggestion(
                 com.yuyan.imemodule.prefs.AppPrefs.getInstance()
                     .internal.clipboardUpdateContent.getValue()
             )
         })
-        row.addView(suggestionItem("📋") {})
         row.addView(TextView(context).apply {
             text = content
             isSingleLine = true
@@ -311,6 +313,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             setTextColor(com.yuyan.imemodule.data.theme.ThemeManager.activeTheme.keyTextColor)
             textSize = instance.candidateTextSize * 0.8f   // 比候选词小一号
             setPadding(dp(4), 0, dp(4), 0)
+            setOnClickListener { onSuggestionClick?.invoke(content) }
         })
         row.addView(suggestionItem("✕") { hideClipboardSuggestion() })
         row.visibility = VISIBLE
