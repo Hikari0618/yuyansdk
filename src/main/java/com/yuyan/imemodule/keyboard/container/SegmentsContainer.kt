@@ -53,29 +53,46 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
     private val selected = mutableSetOf<Int>()
     private lateinit var adapter: SegmentAdapter
     private var selectAllButton: TextView? = null
+    /** 上一次切词用的原文：原文没变就不重切（否则每次显示都会清掉用户已选中的词） */
+    private var lastSourceText: String? = null
 
     init {
         initView()
     }
 
-    /**
-     * 容器是按 KeyboardType 缓存的，每次显示都按最新原文重新切词；
-     * 顺便收起候选栏的剪贴板建议行（分词页面里不需要它），并播放下拉动画。
-     */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        onShown()
+    }
+
+    /**
+     * 容器是按 KeyboardType 缓存的，切走时只是 visibility=GONE，并不会 detach ——
+     * 所以「第二次分词还是上次内容」的刷新不能只写在 onAttachedToWindow，要用可见性回调兜住。
+     */
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility == View.VISIBLE && isAttachedToWindow) onShown()
+    }
+
+    private fun onShown() {
         if (!::adapter.isInitialized) return
-        com.yuyan.inputmethod.util.ImeLog.d("[seg] 分词页面 onAttached，原文长度=${sourceText.length}")
-        segments.clear()
-        segments.addAll(WordTokenizer.tokenize(sourceText))
-        selected.clear()
-        adapter.notifyDataSetChanged()
-        selectAllButton?.text = "全选"
-        inputView.updateSegmentComposing("")
-        inputView.hideClipboardSuggestionBar()
+        val sourceChanged = lastSourceText != sourceText
+        if (sourceChanged) {
+            lastSourceText = sourceText
+            segments.clear()
+            segments.addAll(WordTokenizer.tokenize(sourceText))
+            selected.clear()
+            adapter.notifyDataSetChanged()
+            selectAllButton?.text = "全选"
+            inputView.updateSegmentComposing("")
+            playDropDownAnimation()
+        }
         // 分词页面不需要候选栏（引擎会跟着组合区出候选，看着就是「候选栏里还有被复制的内容」）
         inputView.mSkbCandidatesBarView.visibility = View.GONE
-        playDropDownAnimation()
+        inputView.hideClipboardSuggestionBar()
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[seg] 分词页面显示 原文长度=${sourceText.length} 重切词=$sourceChanged 词数=${segments.size}"
+        )
     }
 
     /** 同文的分词页面打开时有下拉动画 */
