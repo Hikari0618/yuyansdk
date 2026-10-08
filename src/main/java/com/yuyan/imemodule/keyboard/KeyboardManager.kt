@@ -91,6 +91,10 @@ class KeyboardManager {
             keyboards[keyboardName] = container
         }
         mKeyboardRootView.showView(container)
+        // 分词页面会自己把候选栏藏掉，切回别的键盘时恢复（候选栏是常驻视图，不恢复就再也不显示）
+        if (mInputView.mSkbCandidatesBarView.visibility != android.view.View.VISIBLE) {
+            mInputView.mSkbCandidatesBarView.visibility = android.view.View.VISIBLE
+        }
         mCurrentKeyboardName = keyboardName
         currentContainer = container
     }

@@ -73,6 +73,8 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         selectAllButton?.text = "全选"
         inputView.updateSegmentComposing("")
         inputView.hideClipboardSuggestionBar()
+        // 分词页面不需要候选栏（引擎会跟着组合区出候选，看着就是「候选栏里还有被复制的内容」）
+        inputView.mSkbCandidatesBarView.visibility = View.GONE
         playDropDownAnimation()
     }
 
