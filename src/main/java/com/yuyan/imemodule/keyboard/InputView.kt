@@ -727,6 +727,16 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         DecodingInfo.segmentClipboardSuggestion(appPrefs.internal.clipboardUpdateContent.getValue())
     }
 
+    /** 分词页面用：把选中的词拼进组合区（选一个变一次），传空串表示收尾上屏 */
+    fun updateSegmentComposing(text: String) {
+        if (text.isEmpty()) service.finishComposingText() else service.setComposingText(text)
+    }
+
+    /** 分词页面用：进去时把候选栏的剪贴板建议行收起来 */
+    fun hideClipboardSuggestionBar() {
+        mSkbCandidatesBarView.hideClipboardSuggestion()
+    }
+
     fun requestHideSelf() {
         service.requestHideSelf(0)
         // 收起后立刻重算 insets，把触摸区让出去。

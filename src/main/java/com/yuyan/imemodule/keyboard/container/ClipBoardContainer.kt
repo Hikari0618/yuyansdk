@@ -203,8 +203,11 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     /** 分词：切词后当候选显示，回到键盘就能点选上屏 */
     private fun segmentItem(item: Clipboard) {
+        com.yuyan.inputmethod.util.ImeLog.d("[seg] 剪贴板菜单点分词 pos len=${item.content.length}")
         if (DecodingInfo.segmentClipboardSuggestion(item.content)) {
-            KeyboardManager.instance.switchKeyboard()
+            com.yuyan.inputmethod.util.ImeLog.d("[seg] 分词页面已打开")
+        } else {
+            com.yuyan.inputmethod.util.ImeLog.d("[seg] 分词请求被拒绝")
         }
     }
 

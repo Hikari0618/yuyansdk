@@ -54,10 +54,17 @@ class ClipEditActivity : AppCompatActivity() {
             val newContent = editText.text.toString()
             if (newContent.isNotBlank() && newContent != oldContent) {
                 val dao = DataBaseKT.instance.clipboardDao()
-                // 按内容定位原条目再改内容（列表里按内容去重，内容就是键）
-                dao.findByContent(oldContent)?.let {
-                    it.content = newContent
-                    dao.update(it)
+                // content 就是主键：改内容等于换主键，@Update 按新主键找不到行 → 必须先删旧行再插新行
+                val old = dao.findByContent(oldContent)
+                if (old != null) {
+                    dao.deleteByContent(oldContent)
+                    dao.insert(
+                        com.yuyan.imemodule.database.entry.Clipboard(
+                            content = newContent,
+                            isKeep = old.isKeep,
+                            time = old.time
+                        )
+                    )
                 }
             }
             finish()

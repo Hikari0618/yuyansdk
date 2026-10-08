@@ -1,15 +1,21 @@
 package com.yuyan.imemodule.keyboard.container
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.TranslateAnimation
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexDirection
@@ -17,9 +23,10 @@ import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.data.theme.ThemeManager.activeTheme
+import com.yuyan.imemodule.database.DataBaseKT
+import com.yuyan.imemodule.database.entry.Phrase
 import com.yuyan.imemodule.keyboard.InputView
 import com.yuyan.imemodule.keyboard.KeyboardManager
-import com.yuyan.imemodule.prefs.behavior.PopupMenuMode
 import com.yuyan.imemodule.singleton.EnvironmentSingleton.Companion.instance
 import com.yuyan.imemodule.utils.WordTokenizer
 import splitties.dimensions.dp
@@ -30,8 +37,9 @@ import kotlin.math.min
 /**
  * 分词页面（照同文 Trime 的 SegmentsWindow）。
  *
- * 把一段文本切词后，每个词显示成一个芯片：点一下选中/取消，也可以按住横向滑行批量选择；
- * 「上屏」把选中的词拼起来送出，「全选」一键全选/全不选。
+ * 切词后每个词是一个芯片：点一下选中/取消，也可以按住横向滑行批量选择。
+ * 选中即拼进组合区（和同文一样，不用再点「上屏」）；
+ * 左上角「←」= 收尾上屏并回键盘，右上角是功能按钮（全选/复制/收藏/分享）；打开时带下拉动画。
  */
 @SuppressLint("ViewConstructor")
 class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(context, inputView) {
@@ -51,17 +59,32 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
     }
 
     /**
-     * 容器是按 KeyboardType 缓存的，第二次分词会复用同一个实例 ——
-     * 这里按最新的原文重新切词，否则会一直显示上一次的内容。
+     * 容器是按 KeyboardType 缓存的，每次显示都按最新原文重新切词；
+     * 顺便收起候选栏的剪贴板建议行（分词页面里不需要它），并播放下拉动画。
      */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         if (!::adapter.isInitialized) return
+        com.yuyan.inputmethod.util.ImeLog.d("[seg] 分词页面 onAttached，原文长度=${sourceText.length}")
         segments.clear()
         segments.addAll(WordTokenizer.tokenize(sourceText))
         selected.clear()
         adapter.notifyDataSetChanged()
         selectAllButton?.text = "全选"
+        inputView.updateSegmentComposing("")
+        inputView.hideClipboardSuggestionBar()
+        playDropDownAnimation()
+    }
+
+    /** 同文的分词页面打开时有下拉动画 */
+    private fun playDropDownAnimation() {
+        val offset = resources.displayMetrics.heightPixels * 0.25f
+        startAnimation(
+            TranslateAnimation(0f, 0f, -offset, 0f).apply {
+                duration = 220
+                interpolator = DecelerateInterpolator()
+            }
+        )
     }
 
     private fun initView() {
@@ -81,36 +104,89 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         }
         recyclerView.addOnItemTouchListener(DragSelectTouchListener(context, recyclerView))
 
+        // 左上角：返回（收尾上屏 + 回键盘）
+        val backButton = toolButton("←").apply {
+            setOnClickListener { finishAndBack() }
+        }
+        // 右上角：功能按钮（照同文工具栏）
         val selectAllButton = toolButton("全选").apply {
             setOnClickListener { view ->
                 if (selected.size == segments.size) selected.clear() else selected.addAll(segments.indices)
                 adapter.notifyDataSetChanged()
                 (view as TextView).text = if (selected.size == segments.size) "全不选" else "全选"
+                onSelectionChanged()
             }
         }
         this.selectAllButton = selectAllButton
-        val commitButton = toolButton("上屏").apply {
-            setOnClickListener { commitSelection() }
+        val copyButton = toolButton("复制").apply {
+            setOnClickListener {
+                val text = joinedSelection()
+                if (text.isEmpty()) return@setOnClickListener
+                context.getSystemService(ClipboardManager::class.java)
+                    ?.setPrimaryClip(ClipData.newPlainText("", text))
+                toast("已复制")
+            }
         }
-        val toolbar = LinearLayout(context).apply {
+        val collectButton = toolButton("收藏").apply {
+            setOnClickListener {
+                val text = joinedSelection()
+                if (text.isEmpty()) return@setOnClickListener
+                val dao = DataBaseKT.instance.phraseDao()
+                val message = runCatching {
+                    val exist = dao.queryByContent(text)
+                    if (exist != null) {
+                        exist.isKeep = 1
+                        dao.update(exist)
+                        "已在短语中，已置顶"
+                    } else {
+                        dao.insert(Phrase(content = text, t9 = "", qwerty = "", lx17 = ""))
+                        "已收藏到短语"
+                    }
+                }.getOrElse { "收藏失败：${it.message}" }
+                toast(message)
+            }
+        }
+        val shareButton = toolButton("分享").apply {
+            setOnClickListener {
+                val text = joinedSelection()
+                if (text.isEmpty()) return@setOnClickListener
+                runCatching {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, text)
+                    }
+                    context.startActivity(
+                        Intent.createChooser(send, null).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    )
+                }
+            }
+        }
+
+        val topBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            gravity = Gravity.CENTER_VERTICAL
+            addView(backButton)
+            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))   // 中间撑开，功能按钮靠右
             addView(selectAllButton)
-            addView(commitButton)
+            addView(copyButton)
+            addView(collectButton)
+            addView(shareButton)
         }
 
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             addView(
-                recyclerView,
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-            )
-            addView(
-                toolbar,
+                topBar,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
+            )
+            addView(
+                recyclerView,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
             )
         }
         addView(root, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -121,16 +197,26 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         gravity = Gravity.CENTER
         setTextColor(activeTheme.keyTextColor)
         textSize = instance.candidateTextSize.toFloat()
-        setPadding(dp(16f).toInt(), dp(8f).toInt(), dp(16f).toInt(), dp(8f).toInt())
+        setPadding(dp(14f).toInt(), dp(8f).toInt(), dp(14f).toInt(), dp(8f).toInt())
     }
 
-    private fun commitSelection() {
-        val text = buildString {
-            segments.forEachIndexed { i, s -> if (selected.contains(i)) append(s) }
-        }
-        if (text.isNotBlank()) {
-            inputView.responseLongKeyEvent(Pair(PopupMenuMode.Text, text))
-        }
+    private fun toast(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
+    /** 选中的词拼起来 */
+    private fun joinedSelection(): String = buildString {
+        segments.forEachIndexed { i, s -> if (selected.contains(i)) append(s) }
+    }
+
+    /** 选中即拼进组合区（照同文，不用再点「上屏」） */
+    private fun onSelectionChanged() {
+        inputView.updateSegmentComposing(joinedSelection())
+    }
+
+    /** 返回：组合区收尾上屏，回键盘 */
+    private fun finishAndBack() {
+        inputView.updateSegmentComposing("")
         KeyboardManager.instance.switchKeyboard()
     }
 
@@ -138,6 +224,7 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         if (position !in segments.indices) return
         if (selected.contains(position)) selected.remove(position) else selected.add(position)
         adapter.notifyItemChanged(position)
+        onSelectionChanged()
     }
 
     private fun isSegmentSelected(position: Int): Boolean = selected.contains(position)
@@ -265,6 +352,7 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
                     startPosition = -1
                     lastEndPosition = -1
                     rv.parent?.requestDisallowInterceptTouchEvent(false)
+                    onSelectionChanged()
                 }
             }
         }

@@ -156,12 +156,22 @@ object DecodingInfo {
      * 切词结果不塞进候选区，而是新开一个页面：可多选、可按住滑行选择，再一起上屏。
      */
     fun segmentClipboardSuggestion(content: String): Boolean {
-        if (content.isBlank()) return false
-        if (com.yuyan.imemodule.utils.WordTokenizer.tokenize(content).isEmpty()) return false
+        com.yuyan.inputmethod.util.ImeLog.d("[seg] 请求分词 len=${content.length} content='${content.take(20)}'")
+        if (content.isBlank()) {
+            com.yuyan.inputmethod.util.ImeLog.d("[seg] 内容为空，返回")
+            return false
+        }
+        val wordCount = com.yuyan.imemodule.utils.WordTokenizer.tokenize(content).size
+        com.yuyan.inputmethod.util.ImeLog.d("[seg] 切词结果 words=$wordCount")
+        if (wordCount == 0) {
+            com.yuyan.inputmethod.util.ImeLog.d("[seg] 切不出词，返回")
+            return false
+        }
         com.yuyan.imemodule.keyboard.container.SegmentsContainer.sourceText = content
-        com.yuyan.imemodule.keyboard.KeyboardManager.instance.switchKeyboard(
-            com.yuyan.imemodule.keyboard.KeyboardManager.KeyboardType.SEGMENTS
-        )
+        val km = com.yuyan.imemodule.keyboard.KeyboardManager.instance
+        com.yuyan.inputmethod.util.ImeLog.d("[seg] 切换前 current=${km.currentContainer?.javaClass?.simpleName}")
+        km.switchKeyboard(com.yuyan.imemodule.keyboard.KeyboardManager.KeyboardType.SEGMENTS)
+        com.yuyan.inputmethod.util.ImeLog.d("[seg] 切换后 current=${km.currentContainer?.javaClass?.simpleName}")
         return true
     }
 

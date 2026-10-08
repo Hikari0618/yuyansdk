@@ -325,7 +325,8 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         text = label
         gravity = Gravity.CENTER
         setTextColor(com.yuyan.imemodule.data.theme.ThemeManager.activeTheme.keyTextColor)
-        textSize = instance.candidateTextSize.toFloat()
+        // 和右边被复制内容的字号保持一致（原来用了候选词的字号，显得特别大）
+        textSize = instance.candidateTextSize * 0.8f
         setPadding(dp(8), 0, dp(8), 0)
         setOnClickListener { onClick() }
     }

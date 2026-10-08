@@ -66,7 +66,11 @@ class KeyboardManager {
     }
 
     fun switchKeyboard(keyboardName: KeyboardType) {
-        if (!::mKeyboardRootView.isInitialized) return
+        if (!::mKeyboardRootView.isInitialized) {
+            com.yuyan.inputmethod.util.ImeLog.d("[kb] switchKeyboard($keyboardName) 被忽略：rootView 未初始化")
+            return
+        }
+        com.yuyan.inputmethod.util.ImeLog.d("[kb] switchKeyboard($keyboardName) 请求")
         var container = keyboards[keyboardName]
         if (container == null) {
             container = when (keyboardName) {
