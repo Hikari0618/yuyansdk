@@ -735,17 +735,18 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     fun updateSegmentComposing(text: String) {
         val ic = service.currentInputConnection ?: return
         com.yuyan.inputmethod.util.ImeLog.d("[seg] 组合区更新 len=${text.length} text='${text.take(30)}'")
-        // 照同文：整批编辑，并先清掉可能存在的选中 —— 否则 App 会在中途把组合区提交掉，
-        // 已提交的部分就再也撤不回来了（症状：取消选择时前面的词撤不掉）
+        // 照同文：整批编辑，并先清掉可能存在的选中 —— 否则 App 会在中途把组合区提交掉
         ic.beginBatchEdit()
         try {
             if (!ic.getSelectedText(0).isNullOrEmpty()) {
                 ic.deleteSurroundingText(1, 0)
             }
+            // 关键：必须调 setComposingText —— 传空串就等于把组合区里的字删掉。
+            // 只调 finishComposingText 是把字「提交」掉（留在屏幕上），
+            // 于是取消选择时前面的字撤不掉、再选又接在后面越积越多。
+            ic.setComposingText(text, 1)
             if (text.isEmpty()) {
                 ic.finishComposingText()
-            } else {
-                ic.setComposingText(text, 1)
             }
         } finally {
             ic.endBatchEdit()

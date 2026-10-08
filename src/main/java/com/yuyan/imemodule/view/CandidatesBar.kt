@@ -336,8 +336,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
 
     /** 收起剪贴板建议，恢复候选词列表 */
     fun hideClipboardSuggestion() {
+        if (mClipboardSuggestionView?.visibility != VISIBLE) return
         mClipboardSuggestionView?.visibility = GONE
         if (::candidatesData.isInitialized) candidatesData.visibility = VISIBLE
+        // 让候选栏按当前状态重排：没有候选时它应该显示菜单条，
+        // 否则会留下一条空白 —— 表现就是「叉掉建议后候选栏和菜单键那行都没了」
+        showCandidates()
     }
 
     fun scheduleShowCandidates() {
