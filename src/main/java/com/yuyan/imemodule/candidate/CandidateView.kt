@@ -216,13 +216,6 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
 
     inner class ChoiceNotifier internal constructor() : CandidateViewListener {
         override fun onClickChoice(choiceId: Int) {
-            // 「分词」入口不是候选词：点了就把剪贴板建议的内容切词，词条再当候选显示
-            if (DecodingInfo.getCandidate(choiceId)?.comment == "✂") {
-                DecodingInfo.segmentClipboardSuggestion(
-                    com.yuyan.imemodule.prefs.AppPrefs.getInstance().internal.clipboardUpdateContent.getValue()
-                )
-                return
-            }
             DevicesUtils.tryPlayKeyDown()
             DevicesUtils.tryVibrate(KeyboardManager.instance.currentContainer)
             chooseAndUpdate(choiceId)

@@ -106,11 +106,13 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         if(copyContents.isEmpty()){
             this.addView(mTVLable, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         }
-        val adapter = ClipBoardAdapter(context, copyContents) { position, anchor ->
-            // 长按条目：编辑 / 分享 / 分词 / 收藏（置顶、删除仍走左滑）
-            showItemMenu(anchor, copyContents[position])
-        }
+        val adapter = ClipBoardAdapter(context, copyContents)
         mRVSymbolsView.setAdapter(null)
+        // 长按条目：编辑 / 分享 / 分词 / 收藏（置顶、删除仍走左滑）
+        // 必须用 SwipeRecyclerView 自己的长按监听：它包了一层 adapter，条目视图上的长按会被它吃掉
+        mRVSymbolsView.setOnItemLongClickListener { itemView, position ->
+            showItemMenu(itemView, copyContents[position])
+        }
         mRVSymbolsView.setOnItemClickListener{ _: View?, position: Int ->
             inputView.responseLongKeyEvent(Pair(PopupMenuMode.Text, copyContents[position].content))
             if(!CustomConstant.lockClipBoardEnable)KeyboardManager.instance.switchKeyboard()

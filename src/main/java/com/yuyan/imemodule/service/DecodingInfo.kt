@@ -152,14 +152,16 @@ object DecodingInfo {
     }
 
     /**
-     * 剪贴板建议的「分词」入口：把内容切词后直接当候选显示（点哪个上屏哪个）。
-     * 悬浮候选栏和普通候选栏共用这段逻辑，所以放在这里。
+     * 打开分词页面（照同文 Trime 的 SegmentsWindow）。
+     * 切词结果不塞进候选区，而是新开一个页面：可多选、可按住滑行选择，再一起上屏。
      */
     fun segmentClipboardSuggestion(content: String): Boolean {
         if (content.isBlank()) return false
-        val words = com.yuyan.imemodule.utils.WordTokenizer.tokenize(content)
-        if (words.isEmpty()) return false
-        cacheCandidates(words.map { CandidateListItem("", it) }.toTypedArray(), true)
+        if (com.yuyan.imemodule.utils.WordTokenizer.tokenize(content).isEmpty()) return false
+        com.yuyan.imemodule.keyboard.container.SegmentsContainer.sourceText = content
+        com.yuyan.imemodule.keyboard.KeyboardManager.instance.switchKeyboard(
+            com.yuyan.imemodule.keyboard.KeyboardManager.KeyboardType.SEGMENTS
+        )
         return true
     }
 

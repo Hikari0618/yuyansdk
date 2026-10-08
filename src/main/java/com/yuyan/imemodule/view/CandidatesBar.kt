@@ -276,7 +276,65 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     // 增加窗口防抖机制
     private var pendingMenuJob: Job? = null
     private val serviceScope = MainScope()
+    private var mClipboardSuggestionView: LinearLayout? = null
+
+    /**
+     * 剪贴板建议（照同文样式）：居中一行 —— 「分词」入口 + 图标 + 内容（小字、单行省略）+ 关闭。
+     * 内容再长也不影响「分词」按钮：它在最前面，不会被顶到屏幕外。
+     */
+    fun showClipboardSuggestion(content: String) {
+        if (!::mCandidatesDataContainer.isInitialized) return
+        val row = mClipboardSuggestionView ?: LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(10), 0, dp(10), 0)
+        }.also {
+            mClipboardSuggestionView = it
+            mCandidatesDataContainer.addView(
+                it,
+                LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, instance.heightForCandidates)
+            )
+        }
+        row.removeAllViews()
+        row.addView(suggestionItem("分词") {
+            com.yuyan.imemodule.service.DecodingInfo.segmentClipboardSuggestion(
+                com.yuyan.imemodule.prefs.AppPrefs.getInstance()
+                    .internal.clipboardUpdateContent.getValue()
+            )
+        })
+        row.addView(suggestionItem("📋") {})
+        row.addView(TextView(context).apply {
+            text = content
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            maxWidth = dp(220)
+            setTextColor(com.yuyan.imemodule.data.theme.ThemeManager.activeTheme.keyTextColor)
+            textSize = instance.candidateTextSize * 0.8f   // 比候选词小一号
+            setPadding(dp(4), 0, dp(4), 0)
+        })
+        row.addView(suggestionItem("✕") { hideClipboardSuggestion() })
+        row.visibility = VISIBLE
+        candidatesData.visibility = GONE
+    }
+
+    private fun suggestionItem(label: String, onClick: () -> Unit): TextView = TextView(context).apply {
+        text = label
+        gravity = Gravity.CENTER
+        setTextColor(com.yuyan.imemodule.data.theme.ThemeManager.activeTheme.keyTextColor)
+        textSize = instance.candidateTextSize.toFloat()
+        setPadding(dp(8), 0, dp(8), 0)
+        setOnClickListener { onClick() }
+    }
+
+    /** 收起剪贴板建议，恢复候选词列表 */
+    fun hideClipboardSuggestion() {
+        mClipboardSuggestionView?.visibility = GONE
+        if (::candidatesData.isInitialized) candidatesData.visibility = VISIBLE
+    }
+
     fun scheduleShowCandidates() {
+        // 有候选词了就收起剪贴板建议（用户开始打字了）；建议期间候选为空，不会误收
+        if (!DecodingInfo.isCandidatesEmpty) hideClipboardSuggestion()
         if (!DecodingInfo.isCandidatesEmpty) {
             pendingMenuJob?.cancel()
             pendingMenuJob = null

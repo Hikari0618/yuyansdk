@@ -656,11 +656,6 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     inner class ChoiceNotifier internal constructor() : CandidateViewListener {
         override fun onClickChoice(choiceId: Int) {
-            // 「分词」入口不是候选词：点了就把剪贴板建议的内容切词，词条再当候选显示
-            if (DecodingInfo.getCandidate(choiceId)?.comment == SEGMENT_ENTRY_MARK) {
-                onSegmentRequest()
-                return
-            }
             DevicesUtils.tryPlayKeyDown()
             DevicesUtils.tryVibrate(KeyboardManager.instance.currentContainer)
             chooseAndUpdate(choiceId)
@@ -718,26 +713,14 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     }
 
     /**
-     * 「分词」入口的识别标记。放在 CandidateListItem.comment 里 —— 候选栏会把 comment
-     * 用小字跟在词后面显示，所以它既可见（用户看到「分词 ✂」）又能用来区分点击行为。
-     */
-    private val SEGMENT_ENTRY_MARK = "✂"
-
-    /**
-     * 剪贴板建议：内容 + 右侧的「分词」入口。
-     * 点「分词」自动切词，词条再作为候选显示，点哪个上屏哪个。
+     * 剪贴板建议：交给候选栏显示成「分词 + 图标 + 内容（小字）+ 关闭」的居中一行，
+     * 不再把「分词」当成候选词混在候选列表里（内容一长就要翻到最后才按得到）。
      */
     private fun showClipboardSuggestion(content: String) {
-        DecodingInfo.cacheCandidates(
-            arrayOf(
-                CandidateListItem("📋", content),
-                CandidateListItem(SEGMENT_ENTRY_MARK, "分词"),
-            ),
-            true
-        )
+        mSkbCandidatesBarView.showClipboardSuggestion(content)
     }
 
-    /** 把剪贴板建议的内容切词，词条直接当候选显示：点哪个上屏哪个（自由选择） */
+    /** 「分词」入口：打开分词页面（照同文，切词结果不在候选区） */
     fun onSegmentRequest() {
         DecodingInfo.segmentClipboardSuggestion(appPrefs.internal.clipboardUpdateContent.getValue())
     }
