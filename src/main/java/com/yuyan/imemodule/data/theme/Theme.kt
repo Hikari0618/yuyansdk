@@ -1,6 +1,7 @@
 
 package com.yuyan.imemodule.data.theme
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
@@ -79,10 +80,20 @@ sealed class Theme : Parcelable {
             fun toDrawable(): Drawable? {
                 val cropped = File(croppedFilePath)
                 if (!cropped.exists()) return null
-                val bitmap = BitmapFactory.decodeStream(cropped.inputStream()) ?: return null
+                // 解码一张整屏背景 PNG 很贵（上百毫秒级），按「路径+修改时间」缓存：
+                // 换主题/横竖屏切换时 updateTheme 会反复调用，之前每次都重新解码。
+                val key = "$croppedFilePath|${cropped.lastModified()}"
+                val bitmap = synchronized(bitmapCache) {
+                    bitmapCache[key]
+                        ?: BitmapFactory.decodeStream(cropped.inputStream())?.also { bitmapCache[key] = it }
+                } ?: return null
                 return BitmapDrawable(Launcher.instance.context.resources, bitmap).apply {
                     colorFilter = DarkenColorFilter(100 - brightness)
                 }
+            }
+
+            companion object {
+                private val bitmapCache = HashMap<String, Bitmap>()
             }
         }
 

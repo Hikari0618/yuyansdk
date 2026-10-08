@@ -108,6 +108,7 @@ class ImeService : InputMethodService() {
      * 同文输入法旋转时几乎什么都不做（只清一下组合），键盘靠布局自适应。
      */
     override fun onConfigurationChanged(newConfig: Configuration) {
+        val perfT0 = android.os.SystemClock.elapsedRealtime()
         super.onConfigurationChanged(newConfig)
         handleHardwareKeyboard(newConfig)
         relayoutForRotation()
@@ -117,16 +118,29 @@ class ImeService : InputMethodService() {
             mInputView.postDelayed({ relayoutForRotation(applyTheme = true) }, 120)
         }
         onSystemDarkModeChange(newConfig.isDarkMode())
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[perf] onConfigurationChanged total=${android.os.SystemClock.elapsedRealtime() - perfT0}ms " +
+                "orientation=${newConfig.orientation}"
+        )
     }
 
     /** 横竖屏切换后的重新布局：纯几何计算 + 重新测量，不重建视图 */
     private fun relayoutForRotation(applyTheme: Boolean = false) {
+        val t0 = android.os.SystemClock.elapsedRealtime()
         EnvironmentSingleton.instance.initData(baseContext)
+        val t1 = android.os.SystemClock.elapsedRealtime()
         if (isSoftKeyboard && ::mInputView.isInitialized) {
             // 已缓存的键盘按新几何重算按键矩形（SoftKey 存的是相对比例，不重新解析皮肤）
             KeyboardLoaderUtil.instance.reapplySkbCoreSize()
+            val t2 = android.os.SystemClock.elapsedRealtime()
             KeyboardManager.instance.relayoutCurrentKeyboard()
+            val t3 = android.os.SystemClock.elapsedRealtime()
             if (applyTheme) mInputView.initView(baseContext)
+            val t4 = android.os.SystemClock.elapsedRealtime()
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[perf] relayout(applyTheme=$applyTheme) initData=${t1 - t0} reapply=${t2 - t1} " +
+                    "relayout=${t3 - t2} initView=${t4 - t3} total=${t4 - t0}"
+            )
         } else if (isHardwareKeyboard && ::mCandidateView.isInitialized) {
             mCandidateView.initView()
         }

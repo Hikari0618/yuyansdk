@@ -29,6 +29,7 @@ class KeyboardManager {
         private set
 
     fun setData(keyboardRootView: InputViewParent, inputView: InputView) {
+        com.yuyan.inputmethod.util.ImeLog.d("[perf] KeyboardManager.setData：键盘被整体重建")
         keyboards.clear() // TODO 清空缓存界面，发现调用 PinyinService.onCreateInputView时，原输入界面全部会失效。
         mKeyboardRootView = keyboardRootView
         mInputView = inputView

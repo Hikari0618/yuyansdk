@@ -255,8 +255,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         return loc[1] + mSkbCandidatesBarView.contentTopOffset()
     }
 
+    // 皮肤背景「缩放」结果缓存：scale 一张整屏位图要新建 w*h 的 bitmap（十几 MB），
+    // 同主题同尺寸直接复用，避免每次 updateTheme 都重新分配
+    private var bgScaleKey: String? = null
+    private var bgScaledBitmap: android.graphics.Bitmap? = null
+
     fun updateTheme() {
-        LogUtil.d("1111111111111", "InputView updateTheme")
+        val perfT0 = android.os.SystemClock.elapsedRealtime()
         setBackgroundResource(android.R.color.transparent)
         val activeTheme = ThemeManager.activeTheme
         val keyTextColor = activeTheme.keyTextColor
@@ -264,7 +269,17 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
         val background = activeTheme.backgroundDrawable(ThemeManager.prefs.keyBorder.getValue())
         if (background is BitmapDrawable) {
-            val scaledBitmap = background.bitmap.scale(env.skbWidth, env.inputAreaHeight)
+            val w = env.skbWidth
+            val h = env.inputAreaHeight
+            val key = "${activeTheme.name}|$w|$h"
+            val scaledBitmap = if (key == bgScaleKey && bgScaledBitmap != null) {
+                bgScaledBitmap!!
+            } else {
+                background.bitmap.scale(w, h).also {
+                    bgScaleKey = key
+                    bgScaledBitmap = it
+                }
+            }
             mSkbRoot.background = scaledBitmap.toDrawable(context.resources).apply {
                 colorFilter = background.colorFilter
             }
@@ -278,6 +293,10 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         }
         mFullDisplayKeyboardBar?.updateTheme(keyTextColor)
         mAddPhrasesLayout.updateTheme(activeTheme)
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[perf] updateTheme ${android.os.SystemClock.elapsedRealtime() - perfT0}ms " +
+                "bg=${if (background is BitmapDrawable) "bitmap" else "color"}"
+        )
     }
 
     private fun onClick(view: View) {

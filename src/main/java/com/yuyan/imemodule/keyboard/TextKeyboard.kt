@@ -126,6 +126,7 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
     }
 
     override fun onBufferDraw() {
+        val perfT0 = android.os.SystemClock.elapsedRealtime()
         if (mBuffer == null || mKeyboardChanged) {
             if (mBuffer == null || mBuffer!!.width != width || mBuffer!!.height != height) {
                 val width = max(1.0, width.toDouble()).toInt()
@@ -156,6 +157,10 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         }
         mDrawPending = false
         mDirtyRect.setEmpty()
+        val perfCost = android.os.SystemClock.elapsedRealtime() - perfT0
+        if (perfCost >= 16) {
+            com.yuyan.inputmethod.util.ImeLog.d("[perf] onBufferDraw slow ${perfCost}ms ${width}x$height")
+        }
     }
 
     /**
