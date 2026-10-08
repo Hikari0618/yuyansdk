@@ -177,6 +177,20 @@ class ImeService : InputMethodService() {
         applyInputViewHeight(view)
     }
 
+    override fun setCandidatesView(view: View?) {
+        // 与 setInputView 同一个坑：框架 prepareWindow() 里会再次 setCandidatesView()，
+        // 内部同样直接 addView → 候选视图已挂在原父容器上就抛 IllegalStateException。
+        // （堵住 setInputView 之后，崩溃就转移到了这里，仍是旋转必崩。）
+        (view?.parent as? ViewGroup)?.removeView(view)
+        super.setCandidatesView(view)
+    }
+
+    override fun setExtractView(view: View?) {
+        // 同上，预防性处理（全屏提取视图）
+        (view?.parent as? ViewGroup)?.removeView(view)
+        super.setExtractView(view)
+    }
+
     /** IME 窗口高度：只有浮键盘（可拖到屏幕任意位置）和加词面板需要整屏窗口。
      *  普通模式让窗口只占键盘高度——窗口盖满整屏会把系统侧滑返回手势整个吃掉，
      *  表现为「从边缘滑了完全没反应，换其他输入法就正常」。 */
