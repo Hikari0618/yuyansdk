@@ -170,6 +170,12 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 mAbortKey = false
                 mLongPressKey = false
                 mSwipeUpFired = false
+                mDelRevertFired = false
+                // 手指位移必须跟着每次触摸清零：否则上一次手势留下的旧值会带到下一次长按，
+                // 新的长按一上来就以为「手指还停在滑动位置」，重复逻辑一直走恢复、删不动字
+                // （用户实测：触发过一次恢复后，松开再长按只会删一个字）。
+                relDistanceX = 0f
+                relDistanceY = 0f
                 if(mCurrentKey != null){
                     if (mCurrentKey!!.repeatable()) {
                         val msg = mHandler!!.obtainMessage(MSG_REPEAT)
@@ -188,11 +194,15 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 }
                 currentDistanceX = 0F
                 currentDistanceY = 0F
+                relDistanceX = 0f
+                relDistanceY = 0f
             }
             MotionEvent.ACTION_CANCEL -> {
                 removeMessages()
                 currentDistanceX = 0F
                 currentDistanceY = 0F
+                relDistanceX = 0f
+                relDistanceY = 0f
             }
         }
         return true
@@ -206,6 +216,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     // 几像素的抖动就足以让它落到某一侧，不能用来判断手势方向。
     private var relDistanceX:Float = 0f
     private var relDistanceY:Float = 0f
+    // 一次长按里「恢复」手势只触发一次：触发后手指通常还停在原位，
+    // 若继续按位移判定为手势，重复逻辑就会一直走恢复、删字停不下来
+    // （用户实测：触发一次恢复后继续长按就不再删字，要右滑/下滑才恢复删除）。
+    private var mDelRevertFired:Boolean = false
     private var lastEventActionIndex:Int = 0
     // 一次触摸只允许触发一次上滑：否则手指连续滑动时每个 ACTION_MOVE 都会再发一次键
     // （日志里 47ms 内连发 3 个 ` 就是这么来的）
@@ -282,20 +296,22 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                     // currentDistanceX >= -2 / currentDistanceY > 0 判断 —— 那只是本次滑动事件的
                     // 增量（几像素），长按时手指自然抖动就会翻到「上滑/左滑」一侧，
                     // 于是删掉的字被 commitText 一个个送回来（用户实测：长按一会儿文字又回来了）。
-                    // 改用相对按下点的累计位移 + 阈值。
+                    // 改用相对按下点的累计位移 + 阈值；且一次长按只触发一次恢复 ——
+                    // 否则触发后手指仍停在原位，重复逻辑会一直判为手势，删字就停下来了
+                    // （用户实测：触发一次恢复后继续长按不再删字，要右滑/下滑才恢复删除）。
                     val delGestureThreshold = 30f
-                    if (relDistanceX.absoluteValue >= relDistanceY.absoluteValue ) {
-                        if (relDistanceX > -delGestureThreshold) {
-                            mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL))
-                        } else {
-                            mService?.responseLongKeyEvent(Pair(PopupMenuMode.Revertl,  ""))
-                        }
+                    val revertRequested = if (relDistanceX.absoluteValue >= relDistanceY.absoluteValue) {
+                        relDistanceX < -delGestureThreshold
                     } else {
-                        if (relDistanceY > delGestureThreshold) {
-                            mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL))
-                        } else if (relDistanceY < -delGestureThreshold) {
-                            mService?.responseLongKeyEvent(Pair(PopupMenuMode.Revertl,  ""))
-                        }
+                        relDistanceY < -delGestureThreshold
+                    }
+                    if (revertRequested && !mDelRevertFired) {
+                        mDelRevertFired = true
+                        mService?.responseLongKeyEvent(Pair(PopupMenuMode.Revertl,  ""))
+                    } else {
+                        // 手指滑回原位后重新武装手势，可以再次触发恢复
+                        if (!revertRequested) mDelRevertFired = false
+                        mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL))
                     }
             } else {
                 mService?.responseKeyEvent(
