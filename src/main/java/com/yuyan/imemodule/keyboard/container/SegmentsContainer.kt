@@ -71,7 +71,13 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
      */
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (visibility == View.VISIBLE && isAttachedToWindow) onShown()
+        if (visibility == View.VISIBLE) {
+            if (isAttachedToWindow) onShown()
+        } else {
+            // 离开分词页（返回、切键盘、输入法收起都算）：把组合区的词收尾上屏。
+            // 不提交的话它就停在组合态（字下面带横线），下次分词 setComposingText 会把它覆盖掉。
+            inputView.commitSegmentComposing()
+        }
     }
 
     private fun onShown() {
@@ -251,7 +257,7 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
 
     /** 返回：组合区收尾上屏，回键盘 */
     private fun finishAndBack() {
-        inputView.updateSegmentComposing("")
+        inputView.commitSegmentComposing()
         KeyboardManager.instance.switchKeyboard()
     }
 

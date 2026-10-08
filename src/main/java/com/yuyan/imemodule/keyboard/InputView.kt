@@ -721,6 +721,9 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
      * 不再把「分词」当成候选词混在候选列表里（内容一长就要翻到最后才按得到）。
      */
     private fun showClipboardSuggestion(content: String) {
+        // 分词页面里不显示剪贴板建议行（分词页会盖住候选栏那一条，留着反而碍事）
+        if (KeyboardManager.instance.currentContainer is
+            com.yuyan.imemodule.keyboard.container.SegmentsContainer) return
         // 先清掉残留候选：否则候选栏一刷新就会把建议行收起来（键盘刚起来时尤其明显）
         DecodingInfo.cacheCandidates(emptyArray(), true)
         mSkbCandidatesBarView.showClipboardSuggestion(content)
@@ -731,7 +734,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         DecodingInfo.segmentClipboardSuggestion(appPrefs.internal.clipboardUpdateContent.getValue())
     }
 
-    /** 分词页面用：把选中的词拼进组合区（选一个变一次），传空串表示收尾上屏 */
+    /** 分词页面用：把选中的词拼进组合区（选一个变一次），传空串表示清空组合区 */
     fun updateSegmentComposing(text: String) {
         val ic = service.currentInputConnection ?: return
         com.yuyan.inputmethod.util.ImeLog.d("[seg] 组合区更新 len=${text.length} text='${text.take(30)}'")
@@ -751,6 +754,14 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         } finally {
             ic.endBatchEdit()
         }
+    }
+
+    /**
+     * 分词页面用：收尾上屏 —— 把组合区的字提交掉（不能走 updateSegmentComposing("")，
+     * 那是把字删掉，用户选好的词就丢了）。
+     */
+    fun commitSegmentComposing() {
+        service.currentInputConnection?.finishComposingText()
     }
 
     /** 分词页面用：进去时把候选栏的剪贴板建议行收起来 */
@@ -857,6 +868,15 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
 
     fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
         InputModeSwitcher.requestInputWithSkb(editorInfo)
+        // 分词页会把候选栏整条藏掉（visibility=GONE）。输入视图重新显示时必须恢复，
+        // 否则从分享/别的 App 回来后菜单栏一直不显示，只能杀进程。
+        if (KeyboardManager.instance.currentContainer !is
+            com.yuyan.imemodule.keyboard.container.SegmentsContainer) {
+            if (mSkbCandidatesBarView.visibility != View.VISIBLE) {
+                mSkbCandidatesBarView.visibility = View.VISIBLE
+            }
+            updateCandidateBar()
+        }
         if (!restarting) {
             resetToIdleState()
             val clipboard = appPrefs.clipboard
