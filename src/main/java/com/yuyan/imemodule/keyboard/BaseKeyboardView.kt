@@ -202,6 +202,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     private var lastEventY:Float = -1f
     private var currentDistanceY:Float = 0f
     private var currentDistanceX:Float = 0f
+    // 相对「按下点」的累计位移（手势判断用）。currentDistanceX/Y 只是本次滑动事件的增量，
+    // 几像素的抖动就足以让它落到某一侧，不能用来判断手势方向。
+    private var relDistanceX:Float = 0f
+    private var relDistanceY:Float = 0f
     private var lastEventActionIndex:Int = 0
     // 一次触摸只允许触发一次上滑：否则手指连续滑动时每个 ACTION_MOVE 都会再发一次键
     // （日志里 47ms 内连发 3 个 ` 就是这么来的）
@@ -213,6 +217,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
         val currentY = currentEvent.y
         currentDistanceX = distanceX
         currentDistanceY = distanceY
+        if (downEvent != null) {
+            relDistanceX = currentX - downEvent.x
+            relDistanceY = currentY - downEvent.y
+        }
         val keyLableSmall = mCurrentKey?.getmKeyLabelSmall()
         if(currentEvent.pointerCount > 1) return false    // 避免多指触控导致上屏
         if(lastEventX < 0 || lastEventActionIndex != currentEvent.actionIndex) {   // 避免多指触控导致符号上屏
@@ -270,16 +278,22 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     private fun repeatKey(): Boolean {
         if (mCurrentKey != null && mCurrentKey!!.repeatable()) {
             if(mCurrentKey!!.code == KeyEvent.KEYCODE_DEL && mLongPressKey) {
-                    if (currentDistanceX.absoluteValue >= currentDistanceY.absoluteValue ) {
-                        if (currentDistanceX >= -2) {
+                    // 「长按退格 + 上滑/左滑 = 恢复刚删掉的字」是个手势，但原来用
+                    // currentDistanceX >= -2 / currentDistanceY > 0 判断 —— 那只是本次滑动事件的
+                    // 增量（几像素），长按时手指自然抖动就会翻到「上滑/左滑」一侧，
+                    // 于是删掉的字被 commitText 一个个送回来（用户实测：长按一会儿文字又回来了）。
+                    // 改用相对按下点的累计位移 + 阈值。
+                    val delGestureThreshold = 30f
+                    if (relDistanceX.absoluteValue >= relDistanceY.absoluteValue ) {
+                        if (relDistanceX > -delGestureThreshold) {
                             mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL))
                         } else {
                             mService?.responseLongKeyEvent(Pair(PopupMenuMode.Revertl,  ""))
                         }
                     } else {
-                        if (currentDistanceY > 0) {
+                        if (relDistanceY > delGestureThreshold) {
                             mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL))
-                        } else if (currentDistanceY < 0) {
+                        } else if (relDistanceY < -delGestureThreshold) {
                             mService?.responseLongKeyEvent(Pair(PopupMenuMode.Revertl,  ""))
                         }
                     }
