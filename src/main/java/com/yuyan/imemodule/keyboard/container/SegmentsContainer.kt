@@ -229,8 +229,12 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         text = label
         gravity = Gravity.CENTER
         setTextColor(activeTheme.keyTextColor)
-        textSize = instance.candidateTextSize.toFloat()
-        setPadding(dp(14f).toInt(), dp(8f).toInt(), dp(14f).toInt(), dp(8f).toInt())
+        // 这一行就是候选栏那一行，高度有限：字号略小于候选词、上下不加内边距、
+        // 关掉字体额外留白（includeFontPadding），否则字会被裁掉一半
+        textSize = instance.candidateTextSize * 0.85f
+        includeFontPadding = false
+        isSingleLine = true
+        setPadding(dp(12f).toInt(), 0, dp(12f).toInt(), 0)
     }
 
     private fun toast(message: String) {

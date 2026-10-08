@@ -314,6 +314,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             candidatesData.visibility = GONE
             showViewVisibility(mCandidatesDataContainer)
             applyRowHeights()
+            // 这一行的高度必须够放下自定义内容，否则文字会被裁掉一半
+            holder.post {
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[seg] 工具栏行 实际高=${holder.height} 期望高=${instance.heightForCandidates} 候选栏高=$height"
+                )
+            }
         }
     }
 
