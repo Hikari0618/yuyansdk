@@ -43,7 +43,7 @@ class ClipEditActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
             addView(editText, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(buttonRow, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         }

@@ -315,6 +315,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         row.addView(suggestionItem("✕") { hideClipboardSuggestion() })
         row.visibility = VISIBLE
         candidatesData.visibility = GONE
+        // 走候选栏本身的显示路径：键盘刚弹起来时候选栏还是隐藏的，
+        // 只 addView 不显示的话建议行根本看不到
+        showViewVisibility(mCandidatesDataContainer)
+        applyRowHeights()
     }
 
     private fun suggestionItem(label: String, onClick: () -> Unit): TextView = TextView(context).apply {
@@ -488,7 +492,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             // 引擎仍在组合（万象的 / 命令、未成词的拼音等）却没有候选时，必须继续显示组合串。
             // 组合串 mComposingView 是 mCandidatesDataContainer 的子视图，此前这里直接切到
             // 菜单条，把组合串一起藏掉了 → 表现为「打几个键待编辑区突然全部消失」。
-            if (DecodingInfo.composingStrForDisplay.isNotEmpty()) {
+            // 剪贴板建议行也在 mCandidatesDataContainer 里，同理不能切到菜单条。
+            if (mClipboardSuggestionView?.visibility == VISIBLE) {
+                showViewVisibility(mCandidatesDataContainer)
+            } else if (DecodingInfo.composingStrForDisplay.isNotEmpty()) {
                 showViewVisibility(mCandidatesDataContainer)
             } else {
                 showViewVisibility(mCandidatesMenuContainer)

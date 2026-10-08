@@ -717,6 +717,8 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
      * 不再把「分词」当成候选词混在候选列表里（内容一长就要翻到最后才按得到）。
      */
     private fun showClipboardSuggestion(content: String) {
+        // 先清掉残留候选：否则候选栏一刷新就会把建议行收起来（键盘刚起来时尤其明显）
+        DecodingInfo.cacheCandidates(emptyArray(), true)
         mSkbCandidatesBarView.showClipboardSuggestion(content)
     }
 

@@ -159,41 +159,23 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     /** 长按剪贴板条目的菜单：编辑 / 分享 / 分词 / 收藏（置顶、删除仍走左滑） */
     private fun showItemMenu(anchor: View, item: Clipboard) {
-        val menu = LinearLayout(mContext).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(activeTheme.keyBackgroundColor)
-                setCornerRadius(ThemeManager.prefs.keyRadius.getValue().toFloat())
-            }
+        // 用系统 PopupMenu（同文也是这么做的）：自动贴着长按的条目出现，
+        // 下方空间不够会自动翻到上方，不会跑到屏幕外；dismiss/触摸也由系统管，
+        // 不会像自绘 PopupWindow 那样把点击漏给底下的列表。
+        val popup = android.widget.PopupMenu(mContext, anchor)
+        popup.menu.add(android.view.Menu.NONE, 1, 0, "编辑").setOnMenuItemClickListener {
+            editItem(item); true
         }
-        val actions: List<Pair<String, () -> Unit>> = listOf(
-            "编辑" to { editItem(item) },
-            "分享" to { shareItem(item) },
-            "分词" to { segmentItem(item) },
-            "收藏" to { collectItem(item) },
-        )
-        val popup = PopupWindow(
-            menu, dp(88f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT, true
-        ).apply {
-            isOutsideTouchable = true
-            setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        popup.menu.add(android.view.Menu.NONE, 2, 1, "分享").setOnMenuItemClickListener {
+            shareItem(item); true
         }
-        actions.forEach { (label, action) ->
-            menu.addView(TextView(mContext).apply {
-                text = label
-                gravity = Gravity.CENTER
-                setTextColor(activeTheme.keyTextColor)
-                textSize = instance.candidateTextSize.toFloat()
-                setPadding(dp(12f).toInt(), dp(8f).toInt(), dp(12f).toInt(), dp(8f).toInt())
-                setOnClickListener {
-                    popup.dismiss()
-                    action()
-                }
-            }, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT))
+        popup.menu.add(android.view.Menu.NONE, 3, 2, "分词").setOnMenuItemClickListener {
+            segmentItem(item); true
         }
-        popup.showAsDropDown(anchor)
+        popup.menu.add(android.view.Menu.NONE, 4, 3, "收藏").setOnMenuItemClickListener {
+            collectItem(item); true
+        }
+        popup.show()
     }
 
     /** 编辑：交给独立 Activity —— 输入法没法给自己窗口里的输入框打字 */
@@ -226,16 +208,23 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         }
     }
 
-    /** 收藏：存进短语（语燕的收藏就是短语库） */
+    /** 收藏：存进短语库（语燕的收藏就是短语），重复收藏就置顶，并给出明确提示 */
     private fun collectItem(item: Clipboard) {
         val content = item.content
         if (content.isBlank()) return
-        runCatching {
-            DataBaseKT.instance.phraseDao().insert(
-                Phrase(content = content, t9 = "", qwerty = "", lx17 = "")
-            )
-        }
-        Toast.makeText(mContext, "已收藏到短语", Toast.LENGTH_SHORT).show()
+        val dao = DataBaseKT.instance.phraseDao()
+        val message = runCatching {
+            val exist = dao.queryByContent(content)
+            if (exist != null) {
+                exist.isKeep = 1
+                dao.update(exist)
+                "已在短语中，已置顶"
+            } else {
+                dao.insert(Phrase(content = content, t9 = "", qwerty = "", lx17 = ""))
+                "已收藏到短语"
+            }
+        }.getOrElse { "收藏失败：${it.message}" }
+        Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show()
     }
 
     private val mHashMapSymbols = HashMap<Int, Int>() //候选词索引列数对应表

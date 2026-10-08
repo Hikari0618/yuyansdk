@@ -36,7 +36,7 @@
             android:name=".ui.activity.ClipEditActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:theme="@style/Theme.AppCompat.DayNight" />
+            android:theme="@style/Theme.AppCompat.Dialog" />
 
         <activity android:name=".ui.setup.SetupActivity"
             android:exported="false"
