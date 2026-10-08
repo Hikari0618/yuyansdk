@@ -27,7 +27,8 @@ import splitties.views.dsl.core.margin
 /**
  * 剪切板界面适配器
  */
-class ClipBoardAdapter(context: Context, datas: MutableList<Clipboard>) :
+class ClipBoardAdapter(context: Context, datas: MutableList<Clipboard>,
+                       private val onItemLongClick: ((Int, View) -> Unit)? = null) :
     RecyclerView.Adapter<ClipBoardAdapter.SymbolHolder>() {
     private var mDatas : MutableList<Clipboard> = datas
     private val mContext: Context
@@ -91,6 +92,12 @@ class ClipBoardAdapter(context: Context, datas: MutableList<Clipboard>) :
         val data = mDatas[position]
         holder.textView.text = data.content.replace("\n", "\\n")
         holder.ivTopTips.visibility = if(data.isKeep == 1)View.VISIBLE else View.GONE
+        // 长按弹出菜单（编辑/分享/分词/收藏）；置顶和删除仍走左滑
+        holder.itemView.setOnLongClickListener {
+            val pos = holder.bindingAdapterPosition
+            if (pos != RecyclerView.NO_POSITION) onItemLongClick?.invoke(pos, holder.itemView)
+            true
+        }
     }
 
     override fun getItemCount(): Int {

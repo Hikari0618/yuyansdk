@@ -152,6 +152,18 @@ object DecodingInfo {
     }
 
     /**
+     * 剪贴板建议的「分词」入口：把内容切词后直接当候选显示（点哪个上屏哪个）。
+     * 悬浮候选栏和普通候选栏共用这段逻辑，所以放在这里。
+     */
+    fun segmentClipboardSuggestion(content: String): Boolean {
+        if (content.isBlank()) return false
+        val words = com.yuyan.imemodule.utils.WordTokenizer.tokenize(content)
+        if (words.isEmpty()) return false
+        cacheCandidates(words.map { CandidateListItem("", it) }.toTypedArray(), true)
+        return true
+    }
+
+    /**
      * 根据输入的字符查询候选词
      */
     fun getAssociateWord(words: String) {

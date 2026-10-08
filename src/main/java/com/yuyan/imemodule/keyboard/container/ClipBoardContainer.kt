@@ -2,20 +2,30 @@ package com.yuyan.imemodule.keyboard.container
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.graphics.Paint
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.yuyan.imemodule.R
 import com.yuyan.imemodule.adapter.ClipBoardAdapter
 import com.yuyan.imemodule.application.CustomConstant
 import com.yuyan.imemodule.data.theme.ThemeManager.activeTheme
+import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.database.DataBaseKT
 import com.yuyan.imemodule.database.entry.Clipboard
+import com.yuyan.imemodule.database.entry.Phrase
+import com.yuyan.imemodule.service.DecodingInfo
+import com.yuyan.imemodule.ui.activity.ClipEditActivity
 import com.yuyan.imemodule.libs.recyclerview.SwipeMenu
 import com.yuyan.imemodule.libs.recyclerview.SwipeMenuBridge
 import com.yuyan.imemodule.libs.recyclerview.SwipeMenuItem
@@ -96,7 +106,10 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         if(copyContents.isEmpty()){
             this.addView(mTVLable, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         }
-        val adapter = ClipBoardAdapter(context, copyContents)
+        val adapter = ClipBoardAdapter(context, copyContents) { position, anchor ->
+            // 长按条目：编辑 / 分享 / 分词 / 收藏（置顶、删除仍走左滑）
+            showItemMenu(anchor, copyContents[position])
+        }
         mRVSymbolsView.setAdapter(null)
         mRVSymbolsView.setOnItemClickListener{ _: View?, position: Int ->
             inputView.responseLongKeyEvent(Pair(PopupMenuMode.Text, copyContents[position].content))
@@ -140,6 +153,87 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
             }
         }
         mRVSymbolsView.setAdapter(adapter)
+    }
+
+    /** 长按剪贴板条目的菜单：编辑 / 分享 / 分词 / 收藏（置顶、删除仍走左滑） */
+    private fun showItemMenu(anchor: View, item: Clipboard) {
+        val menu = LinearLayout(mContext).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(activeTheme.keyBackgroundColor)
+                setCornerRadius(ThemeManager.prefs.keyRadius.getValue().toFloat())
+            }
+        }
+        val actions: List<Pair<String, () -> Unit>> = listOf(
+            "编辑" to { editItem(item) },
+            "分享" to { shareItem(item) },
+            "分词" to { segmentItem(item) },
+            "收藏" to { collectItem(item) },
+        )
+        val popup = PopupWindow(
+            menu, dp(88f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT, true
+        ).apply {
+            isOutsideTouchable = true
+            setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        }
+        actions.forEach { (label, action) ->
+            menu.addView(TextView(mContext).apply {
+                text = label
+                gravity = Gravity.CENTER
+                setTextColor(activeTheme.keyTextColor)
+                textSize = instance.candidateTextSize.toFloat()
+                setPadding(dp(12f).toInt(), dp(8f).toInt(), dp(12f).toInt(), dp(8f).toInt())
+                setOnClickListener {
+                    popup.dismiss()
+                    action()
+                }
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        popup.showAsDropDown(anchor)
+    }
+
+    /** 编辑：交给独立 Activity —— 输入法没法给自己窗口里的输入框打字 */
+    private fun editItem(item: Clipboard) {
+        runCatching {
+            mContext.startActivity(Intent(mContext, ClipEditActivity::class.java).apply {
+                putExtra(ClipEditActivity.EXTRA_CONTENT, item.content)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        }
+    }
+
+    /** 分享：交给系统选择器 */
+    private fun shareItem(item: Clipboard) {
+        runCatching {
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, item.content)
+            }
+            mContext.startActivity(
+                Intent.createChooser(send, null).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            )
+        }
+    }
+
+    /** 分词：切词后当候选显示，回到键盘就能点选上屏 */
+    private fun segmentItem(item: Clipboard) {
+        if (DecodingInfo.segmentClipboardSuggestion(item.content)) {
+            KeyboardManager.instance.switchKeyboard()
+        }
+    }
+
+    /** 收藏：存进短语（语燕的收藏就是短语库） */
+    private fun collectItem(item: Clipboard) {
+        val content = item.content
+        if (content.isBlank()) return
+        runCatching {
+            DataBaseKT.instance.phraseDao().insert(
+                Phrase(content = content, t9 = "", qwerty = "", lx17 = "")
+            )
+        }
+        Toast.makeText(mContext, "已收藏到短语", Toast.LENGTH_SHORT).show()
     }
 
     private val mHashMapSymbols = HashMap<Int, Int>() //候选词索引列数对应表

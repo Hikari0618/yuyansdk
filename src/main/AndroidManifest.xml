@@ -32,6 +32,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.activity.ClipEditActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.AppCompat.DayNight" />
+
         <activity android:name=".ui.setup.SetupActivity"
             android:exported="false"
             android:launchMode="singleTask" />
