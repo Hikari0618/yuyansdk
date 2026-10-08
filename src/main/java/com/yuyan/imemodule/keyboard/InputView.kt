@@ -456,7 +456,16 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         when (val keyCode = event.keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_SPACE -> {
                 if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) {
-                    sendKeyEvent(keyCode)
+                    if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                        // 空格用「文本提交」而不是键值事件：
+                        // 远控类应用（UU远程等）只转发文本，InputConnection.sendKeyEvent
+                        // 会被丢掉 —— 表现为「字母能传到电脑，空格传不过去」。
+                        // 与同文一致（Trime 的 send: space 也是交给 RIME 当普通字符提交成文本），
+                        // 也与本文件 commitDecInfoText() 里英文模式的处理保持一致。
+                        service.commitText(" ")
+                    } else {
+                        sendKeyEvent(keyCode)
+                    }
                     resetToIdleState()
                 }
                 else chooseAndUpdate()
