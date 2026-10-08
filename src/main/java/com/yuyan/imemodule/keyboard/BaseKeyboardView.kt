@@ -247,11 +247,11 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
         val spaceSwipeMoveCursorSpeed = AppPrefs.getInstance().keyboardSetting.spaceSwipeMoveCursorSpeed.getValue()
         if (!isVertical && relDiffX > spaceSwipeMoveCursorSpeed) {  // 左右滑动
             val isSwipeKey = mCurrentKey?.code == KeyEvent.KEYCODE_SPACE || mCurrentKey?.code == KeyEvent.KEYCODE_0
-            if(mCurrentKey?.code == KeyEvent.KEYCODE_DEL && distanceX > 20){// 左滑删除
-                removeMessages()
-                mAbortKey = true
-                mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_CLEAR))
-            } else if (isSwipeKey && AppPrefs.getInstance().keyboardSetting.spaceSwipeMoveCursor.getValue()) {  // 左右滑动
+            // 注意：这里不能再把「长按退格 + 左滑」当成清空 —— 它会 removeMessages()
+            // 把重复循环杀掉，于是「左滑持续恢复被删的字」根本走不到，或只恢复一个字
+            // （用户实测：长按向左滑触发恢复不行了）。清空仍可从长按弹出的菜单点选
+            // （PopupMenuMode.Clear）。
+            if (isSwipeKey && AppPrefs.getInstance().keyboardSetting.spaceSwipeMoveCursor.getValue()) {  // 左右滑动
                 removeMessages()
                 lastEventX = currentX
                 lastEventY = currentY
