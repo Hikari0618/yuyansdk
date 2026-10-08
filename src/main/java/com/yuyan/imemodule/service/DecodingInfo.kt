@@ -4,6 +4,7 @@ import android.view.KeyEvent
 import androidx.lifecycle.MutableLiveData
 import com.yuyan.inputmethod.core.CandidateListItem
 import com.yuyan.inputmethod.core.Kernel
+import com.yuyan.inputmethod.core.Rime
 
 /**
  * 词库解码操作对象
@@ -79,8 +80,20 @@ object DecodingInfo {
     val composingStrForDisplay: String   //获取显示的拼音字符串/
         get() = Kernel.wordsShowPinyin
 
-    val composingStrForCommit: String   // 获取输入的拼音字符串
-        get() = Kernel.wordsShowPinyin.replace("'", "").ifEmpty { getCandidate(0)?.text?:""}
+    val composingStrForCommit: String   // 获取输入的拼音字符串（用于回车/上屏）
+        get() {
+            // 必须用「引擎原始输入」而不是显示串：显示串里的空格/撇号只是音节分隔符，
+            // 而且显示串可能已被换成全拼或带声调注释。直接提交显示串会把分隔符一起上屏
+            // （用户实测：输入 iiii 回车得到 "ii ii"）。
+            val raw = Rime.compositionText
+                .filter { it.code <= 0xFF }      // 去掉引擎插入的提示字符（如 U+2038 光标符）
+                .replace("'", "")
+                .replace(" ", "")
+            if (raw.isNotEmpty()) return raw
+            // 引擎没有 preedit（例如英文模式）时退回显示串，同样去掉分隔符
+            return Kernel.wordsShowPinyin.replace("'", "").replace(" ", "")
+                .ifEmpty { getCandidate(0)?.text ?: "" }
+        }
 
     val nextPageCandidates: Int   // 获取下一页的候选词
         get() {
