@@ -494,6 +494,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 resetToIdleState()
                 return
             }
+            // 中文标点键（「，」的 code 是 USER_KEYCODE_COMMA_EMOJI=-8，走的就是这里）
+            // 在组合中必须送进引擎，不能先自动选词上屏 —— 方案里的 processor/punctuator
+            // 是按 Rime 键名（X11 keysym）判断的，直接 commitText("，") 等于把组合串
+            // 选词上屏再补一个逗号（万象 super_tips 提示按逗号不上屏就是这个原因）。
+            // 非中文 / 无组合串 / 非标点时 helper 返回 false，行为保持原样。
+            inputRimeFuncKeyIfChinese(label) -> return
             !DecodingInfo.isAssociate && !DecodingInfo.isCandidatesEmpty -> {
                 if (InputModeSwitcher.isChinese || InputModeSwitcher.isEnglish) chooseAndUpdate()
             }
@@ -618,6 +624,10 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 punct.first
             }
         }
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[punct] 标点送引擎 label='$value' keyCode=$keyCode meta=$metaState " +
+                "comp='${com.yuyan.inputmethod.core.Rime.compositionText}'"
+        )
         DecodingInfo.inputAction(
             KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, metaState, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
         )
