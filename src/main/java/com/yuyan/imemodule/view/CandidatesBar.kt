@@ -128,7 +128,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             })
             mCandidatesDataContainer.addView(mComposingView)
             mCandidatesDataContainer.addView(candidatesData)
-            this.addView(mCandidatesDataContainer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+            this.addView(mCandidatesDataContainer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         } else {
             (mRightArrowBtn.parent as ViewGroup).removeView(mRightArrowBtn)
             (mRVCandidates.parent as ViewGroup).removeView(mRVCandidates)
@@ -239,7 +239,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             mCandidatesMenuContainer.addView(mMenuRightArrowBtn)
             this.addView(
                 mCandidatesMenuContainer,
-                LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                // 高度必须填满候选栏：容器自带 CENTER_VERTICAL，内容（menuHeight = 栏高*0.8）
+                // 会居中。原来是 WRAP_CONTENT，容器只有内容那么高、又顶对齐，
+                // 菜单图标就整体偏上（日志：bar=176 而 menuH=140，差了 36px）。
+                LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             )
         }
         // 工具栏高度恢复原值（heightForCandidatesArea*0.8）：加 minHeight 上限的
@@ -518,15 +521,21 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
      *  空行收成 0（窗口里不留「认领了触摸却没内容」的空带）；放大时待编辑行 +半行、
      *  候选行 -半行，总高度不变，候选不会被挤下去。 */
     private fun applyRowHeights() {
-        val composingShown = !mComposingView.text.isNullOrEmpty()
         val grow = if (mComposingExpanded) instance.heightForcomposing / 2 else 0
+        // 两行常显（主键盘）：高度恒为设计值，不再「有内容才占高度」。
+        // 设计上 heightForcomposing + heightForCandidates == heightForCandidatesArea，
+        // 所以两行合起来正好填满候选栏 —— 候选栏高度恒定、数据容器高度也恒等于栏高，
+        // 「空闲（菜单栏）/打字」两种状态的布局完全一致。
+        // 之前把空行收成 0：打字时待编辑行突然出现，整条输入视图被顶高 ——
+        // 输入框上下抖、悬浮键盘位置偏高时底部被挤出屏幕（用户实测）。
+        // 待编辑区放大（mComposingExpanded）时从候选行让出同样高度，总高度不变。
         mComposingView.layoutParams = LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
-            if (!composingShown) 0 else instance.heightForcomposing + grow
+            instance.heightForcomposing + grow
         )
         candidatesData.layoutParams = LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
-            if (DecodingInfo.isCandidatesEmpty) 0 else instance.heightForCandidates - grow
+            instance.heightForCandidates - grow
         )
     }
 
