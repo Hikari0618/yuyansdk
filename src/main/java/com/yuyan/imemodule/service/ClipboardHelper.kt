@@ -48,8 +48,9 @@ object ClipboardHelper : OnPrimaryClipChangedListener {
         val num = max(dao.getCount() - prefs.clipboardHistoryLimit.getValue(), 0)
         dao.deleteOldest(num)
         if (prefs.clipboardSuggestion.getValue()) {
-            AppPrefs.getInstance().internal.clipboardUpdateTime.setValue(System.currentTimeMillis())
+            // 先写内容再写时间：时间的变化用来触发建议行，必须保证此时内容已是新的
             AppPrefs.getInstance().internal.clipboardUpdateContent.setValue(data)
+            AppPrefs.getInstance().internal.clipboardUpdateTime.setValue(System.currentTimeMillis())
         }
     }
 

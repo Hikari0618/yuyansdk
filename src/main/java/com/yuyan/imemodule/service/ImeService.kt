@@ -62,10 +62,24 @@ class ImeService : InputMethodService() {
             }
         }
     }
+
+    /**
+     * 键盘正显示时复制文本 → 立刻弹建议行（照同文的做法：剪贴板一变就更新 UI）。
+     * 监听「复制时间」而不是「内容」：复制一段相同文本时内容不变，只监听内容不会再触发。
+     */
+    private val clipboardUpdateTimeListener = ManagedPreference.OnChangeListener<Long> { _, _ ->
+        if (!isInputViewShown || !::mInputView.isInitialized) return@OnChangeListener
+        if (!getInstance().clipboard.clipboardSuggestion.getValue()) return@OnChangeListener
+        val content = getInstance().internal.clipboardUpdateContent.getValue()
+        if (content.isNotBlank()) {
+            mInputView.showClipboardSuggestion(content)
+        }
+    }
     override fun onCreate() {
         super.onCreate()
         addOnChangedListener(onThemeChangeListener)
         clipboardUpdateContent.registerOnChangeListener(clipboardUpdateContentListener)
+        getInstance().internal.clipboardUpdateTime.registerOnChangeListener(clipboardUpdateTimeListener)
     }
 
     override fun onCreateInputView(): View {
