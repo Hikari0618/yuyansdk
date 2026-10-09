@@ -74,8 +74,14 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
      */
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (visibility == View.VISIBLE) {
-            if (isAttachedToWindow) onShown()
+        // 注意：回调里的 visibility 是「发生变化的那个 view」的可见性，不是本 view 的。
+        // 输入法重新显示时根视图变 VISIBLE，本容器即使已是 GONE 也会收到 VISIBLE 回调 ——
+        // 若据此就 onShown()，切回普通键盘后分词页的工具栏还会被挂回去、把建议行挡掉。
+        val shown = this.visibility == View.VISIBLE &&
+                isAttachedToWindow &&
+                KeyboardManager.instance.currentContainer === this
+        if (shown) {
+            onShown()
         } else {
             // 离开分词页（返回、切键盘、输入法收起都算）：工具栏交还候选栏，
             // 并把组合区的词收尾上屏（不提交会停在组合态，下次分词把它覆盖掉）
@@ -86,6 +92,7 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
 
     private fun onShown() {
         if (!::adapter.isInitialized) return
+        val didReset = pendingReset
         if (pendingReset) {
             pendingReset = false
             segments.clear()
@@ -100,7 +107,7 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         inputView.mSkbCandidatesBarView.setCustomRow(topBar)
         inputView.hideClipboardSuggestionBar()
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[seg] 分词页面显示 原文长度=${sourceText.length} 重切词=${!pendingReset && segments.isEmpty()} 词数=${segments.size}"
+            "[seg] 分词页面显示 原文长度=${sourceText.length} 重置=$didReset 词数=${segments.size}"
         )
     }
 
