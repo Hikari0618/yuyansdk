@@ -532,6 +532,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 行高按当前内容收放（必须放在 refreshComposingText() 之后——那里才写入
         // mComposingView.text；放到 initCandidateView()（只跑一次）会把高度永久钉成 0）
         applyRowHeights()
+        // 有自定义行（如分词页工具栏）时固定显示数据容器：
+        // 否则组合区为空时会切到菜单条，把自定义行一起顶掉
+        if (mCustomRow?.visibility == VISIBLE) {
+            showViewVisibility(mCandidatesDataContainer)
+            return
+        }
         val container = KeyboardManager.instance.currentContainer
         mIvMenuSetting.drawable.setLevel( if(container is InputBaseContainer) 0 else 1)
         if (container is ClipBoardContainer) {

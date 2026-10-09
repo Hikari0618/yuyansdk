@@ -720,7 +720,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
      * 剪贴板建议：交给候选栏显示成「分词 + 图标 + 内容（小字）+ 关闭」的居中一行，
      * 不再把「分词」当成候选词混在候选列表里（内容一长就要翻到最后才按得到）。
      */
-    private fun showClipboardSuggestion(content: String) {
+    fun showClipboardSuggestion(content: String) {
         // 分词页面里不显示剪贴板建议行（分词页会盖住候选栏那一条，留着反而碍事）
         if (KeyboardManager.instance.currentContainer is
             com.yuyan.imemodule.keyboard.container.SegmentsContainer) return

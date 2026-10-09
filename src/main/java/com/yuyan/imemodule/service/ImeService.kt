@@ -54,7 +54,10 @@ class ImeService : InputMethodService() {
                     && (KeyboardManager.instance.currentContainer as ClipBoardContainer).getMenuMode() == SkbMenuMode.ClipBoard ){
                     (KeyboardManager.instance.currentContainer as ClipBoardContainer).showClipBoardView(SkbMenuMode.ClipBoard)
                 } else {
-                    mInputView.showSymbols(arrayOf(value))
+                    // 走和新版一致的自定义建议行。
+                    // 原来这里是 showSymbols()，那是老的「候选词」机制，和新的建议行不是一套，
+                    // 会出现「有时是候选、有时是建议行」甚至不显示的问题。
+                    mInputView.showClipboardSuggestion(value)
                 }
             }
         }
