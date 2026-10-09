@@ -102,9 +102,10 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
             inputView.updateSegmentComposing("")
             playDropDownAnimation()
         }
-        // 工具栏直接放到候选栏那一行上（页面里不再单独占一行，也不存在盖不住候选栏的问题）
-        inputView.mSkbCandidatesBarView.setCustomRow(topBar)
+        // 顺序很重要：先收起建议行（它会顺带恢复候选行），再挂工具栏 ——
+        // 反过来会把候选行留在可见状态，挤在工具栏上面
         inputView.hideClipboardSuggestionBar()
+        inputView.mSkbCandidatesBarView.setCustomRow(topBar)
         com.yuyan.inputmethod.util.ImeLog.d(
             "[seg] 分词页面显示 原文长度=${sourceText.length} 重置=$didReset 词数=${segments.size}"
         )

@@ -384,7 +384,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     fun hideClipboardSuggestion() {
         if (mClipboardSuggestionView?.visibility != VISIBLE) return
         mClipboardSuggestionView?.visibility = GONE
-        if (::candidatesData.isInitialized) candidatesData.visibility = VISIBLE
+        // 有自定义行（分词页工具栏）时不要恢复候选行，否则它会占着高度挤在工具栏上面
+        if (::candidatesData.isInitialized && mCustomRow?.visibility != VISIBLE) {
+            candidatesData.visibility = VISIBLE
+        }
         // 让候选栏按当前状态重排：没有候选时它应该显示菜单条，
         // 否则会留下一条空白 —— 表现就是「叉掉建议后候选栏和菜单键那行都没了」
         showCandidates()
