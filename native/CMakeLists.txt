@@ -11,6 +11,12 @@ project(yuyanime VERSION 1.0.0)
 # for reproducible build
 add_link_options("LINKER:--hash-style=both,--build-id=none")
 
+# Android 15+ 的 16 KB 页设备要求所有 LOAD 段 16 KB 对齐（NDK r27 默认仍是 4 KB，
+# 真机安装时会提示「以下库未进行 16 KB 对齐」）。只影响 Android 构建，host 构建不受影响。
+if(ANDROID)
+  add_link_options("LINKER:-z,max-page-size=16384")
+endif()
+
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 # general options
