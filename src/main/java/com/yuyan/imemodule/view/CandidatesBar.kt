@@ -645,12 +645,18 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        // 高度按内容测量：候选栏高度 = 可见内容高度（待编辑行/候选行/工具栏实际高度之和），
-        // 不再强制 heightForCandidatesArea。否则即使把空行收成 0，候选栏仍被钉成那么高，
-        // 窗口里就留着一条「认领了触摸却没内容」的死区
-        //（用户实测：键盘上方一大块触摸无反应，悬浮模式同样）。
+        // 高度固定为设计高度（heightForCandidatesArea），待编辑行/候选行在栏「内部」收放。
+        //
+        // 曾经改成按内容测量（空行收成 0），目的是消掉窗口里那条空带 —— 但副作用是
+        // 打字时待编辑行从 0 变成 heightForcomposing，整条栏跟着长高，输入视图高度随之变化：
+        // 输入框被顶得上下抖；悬浮键盘位置偏高时窗口往上长，键盘底部直接被挤出屏幕。
+        // 空带问题改用「触摸区精确圈 mSkbRoot（region 外的区域不认领触摸）」解决，
+        // 不靠收缩栏高度，两者互不干扰。
         val widthMeasure = MeasureSpec.makeMeasureSpec(instance.skbWidth, MeasureSpec.EXACTLY)
-        super.onMeasure(widthMeasure, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        super.onMeasure(
+            widthMeasure,
+            MeasureSpec.makeMeasureSpec(instance.heightForCandidatesArea, MeasureSpec.EXACTLY)
+        )
     }
 
     /** 触摸区/死区排查用：候选栏与两个容器的实际几何。 */
