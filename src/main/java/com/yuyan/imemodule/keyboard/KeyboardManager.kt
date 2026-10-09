@@ -90,13 +90,15 @@ class KeyboardManager {
             container.updateSkbLayout()
             keyboards[keyboardName] = container
         }
+        // 先更新 currentContainer 再 showView：showView 内部改可见性会立刻触发容器的
+        // onVisibilityChanged，此时若 currentContainer 还是旧值，新容器会以为自己「没被显示」。
+        currentContainer = container
         mKeyboardRootView.showView(container)
         // 分词页面会自己把候选栏藏掉，切回别的键盘时恢复（候选栏是常驻视图，不恢复就再也不显示）
         if (mInputView.mSkbCandidatesBarView.visibility != android.view.View.VISIBLE) {
             mInputView.mSkbCandidatesBarView.visibility = android.view.View.VISIBLE
         }
         mCurrentKeyboardName = keyboardName
-        currentContainer = container
     }
 
     val isInputKeyboard: Boolean

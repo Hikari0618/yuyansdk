@@ -74,12 +74,11 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
      */
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        // 注意：回调里的 visibility 是「发生变化的那个 view」的可见性，不是本 view 的。
-        // 输入法重新显示时根视图变 VISIBLE，本容器即使已是 GONE 也会收到 VISIBLE 回调 ——
-        // 若据此就 onShown()，切回普通键盘后分词页的工具栏还会被挂回去、把建议行挡掉。
-        val shown = this.visibility == View.VISIBLE &&
-                isAttachedToWindow &&
-                KeyboardManager.instance.currentContainer === this
+        // 注意：回调里的 visibility 是「发生变化的那个 view」的可见性，不是本 view 的 ——
+        // 输入法重新显示时根视图变 VISIBLE，本容器即使已是 GONE 也会收到 VISIBLE 回调。
+        // 所以用「自身可见性」判断：GONE 的容器不会误判成重新进入；
+        // 也不能在这里判断 currentContainer —— showView() 触发回调时 currentContainer 还没更新。
+        val shown = this.visibility == View.VISIBLE && isAttachedToWindow
         if (shown) {
             onShown()
         } else {
