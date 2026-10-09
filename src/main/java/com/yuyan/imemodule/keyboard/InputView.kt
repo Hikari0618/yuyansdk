@@ -168,8 +168,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             mBottomPaddingKey = if (isLand) internal.keyboardBottomPaddingLandscapeFloat else internal.keyboardBottomPaddingFloat
             mRightPaddingKey = if (isLand) internal.keyboardRightPaddingLandscapeFloat else internal.keyboardRightPaddingFloat
 
-            bottomPadding = mBottomPaddingKey.getValue()
-            rightPadding = mRightPaddingKey.getValue()
+            // 存储的位移必须按「当前」键盘高度收一遍：用户拖到高处时键盘可能比现在矮
+            // （候选栏那一层还没量出来 / 打字后键盘变高），无脑套用旧值会把键盘顶出屏幕。
+            // 拖动路径（onMoveKeyboardEvent）本来就有这个 clamp，应用存储值时漏了。
+            val maxBottom = (height - mSkbRoot.height).coerceAtLeast(0)
+            val maxRight = (width - mSkbRoot.width).coerceAtLeast(0)
+            bottomPadding = mBottomPaddingKey.getValue().coerceIn(0, maxBottom)
+            rightPadding = mRightPaddingKey.getValue().coerceIn(0, maxRight)
             mSkbRoot.bottomPadding = 0
             mSkbRoot.rightPadding = 0
 

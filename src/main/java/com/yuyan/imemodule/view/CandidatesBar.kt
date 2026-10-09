@@ -356,7 +356,8 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             )
         }
         row.removeAllViews()
-        row.addView(suggestionItem("✂") {
+        // 剪刀用 emoji 变体（✂️ = U+2702 + U+FE0F），否则部分字体渲染成细线条
+        row.addView(suggestionItem("✂️") {
             com.yuyan.imemodule.service.DecodingInfo.segmentClipboardSuggestion(
                 com.yuyan.imemodule.prefs.AppPrefs.getInstance()
                     .internal.clipboardUpdateContent.getValue()
@@ -385,8 +386,8 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         text = label
         gravity = Gravity.CENTER
         setTextColor(com.yuyan.imemodule.data.theme.ThemeManager.activeTheme.keyTextColor)
-        // 和右边被复制内容的字号保持一致（原来用了候选词的字号，显得特别大）
-        textSize = instance.candidateTextSize * 0.8f
+        // 和候选词字号一致（原来用了 0.8 倍，显得偏小）
+        textSize = instance.candidateTextSize
         setPadding(dp(8), 0, dp(8), 0)
         setOnClickListener { onClick() }
     }
@@ -555,7 +556,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 高度链埋点：打字时「键盘整体变高、悬浮模式底部被挤出屏幕」时，
         // 用这行判断到底哪一层在涨（bar 已钉死 heightForCandidatesArea，理论上不该变）。
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[h] bar=$height compH=${mComposingView.height} candH=${candidatesData.height}" +
+            "[h] bar=$height barVis=$visibility compH=${mComposingView.height} candH=${candidatesData.height}" +
                 " dataH=${mCandidatesDataContainer.height} dataVis=${mCandidatesDataContainer.visibility}" +
                 " menuH=${mCandidatesMenuContainer.height} menuVis=${mCandidatesMenuContainer.visibility}" +
                 " kbHolderH=${(parent as? View)?.height ?: -1}" +
@@ -680,9 +681,13 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 空带问题改用「触摸区精确圈 mSkbRoot（region 外的区域不认领触摸）」解决，
         // 不靠收缩栏高度，两者互不干扰。
         val widthMeasure = MeasureSpec.makeMeasureSpec(instance.skbWidth, MeasureSpec.EXACTLY)
+        // heightForCandidatesArea 在环境初始化完成前是 0，那时钉成 0 会把候选栏压成 0 高
+        // （键盘整体矮一截，之后某次重新布局才「长回来」，正是悬浮键盘位置被顶出屏幕的来源之一）
+        val areaH = instance.heightForCandidatesArea
         super.onMeasure(
             widthMeasure,
-            MeasureSpec.makeMeasureSpec(instance.heightForCandidatesArea, MeasureSpec.EXACTLY)
+            if (areaH > 0) MeasureSpec.makeMeasureSpec(areaH, MeasureSpec.EXACTLY)
+            else MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
     }
 
