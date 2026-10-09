@@ -302,6 +302,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         if (row == null) {
             holder.visibility = GONE
             if (::candidatesData.isInitialized) candidatesData.visibility = VISIBLE
+            if (::mComposingView.isInitialized) mComposingView.visibility = VISIBLE
             showCandidates()
         } else {
             holder.addView(
@@ -312,6 +313,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             )
             holder.visibility = VISIBLE
             candidatesData.visibility = GONE
+            // 待编辑行也要藏掉：分词页选词会把组合区设上文字，那一行会跟着冒出来
+            // （位置正好在工具栏行上面，显示的还是刚复制的内容，看着就像「建议行」）
+            if (::mComposingView.isInitialized) mComposingView.visibility = GONE
             showViewVisibility(mCandidatesDataContainer)
             applyRowHeights()
             // 这一行的高度必须够放下自定义内容，否则文字会被裁掉一半
