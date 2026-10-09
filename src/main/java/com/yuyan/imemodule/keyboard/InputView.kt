@@ -601,13 +601,25 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
      *  否则会被当普通符号直接上屏；返回 true 表示已按引擎处理。 */
     private fun inputRimeFuncKeyIfChinese(value: String): Boolean {
         if (!InputModeSwitcher.isChinese) return false
+        var metaState = 0
         val keyCode = when (value) {
             "/" -> KeyEvent.KEYCODE_SLASH
             "`" -> KeyEvent.KEYCODE_GRAVE
-            else -> return false
+            else -> {
+                // 中文标点同样要送进引擎：方案里的 processor 是按 Rime 键名（X11 keysym）
+                // 判断的。万象 super_tips 的 tips_key = "comma" 就是这样 —— 只有把「，」
+                // 当成 keysym 0x2C 送进去（key:repr() == "comma"）才会触发提示上屏；
+                // 原来走的是 chooseAndUpdate() + commitText("，")，等于先把组合串选词
+                // 上屏、再补一个逗号，表现就是「提示显示着，按逗号却打出了 aaerfa，」。
+                // 只在有组合串时改走引擎：没在输入时保持原来「直接上屏这个标点」的行为。
+                if (com.yuyan.inputmethod.core.Rime.compositionText.isEmpty()) return false
+                val punct = punctKeyCode(value) ?: return false
+                metaState = punct.second
+                punct.first
+            }
         }
         DecodingInfo.inputAction(
-            KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, 0, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
+            KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, metaState, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
         )
         val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
         if (raw.isNotEmpty()) {
@@ -615,6 +627,35 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             commitText(raw)
         } else updateCandidate()
         return true
+    }
+
+    /**
+     * 中文标点 → 送进引擎时用的按键（KEYCODE + 修饰键）。
+     *
+     * librime 的 Key::repr() 只认 X11 keysym：`,` 的 keysym 是 0x2C，名字才叫 "comma"；
+     * 而中文键盘上的「，」字符码是 U+FF0C，直接送字符码的话 repr() 得到 "0xff0c"，
+     * 方案里按 key:repr() 判断的 processor 全部匹配不上。
+     * 这里改送 KEYCODE，由 KeyCharacterMap 还原成 ASCII 字符，正好是 librime 认的 keysym；
+     * 方案的 punctuator 会再把 `,` 映射回 `，`，输出和原来一致。
+     */
+    private fun punctKeyCode(value: String): Pair<Int, Int>? = when (value) {
+        "，" -> KeyEvent.KEYCODE_COMMA to 0
+        "。" -> KeyEvent.KEYCODE_PERIOD to 0
+        "、" -> KeyEvent.KEYCODE_BACKSLASH to 0
+        "；" -> KeyEvent.KEYCODE_SEMICOLON to 0
+        "：" -> KeyEvent.KEYCODE_SEMICOLON to KeyEvent.META_SHIFT_ON
+        "？" -> KeyEvent.KEYCODE_SLASH to KeyEvent.META_SHIFT_ON
+        "！" -> KeyEvent.KEYCODE_1 to KeyEvent.META_SHIFT_ON
+        "“", "”" -> KeyEvent.KEYCODE_APOSTROPHE to KeyEvent.META_SHIFT_ON
+        "‘", "’" -> KeyEvent.KEYCODE_APOSTROPHE to 0
+        "（" -> KeyEvent.KEYCODE_9 to KeyEvent.META_SHIFT_ON
+        "）" -> KeyEvent.KEYCODE_0 to KeyEvent.META_SHIFT_ON
+        "《" -> KeyEvent.KEYCODE_COMMA to KeyEvent.META_SHIFT_ON
+        "》" -> KeyEvent.KEYCODE_PERIOD to KeyEvent.META_SHIFT_ON
+        "【" -> KeyEvent.KEYCODE_LEFT_BRACKET to 0
+        "】" -> KeyEvent.KEYCODE_RIGHT_BRACKET to 0
+        "—" -> KeyEvent.KEYCODE_MINUS to 0
+        else -> null
     }
 
     fun chooseAndUpdate(candId: Int = mSkbCandidatesBarView.getActiveCandNo()) {
