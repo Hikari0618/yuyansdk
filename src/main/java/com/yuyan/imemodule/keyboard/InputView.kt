@@ -631,11 +631,24 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         DecodingInfo.inputAction(
             KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, metaState, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD)
         )
+        val engineCommit = Kernel.commitText
         val raw = com.yuyan.inputmethod.RimeEngine.pendingRawCommit
-        if (raw.isNotEmpty()) {
-            com.yuyan.inputmethod.RimeEngine.pendingRawCommit = ""
-            commitText(raw)
-        } else updateCandidate()
+        when {
+            // 引擎主动提交：万象 super_tips 的 tips_key 就是 lua 里 env.engine:commit_text(text)，
+            // 文本落在 preCommitText（Kernel.commitText）里。这条路径原来没人接 —— 只有点候选的
+            // chooseDecodingCandidate 会读它，所以按键被引擎吞掉、组合串也不上屏，
+            // 表现为「按逗号什么都不出」（日志里能看到 commit='α' 但屏幕上没有）。
+            engineCommit.isNotEmpty() -> {
+                commitText(engineCommit)
+                // 清 preCommitText，否则下一次按键会把它再上屏一遍
+                resetToIdleState()
+            }
+            raw.isNotEmpty() -> {
+                com.yuyan.inputmethod.RimeEngine.pendingRawCommit = ""
+                commitText(raw)
+            }
+            else -> updateCandidate()
+        }
         return true
     }
 
