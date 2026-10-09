@@ -544,6 +544,16 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 行高按当前内容收放（必须放在 refreshComposingText() 之后——那里才写入
         // mComposingView.text；放到 initCandidateView()（只跑一次）会把高度永久钉成 0）
         applyRowHeights()
+        // 高度链埋点：打字时「键盘整体变高、悬浮模式底部被挤出屏幕」时，
+        // 用这行判断到底哪一层在涨（bar 已钉死 heightForCandidatesArea，理论上不该变）。
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[h] bar=$height compH=${mComposingView.height} candH=${candidatesData.height}" +
+                " dataH=${mCandidatesDataContainer.height} dataVis=${mCandidatesDataContainer.visibility}" +
+                " menuH=${mCandidatesMenuContainer.height} menuVis=${mCandidatesMenuContainer.visibility}" +
+                " kbHolderH=${(parent as? View)?.height ?: -1}" +
+                " skbRootH=${((parent as? View)?.parent as? View)?.height ?: -1}" +
+                " comp='${mComposingView.text}'"
+        )
         // 有自定义行（如分词页工具栏）时固定显示数据容器：
         // 否则组合区为空时会切到菜单条，把自定义行一起顶掉
         if (mCustomRow?.visibility == VISIBLE) {
