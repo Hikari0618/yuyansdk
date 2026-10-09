@@ -38,6 +38,7 @@
             android:excludeFromRecents="true"
             android:taskAffinity=""
             android:launchMode="singleInstance"
+            android:label="@string/edit"
             android:theme="@style/Theme.AppCompat.Dialog" />
 
         <activity android:name=".ui.setup.SetupActivity"

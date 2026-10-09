@@ -23,6 +23,8 @@ class ClipEditActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 对话框标题：不设的话会用 Activity 的 label（不写就继承 App 名「语燕输入法」）
+        setTitle(com.yuyan.imemodule.R.string.edit)
         val oldContent = intent.getStringExtra(EXTRA_CONTENT).orEmpty()
 
         val editText = EditText(this).apply {
