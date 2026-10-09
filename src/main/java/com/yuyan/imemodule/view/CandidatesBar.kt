@@ -304,7 +304,15 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         holder.removeAllViews()
         if (row == null) {
             holder.visibility = GONE
-            if (::candidatesData.isInitialized) candidatesData.visibility = VISIBLE
+            // 剪贴板建议行也是数据容器的子视图：它正显示时绝不能把候选行恢复出来。
+            // 待编辑行(46) + 候选行(87) 正好等于整条候选栏(133)，恢复后建议行（第三个
+            // 子视图）会被挤到栏外裁掉 —— 表现就是复制后唤起键盘，建议行没了、
+            // 只剩候选行里的右侧下拉箭头。
+            if (::candidatesData.isInitialized &&
+                mClipboardSuggestionView?.visibility != VISIBLE
+            ) {
+                candidatesData.visibility = VISIBLE
+            }
             if (::mComposingView.isInitialized) mComposingView.visibility = VISIBLE
             showCandidates()
         } else {
