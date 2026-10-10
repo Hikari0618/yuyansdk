@@ -6,8 +6,8 @@ import java.io.File
 /**
  * 模糊音设置：自由开关常见模糊音对，写入 <方案>.custom.yaml 后自动重新部署。
  *
- * 万象拼音系列方案使用 wanxiang_algebra.yaml 中的命名补丁段；
- * 其他方案使用标准 speller/algebra derive 规则追加（__append）。
+ * 万象拼音系列方案使用 wanxiang_algebra.yaml 中的命名补丁段（__patch）；
+ * 其他方案用 __prepend 把标准模糊音规则插到 speller/algebra 最前面。
  */
 object FuzzyPinyinUtils {
 
@@ -26,6 +26,9 @@ object FuzzyPinyinUtils {
     )
 
     private const val ENABLED_MARKER = "# enabled:"
+
+    /** 模糊音规则库文件名（写入用户目录，供 <方案>.custom.yaml 用 __patch 引用） */
+    private const val FUZZY_ALGEBRA_FILE = "yuyan_fuzzy.yaml"
 
     /** 万象拼音系列（algebra 由 wanxiang_algebra.yaml 提供命名补丁段） */
     fun isWanxiang(schemaId: String): Boolean {
@@ -123,10 +126,19 @@ object FuzzyPinyinUtils {
             }
             combo.forEach { sb.append("      - ").append(it).append("\n") }
         } else {
-            sb.append("    __append:\n")
-            OPTIONS.filter { it.key in enabled }.forEach { opt ->
-                rulesFor(schemaId, opt.key).forEach { sb.append("      - ").append(it).append("\n") }
+            // ★ 模糊音必须插到 speller/algebra 的【最前面】——那时拼串还是完整拼音音节；
+            //   若用 __append 加在末尾，此时已被双拼映射成输入码（小鹤 fen→fF→ff），
+            //   规则作用域错位，prism 构建会异常（实测 21.8KB 塌成 4.4KB，该方案候选全消失）。
+            //
+            //   librime 只提供 __patch / __append / __merge（源码 config_compiler.h，无 __prepend），
+            //   所以用 __patch 重建整个列表：[模糊音规则...] + [方案原有 algebra]。
+            //   规则库放在 yuyan_fuzzy.yaml，通过引用引用，避免在 custom.yaml 里重复展开。
+            writeFuzzyAlgebraLibrary()
+            sb.append("    __patch:\n")
+            OPTIONS.filter { it.key in enabled }.forEach {
+                sb.append("      - yuyan_fuzzy:/").append(it.key).append("\n")
             }
+            sb.append("      - ").append(schemaId).append(".schema:/speller/algebra\n")
         }
         file.writeText(sb.toString())
         return true
@@ -143,117 +155,56 @@ object FuzzyPinyinUtils {
     }
 
     /**
-     * 双拼方案的模糊音规则表（按方案 × 选项）。
-     *
-     * 【为什么需要这张表】通用模糊音规则写的是全拼（如 derive/^zh/z/），
-     * 但 Rime 的 speller/algebra 按序执行，而本类写入的是 __append（加在末尾）——
-     * 此时码已经过双拼映射（zh→v、en→f …），全拼规则永远匹配不上。
-     * 所以必须把「全拼空间的模糊音对」翻译成「双拼码空间的键位对」。
-     *
-     * 【生成方式】对每个方案用它自身的 algebra 推演：
-     *   声母码 = 对该声母+参照韵母(a)取码，再扣掉 a 的韵码；
-     *   韵母码 = 对参照声母(b)+该韵母取码，再扣掉 b 的声母码。
-     * 结果与各双拼方案的公开键位表逐一核对一致。
+     * 写入模糊音规则库 yuyan_fuzzy.yaml（所有选项集中一份，供各方案 custom.yaml 用 __patch 引用）。
+     * 放在用户目录，与 rime 其它配置同级，可被 CreateReference 解析为 yuyan_fuzzy:/<key>。
      */
-    private val DOUBLE_PINYIN_FUZZY: Map<String, Map<String, List<String>>> = mapOf(
-        "double_pinyin_flypy" to mapOf(   // 小鹤
-            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
-            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
-            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
-            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
-            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
-            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
-            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
-            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
-            "in_ing" to listOf("derive/b$/k/", "derive/k$/b/"),
-        ),
-        "double_pinyin_natural" to mapOf(   // 自然码
-            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
-            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
-            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
-            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
-            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
-            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
-            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
-            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
-            "in_ing" to listOf("derive/n$/y/", "derive/y$/n/"),
-        ),
-        "double_pinyin_abc" to mapOf(   // 智能ABC
-            "z_zh" to listOf("derive/^z/a/", "derive/^a/z/"),
-            "c_ch" to listOf("derive/^c/e/", "derive/^e/c/"),
-            "s_sh" to listOf("derive/^s/v/", "derive/^v/s/"),
-            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
-            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
-            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
-            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
-            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
-            "in_ing" to listOf("derive/c$/y/", "derive/y$/c/"),
-        ),
-        "double_pinyin_mspy" to mapOf(   // 微软
-            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
-            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
-            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
-            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
-            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
-            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
-            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
-            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
-            "in_ing" to listOf("derive/n$/;/", "derive/;$/n/"),
-        ),
-        "double_pinyin_sogou" to mapOf(   // 搜狗
-            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
-            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
-            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
-            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
-            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
-            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
-            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
-            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
-            "in_ing" to listOf("derive/n$/;/", "derive/;$/n/"),
-        ),
-        "double_pinyin_ziguang" to mapOf(   // 紫光
-            "z_zh" to listOf("derive/^z/u/", "derive/^u/z/"),
-            "c_ch" to listOf("derive/^c/a/", "derive/^a/c/"),
-            "s_sh" to listOf("derive/^s/i/", "derive/^i/s/"),
-            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
-            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
-            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
-            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
-            "en_eng" to listOf("derive/w$/t/", "derive/t$/w/"),
-            "in_ing" to listOf("derive/y$/;/", "derive/;$/y/"),
-        ),
-        "double_pinyin_ls17" to mapOf(   // 乱序17
-            "z_zh" to listOf("derive/^W/Z/", "derive/^Z/W/"),
-            "c_ch" to listOf("derive/^F/C/", "derive/^C/F/"),
-            "s_sh" to listOf("derive/^M/S/", "derive/^S/M/"),
-            "nl" to listOf("derive/^N/L/", "derive/^L/N/"),
-            "rl" to listOf("derive/^N/L/", "derive/^L/N/"),
-            "hf" to listOf("derive/^F/H/", "derive/^H/F/"),
-            "kg" to listOf("derive/^J/G/", "derive/^G/J/"),
-            "en_eng" to listOf("derive/S$/Y/", "derive/Y$/S/"),
-            "in_ing" to listOf("derive/S$/Y/", "derive/Y$/S/"),
-        ),
-    )
+    private fun writeFuzzyAlgebraLibrary() {
+        val sb = StringBuilder()
+        sb.append("# 语燕输入法模糊音规则库（自动生成，请勿手改）\n")
+        sb.append("# 规则作用在「完整拼音音节」上，由 <方案>.custom.yaml 用 __patch 插到\n")
+        sb.append("# speller/algebra 最前面（先于双拼映射），因此对全拼/小鹤/微软等所有方案通用。\n")
+        FUZZY_RULES.forEach { (key, rules) ->
+            sb.append(key).append(":\n")
+            rules.forEach { sb.append("  - ").append(it).append("\n") }
+        }
+        File(CustomConstant.RIME_DICT_PATH, FUZZY_ALGEBRA_FILE).writeText(sb.toString())
+    }
 
     /**
-     * 取某方案某模糊音项对应的 derive 规则。
-     * 双拼方案走码空间翻译表（见 DOUBLE_PINYIN_FUZZY），
-     * 其余（全拼等）仍用全拼规则 —— 它们没有双拼映射，规则本就作用于原始输入。
+     * 模糊音规则表 —— 与方案无关，统一作用在「完整拼音音节」上。
+     *
+     * 【为什么必须作用在音节、且必须插到 algebra 最前面】
+     *
+     * 双拼方案的 speller/algebra 本质是「拼音音节 → 输入码」的映射，而映射排在列表末尾。
+     * 以小鹤为例：
+     *     xform/(.)en$/$1F/    →  fen  →  fF  →  ff
+     *     xform/(.)eng$/$1G/   →  feng →  fG  →  fg
+     *     xform/in$/B/         →  xin  →  xB  →  xb
+     *     xform/ing$|uai$/K/   →  xing →  xK  →  xk
+     *     xlit/QWRT.../qwrty.../       ← 大小写归一，映射收尾
+     *
+     * 若用 __append 追加到末尾，此时拼串已经是「输入码」（ff / fg），
+     * 而 Rime 的 derive 正则匹配的是「音节」—— 作用域错位：
+     *   ① 规则基本匹配不上（如 derive/^z/v/ 想匹配声母 z，但音节里根本没有 v）；
+     *   ② 更糟的是会让 prism 构建异常 —— 实测小鹤/全拼的 prism 从 21.8KB 塌成 4.4KB，
+     *      导致该方案所有候选消失（用户现象：设了模糊音后这些音一个候选都没有）。
+     *
+     * 用 __patch 重建列表、把规则放到最前面后，拼串还是完整拼音，于是：
+     *   ① 规则与方案无关 —— 全拼/小鹤/微软/智能ABC/自然码… 全部通用，无需按方案翻译码空间；
+     *   ② 写法与官方模糊音一致（derive/(e)n$/$1ng/ 之类）；
+     *   ③ 派生出的音节会继续走完后面整条 algebra，最终码空间自动正确。
+     *
+     * 注意 ^z/^c/^s 的逆向规则带 ([^h]) 负向条件，避免把 zhi/chi/shi 变成 zhhi/chhi/shhi。
      */
-    private fun rulesFor(schemaId: String, key: String): List<String> =
-        DOUBLE_PINYIN_FUZZY[schemaId]?.get(key) ?: genericRules(key)
-
-    /** 通用（全拼）方案的模糊音 derive 规则 */
-    private fun genericRules(key: String): List<String> = when (key) {
-        "z_zh" -> listOf("derive/^zh/z/", "derive/^z([^h])/zh\$1/")
-        "c_ch" -> listOf("derive/^ch/c/", "derive/^c([^h])/ch\$1/")
-        "s_sh" -> listOf("derive/^sh/s/", "derive/^s([^h])/sh\$1/")
-        "nl" -> listOf("derive/^n/l/", "derive/^l/n/")
-        "rl" -> listOf("derive/^r/l/", "derive/^l/r/")
-        "hf" -> listOf("derive/^f/h/", "derive/^h/f/")
-        "kg" -> listOf("derive/^k/g/", "derive/^g/k/")
-        "en_eng" -> listOf("derive/^(.*)en\$/\$1eng/", "derive/^(.*)eng\$/\$1en/")
-        "in_ing" -> listOf("derive/^(.*)in\$/\$1ing/", "derive/^(.*)ing\$/\$1in/")
-        else -> emptyList()
-    }
+    private val FUZZY_RULES: Map<String, List<String>> = mapOf(
+        "z_zh" to listOf("derive/^zh/z/", "derive/^z([^h])/zh$1/"),
+        "c_ch" to listOf("derive/^ch/c/", "derive/^c([^h])/ch$1/"),
+        "s_sh" to listOf("derive/^sh/s/", "derive/^s([^h])/sh$1/"),
+        "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
+        "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
+        "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
+        "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
+        "en_eng" to listOf("derive/(e)ng$/$1n/", "derive/(e)n$/$1ng/"),
+        "in_ing" to listOf("derive/(i)ng$/$1n/", "derive/(i)n$/$1ng/"),
+    )
 }

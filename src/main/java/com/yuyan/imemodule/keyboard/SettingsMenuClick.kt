@@ -220,11 +220,10 @@ fun showFuzzyPinyinDialog(context: android.content.Context) {
     val options = com.yuyan.inputmethod.util.FuzzyPinyinUtils.OPTIONS
     val labels = options.map { it.label }.toTypedArray()
     val checked = options.map { it.key in com.yuyan.inputmethod.util.FuzzyPinyinUtils.getEnabled(schemaId) }.toBooleanArray()
+    // 注意：不要用 setMessage —— 实测它会顶掉 setMultiChoiceItems 的选项列表，
+    // 导致弹窗里只剩说明文字、勾选项全没了。说明直接写进标题。
     android.app.AlertDialog.Builder(context)
-        .setTitle("模糊音设置（$schemaId）")
-        // 这个设置是「按方案」保存的（写进 <方案>.custom.yaml），很容易误以为它全局生效 ——
-        // 用户实测踩过：在「拼音」方案下设置了模糊音，然后切到小鹤测，发现完全没效果。
-        .setMessage("本设置只对当前方案生效（$schemaId）。\n要设置别的方案，请先用键盘方案菜单切到该方案，再回到这里。")
+        .setTitle("模糊音设置（$schemaId）\n本设置只对当前方案生效，换方案请先切换再设置")
         .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
         .setPositiveButton("保存并部署") { _, _ ->
             val enabled = options.filterIndexed { i, _ -> checked[i] }.map { it.key }.toSet()
