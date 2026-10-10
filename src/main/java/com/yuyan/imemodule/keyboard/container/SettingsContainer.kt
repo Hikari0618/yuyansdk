@@ -54,6 +54,17 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
     }
 
     /**
+     * 菜单列数由 skbWidth 决定，initView 里按构造时的宽度算死。横竖屏切换或悬浮键盘
+     * 改尺寸后 skbWidth 会变，这里按新宽度重算列数并重建 LayoutManager，
+     * 否则沿用旧列数会出现一行挤太多列或列数过少（症状：旋转后菜单错位/留白）。
+     */
+    override fun updateSkbLayout() {
+        val rv = mRVMenuLayout ?: return
+        val count = EnvironmentSingleton.instance.skbWidth / dp(100)
+        rv.layoutManager = CustomGridLayoutManager(context, count)
+    }
+
+    /**
      * 弹出键盘设置界面
      */
     fun showSettingsView() {

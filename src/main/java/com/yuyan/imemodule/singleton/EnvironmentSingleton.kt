@@ -133,14 +133,16 @@ class EnvironmentSingleton private constructor() {
         get() = if(!instance.keyboardModeFloat) (instance.inputAreaWidth - instance.skbWidth)/2 else 0
 
     companion object {
+        // 22 个可变字段的全局单例：原来 get() 里 `if (null == mInstance)` 没有任何同步，
+        // 主线程与键盘线程首次并发访问会各造一个实例，之后 initData 算出两套尺寸，
+        // 表现为键盘高度跳变。这里用 @Volatile + 双重检查保证只初始化一次。
+        @Volatile
         private var mInstance: EnvironmentSingleton? = null
+
         @JvmStatic
-		val instance: EnvironmentSingleton
-            get() {
-                if (null == mInstance) {
-                    mInstance = EnvironmentSingleton()
-                }
-                return mInstance!!
+        val instance: EnvironmentSingleton
+            get() = mInstance ?: synchronized(this) {
+                mInstance ?: EnvironmentSingleton().also { mInstance = it }
             }
     }
 }

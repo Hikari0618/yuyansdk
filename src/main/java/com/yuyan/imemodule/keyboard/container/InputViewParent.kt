@@ -55,13 +55,19 @@ class InputViewParent @JvmOverloads constructor(context: Context?, attrs: Attrib
         if (child === mLastContainer) return
         child.visibility = VISIBLE
         child.requestLayout()
-        if (mLastContainer != null) {
-            hideView(mLastContainer!!)
+        // 切换容器时要把上一个容器从视图树里真正摘掉，而不是只置 GONE。
+        // 键盘容器被 KeyboardManager 按类型缓存复用，clearKeyboard() 重建后又会对同一父布局
+        // addView 新容器；旧容器若只置 GONE 仍留在子视图列表里，就会无限累积
+        // （实测 [parent] kids=7 反复出现且单调递增）。
+        // 先置 GONE 再 removeView：置 GONE 会触发 onVisibilityChanged(GONE)，
+        // 分词页等容器正是靠这个回调做「离开时收尾」（提交组合、交还工具栏），
+        // 只 removeView 不置 GONE 会漏掉这次回调。
+        // 只处理上一个容器，绝不动当前正在显示的 child。
+        val last = mLastContainer
+        if (last != null && last !== child) {
+            last.visibility = GONE
+            removeView(last)
         }
         mLastContainer = child
-    }
-
-    private fun hideView(child: View) {
-        child.visibility = GONE
     }
 }

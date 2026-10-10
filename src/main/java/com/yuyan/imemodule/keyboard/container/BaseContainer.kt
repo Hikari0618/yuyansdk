@@ -54,6 +54,10 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
      */
     @SuppressLint("ClickableViewAccessibility")
     fun setKeyboardHeight() {
+        // 幂等：本容器会被 KeyboardManager 按类型缓存复用（switchKeyboard 命中缓存直接复用同一实例），
+        // 重复进入「调整键盘高度」时若不清掉上一层的影子覆盖层，就会一层层叠加
+        // （症状：拖动时多个把手叠在一起、点确定只移除最上面那层）。
+        mHeightShadowView?.let { removeView(it) }
         val rootView = LayoutInflater.from(context).inflate(R.layout.layout_ime_keyboard_height_shadow, this, false)
         this.addView(rootView)
         mHeightShadowView = rootView
@@ -87,8 +91,15 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
             // 表现为「点重置后键盘下界被往上抬」（用户实测），
             // 要点一下上把手（那条路径有刷新）才会突然跳回正确位置。
             inputView.refreshKeyboardWrapperHeight()
+            // 重置等同「确定」：也要把影子覆盖层摘掉并清引用，否则点重置后覆盖层仍挂在容器里，
+            // 再进「调整键盘高度」又会叠一层（幂等失效）。
+            removeView(rootView)
+            mHeightShadowView = null
         }
-        rootView.findViewById<View>(R.id.ll_keyboard_height_sure).setOnClickListener { removeView(rootView) }
+        rootView.findViewById<View>(R.id.ll_keyboard_height_sure).setOnClickListener {
+            removeView(rootView)
+            mHeightShadowView = null
+        }
         rootView.findViewById<View>(R.id.iv_keyboard_height_Top).setOnTouchListener { v12: View, event -> onModifyKeyboardHeightEvent(v12, event) }
         if(EnvironmentSingleton.instance.keyboardModeFloat){
             mBottomPaddingKey = if(EnvironmentSingleton.instance.isLandscape) AppPrefs.getInstance().internal.keyboardBottomPaddingLandscapeFloat

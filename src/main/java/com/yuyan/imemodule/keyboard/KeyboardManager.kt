@@ -40,9 +40,22 @@ class KeyboardManager {
         // 于是最下面一行被切掉（用户实测：悬浮键盘打字时下缘被裁）。
         // 它里面装的所有键盘容器（BaseContainer/ConstraintLayout）本来就都钉在 skbHeight 上，
         // 所以这里也钉成 skbHeight，任何布局抖动都挤不到键盘。
+        syncKeyboardRootHeight()
+    }
+
+    /**
+     * 按当前 env 的 skbHeight 重设键盘根视图（InputViewParent）的 layoutParams 高度。
+     *
+     * env（键盘高度比 / 横竖屏）变化后，已被缓存的 InputViewParent 实例不会自动跟着变，
+     * 需要外部主动同步一次；否则根视图仍钉在旧高度（症状：改高度后键盘根不跟着变、被裁）。
+     * 幂等，可重复调用；未初始化时安全返回。原 setData 里的那段逻辑抽到这里，
+     * init 调用路径（setData）行为不变。
+     */
+    fun syncKeyboardRootHeight() {
+        if (!::mKeyboardRootView.isInitialized) return
         val env = EnvironmentSingleton.instance
         if (env.skbHeight > 0) {
-            keyboardRootView.layoutParams = (keyboardRootView.layoutParams ?: return).apply {
+            mKeyboardRootView.layoutParams = (mKeyboardRootView.layoutParams ?: return).apply {
                 height = env.skbHeight
             }
         }
@@ -59,6 +72,8 @@ class KeyboardManager {
      */
     fun relayoutCurrentKeyboard() {
         if (!::mKeyboardRootView.isInitialized) return
+        // 横竖屏切换会改变 env.skbHeight，缓存的根视图高度不会自己跟着变，这里一并同步
+        syncKeyboardRootHeight()
         currentContainer?.updateSkbLayout()
         if (::mInputView.isInitialized) mInputView.updateCandidateBar()
     }

@@ -48,6 +48,12 @@ abstract class DataBaseKT : RoomDatabase() {
             }
         }
 
+        // 保留 allowMainThreadQueries：全项目还有 20+ 处 DAO 调用在主线程（UI adapter、
+        // 各键盘容器、Launcher 预热），直接删会让这些地方抛
+        // 「Cannot access database on the main thread」连锁崩溃，属于需要单独排期的重构。
+        // 已知最严重的一处（剪贴板监听每次变化同步落库 → 卡顿/ANR）已在
+        // ClipboardHelper.onPrimaryClipChanged 里挪到 IO 线程。
+        // TODO(后续): 逐个把主线程 DAO 调用改为 IO，再移除本开关。
         val instance = Room.databaseBuilder(Launcher.instance.context, DataBaseKT::class.java, "ime_db")
             .allowMainThreadQueries()
             .addMigrations(MIGRATION_1_2)

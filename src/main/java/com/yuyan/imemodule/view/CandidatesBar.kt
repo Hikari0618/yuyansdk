@@ -287,6 +287,15 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     /** 候选栏里放自定义内容的那一行（分词页工具栏等） */
     private var mCustomRow: LinearLayout? = null
 
+    /** 候选栏内互斥内容当前该显示哪一块（候选行/待编辑行/建议行/自定义行）。
+     *  由 setCustomRow / showClipboardSuggestion / hideClipboardSuggestion 统一登记，
+     *  showCandidates() 里的 applyRowMode() 只认这一个状态决定谁显示谁藏。
+     *  此前各调用点各看各的 visibility（hideClipboardSuggestion 只在没有自定义行时
+     *  才恢复候选行，showCandidates 又按 mCustomRow==VISIBLE 早退）——两边一旦不同步
+     *  就互相打架，叉掉建议行后候选行和菜单栏都回不来（用户反馈「叉掉建议后整条都没了」）。 */
+    private enum class RowMode { Normal, Suggestion, Custom }
+    private var rowMode = RowMode.Normal
+
     /**
      * 用候选栏这一行显示自定义内容（如分词页的工具栏）；传 null 恢复候选栏。
      * 直接占用候选栏那一行，就不用担心分词页「盖不住」候选栏/菜单栏的问题。
@@ -303,19 +312,17 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         }
         holder.removeAllViews()
         if (row == null) {
-            holder.visibility = GONE
-            // 剪贴板建议行也是数据容器的子视图：它正显示时绝不能把候选行恢复出来。
-            // 待编辑行(46) + 候选行(87) 正好等于整条候选栏(133)，恢复后建议行（第三个
-            // 子视图）会被挤到栏外裁掉 —— 表现就是复制后唤起键盘，建议行没了、
-            // 只剩候选行里的右侧下拉箭头。
-            if (::candidatesData.isInitialized &&
-                mClipboardSuggestionView?.visibility != VISIBLE
-            ) {
-                candidatesData.visibility = VISIBLE
+            // 建议行还开着时保持 Suggestion 模式：否则候选行会被恢复出来、把建议行
+            //（数据容器的第三个子视图）挤出栏外裁掉 —— 表现就是复制后唤起键盘，
+            // 建议行没了、只剩候选行里的右侧下拉箭头。
+            if (mClipboardSuggestionView?.visibility != VISIBLE) {
+                rowMode = RowMode.Normal
             }
-            if (::mComposingView.isInitialized) mComposingView.visibility = VISIBLE
+            // 候选行/待编辑行/自定义行到底谁显示，交给 showCandidates() 里的
+            // applyRowMode() 按 rowMode 统一决定，这里不再各改一半。
             showCandidates()
         } else {
+            rowMode = RowMode.Custom
             holder.addView(
                 row,
                 LinearLayout.LayoutParams(
@@ -374,6 +381,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             setOnClickListener { onSuggestionClick?.invoke(content) }
         })
         row.addView(suggestionItem("✕") { hideClipboardSuggestion() })
+        rowMode = RowMode.Suggestion
         row.visibility = VISIBLE
         candidatesData.visibility = GONE
         // 走候选栏本身的显示路径：键盘刚弹起来时候选栏还是隐藏的，
@@ -395,13 +403,11 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     /** 收起剪贴板建议，恢复候选词列表 */
     fun hideClipboardSuggestion() {
         if (mClipboardSuggestionView?.visibility != VISIBLE) return
-        mClipboardSuggestionView?.visibility = GONE
-        // 有自定义行（分词页工具栏）时不要恢复候选行，否则它会占着高度挤在工具栏上面
-        if (::candidatesData.isInitialized && mCustomRow?.visibility != VISIBLE) {
-            candidatesData.visibility = VISIBLE
-        }
-        // 让候选栏按当前状态重排：没有候选时它应该显示菜单条，
-        // 否则会留下一条空白 —— 表现就是「叉掉建议后候选栏和菜单键那行都没了」
+        // 收起建议行后回到「候选行」；具体显示候选行还是菜单栏，由 showCandidates()
+        // 按当前状态统一决定（applyRowMode 会恢复候选行、并让残留的自定义行让位）。
+        // 以前这里单独恢复候选行、showCandidates() 又按 mCustomRow==VISIBLE 早退，
+        // 两边一旦不同步，叉掉建议后候选行和菜单栏都回不来。
+        if (rowMode == RowMode.Suggestion) rowMode = RowMode.Normal
         showCandidates()
     }
 
@@ -556,11 +562,42 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         )
     }
 
+    /** 按当前 rowMode 统一设置四块互斥内容（候选行/待编辑行/建议行/自定义行）的可见性。
+     *  以前这些可见性是各调用点各改一半（setCustomRow 改候选行和待编辑行、
+     *  showClipboardSuggestion 改候选行、hideClipboardSuggestion 又回头看自定义行），
+     *  状态一不同步就打架；现在只认 rowMode 这一个来源，谁该显示由它说了算。 */
+    private fun applyRowMode() {
+        if (!::candidatesData.isInitialized) return
+        when (rowMode) {
+            RowMode.Custom -> {
+                candidatesData.visibility = GONE
+                mClipboardSuggestionView?.visibility = GONE
+                if (::mComposingView.isInitialized) mComposingView.visibility = GONE
+                mCustomRow?.visibility = VISIBLE
+            }
+            RowMode.Suggestion -> {
+                candidatesData.visibility = GONE
+                mCustomRow?.visibility = GONE
+                if (::mComposingView.isInitialized) mComposingView.visibility = VISIBLE
+                mClipboardSuggestionView?.visibility = VISIBLE
+            }
+            RowMode.Normal -> {
+                // 残留可见的自定义行/建议行必须一起收掉，否则它们会挤占候选行的高度
+                mCustomRow?.visibility = GONE
+                mClipboardSuggestionView?.visibility = GONE
+                candidatesData.visibility = VISIBLE
+                if (::mComposingView.isInitialized) mComposingView.visibility = VISIBLE
+            }
+        }
+    }
+
     fun showCandidates() {
         refreshComposingText()
         // 行高按当前内容收放（必须放在 refreshComposingText() 之后——那里才写入
         // mComposingView.text；放到 initCandidateView()（只跑一次）会把高度永久钉成 0）
         applyRowHeights()
+        // 先按 rowMode 统一四块互斥内容的可见性，后面各分支只决定容器显示数据行还是菜单行
+        applyRowMode()
         // 高度链埋点：打字时「键盘整体变高、悬浮模式底部被挤出屏幕」时，
         // 用这行判断到底哪一层在涨（bar 已钉死 heightForCandidatesArea，理论上不该变）。
         com.yuyan.inputmethod.util.ImeLog.d(
@@ -571,15 +608,15 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 " skbRootH=${((parent as? View)?.parent as? View)?.height ?: -1}" +
                 " comp='${mComposingView.text}'"
         )
-        // 有自定义行（如分词页工具栏）时固定显示数据容器：
-        // 否则组合区为空时会切到菜单条，把自定义行一起顶掉
-        if (mCustomRow?.visibility == VISIBLE) {
-            showViewVisibility(mCandidatesDataContainer)
-            return
-        }
+        // 自定义行（如分词页工具栏）占用候选栏这一行：容器必须保持数据容器可见，
+        // 否则组合区为空时会切到菜单条、把自定义行一起顶掉。
+        // 注意这里不再提前 return —— 之前 return 会跳过末尾的 notify 与 onContentChanged，
+        // 导致分词页/建议行显示后 Service 的触摸区一直不重算（触摸区不对）。
         val container = KeyboardManager.instance.currentContainer
         mIvMenuSetting.drawable.setLevel( if(container is InputBaseContainer) 0 else 1)
-        if (container is ClipBoardContainer) {
+        if (rowMode == RowMode.Custom) {
+            showViewVisibility(mCandidatesDataContainer)
+        } else if (container is ClipBoardContainer) {
             showViewVisibility(mCandidatesMenuContainer)
             mCandidatesMenuAdapter.items = if(container.getMenuMode() == SkbMenuMode.ClipBoard) {
                 listOf(menuSkbFunsPreset[SkbMenuMode.ClearClipBoard]!!, menuSkbFunsPreset[SkbMenuMode.ClipBoard]!!, menuSkbFunsPreset[SkbMenuMode.Phrases]!!, menuSkbFunsPreset[SkbMenuMode.LockClipBoard]!!)
@@ -768,5 +805,21 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         mCandidatesAdapter.notifyChanged()
         mCandidatesMenuAdapter.notifyChanged()
         mFlowerType.setTextColor(textColor)
+        // 建议行/自定义行里的 TextView 是「创建时」用当时的 activeTheme.keyTextColor
+        // 上的色，它们不在 initMenuView/initCandidateView 的重建范围内，不在这里补刷
+        // 就会一直停在旧主题的颜色（用户反馈「换主题后建议行文字不变色」）。
+        mClipboardSuggestionView?.let { refreshTextColors(it, textColor) }
+        mCustomRow?.let { refreshTextColors(it, textColor) }
+    }
+
+    /** 递归把容器里所有 TextView 的文字颜色刷成 color（建议行/自定义行的子视图用：
+     *  它们是按需创建、缓存的，不会随 initMenuView/initCandidateView 一起重建）。 */
+    private fun refreshTextColors(container: ViewGroup, color: Int) {
+        for (i in 0 until container.childCount) {
+            when (val child = container.getChildAt(i)) {
+                is TextView -> child.setTextColor(color)
+                is ViewGroup -> refreshTextColors(child, color)
+            }
+        }
     }
 }

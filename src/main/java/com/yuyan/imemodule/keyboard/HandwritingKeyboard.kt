@@ -86,7 +86,7 @@ class HandwritingKeyboard(context: Context?) : TextKeyboard(context) {
                 mPoints.clear()
                 addPoint(getNewPoint(eventX, eventY))
                 if (mLastUpTime != 0L && System.currentTimeMillis() - mLastUpTime > times) {
-                    mService!!.responseKeyEvent(SoftKey(InputModeSwitcher.USER_KEYCODE_SELECTED))
+                    mService?.responseKeyEvent(SoftKey(InputModeSwitcher.USER_KEYCODE_SELECTED))
                     mSBPoint.clear()
                     clear()
                 }
@@ -128,7 +128,7 @@ class HandwritingKeyboard(context: Context?) : TextKeyboard(context) {
     }
 
     private fun addPoint(newPoint: TimedPoint?) {
-        mPoints.add(newPoint!!)
+        mPoints.add(newPoint ?: return)
         val pointsCount = mPoints.size
         if (pointsCount > 3) {
             var tmp = calculateCurveControlPoints(mPoints[0], mPoints[1], mPoints[2])
@@ -228,12 +228,12 @@ class HandwritingKeyboard(context: Context?) : TextKeyboard(context) {
      * 手写键盘获取按下按键
      */
     private fun onKeyPressHandwriting(x: Int, y: Int): SoftKey? {
-        return mSoftKeyboard!!.mapToKey(x, y)
+        return mSoftKeyboard?.mapToKey(x, y)
     }
 
     private fun recognitionData() {
         HWEngine.recognitionData(mSBPoint) {
-                item -> mService?.postDelayed({ mService!!.responseHandwritingResultEvent(item) }, 20)
+                item -> mService?.postDelayed({ mService?.responseHandwritingResultEvent(item) }, 20)
         }
     }
 

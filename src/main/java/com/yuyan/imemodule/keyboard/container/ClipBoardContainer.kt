@@ -54,6 +54,9 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
     private val mRVSymbolsView: SwipeRecyclerView = SwipeRecyclerView(context)
     private var mTVLable: TextView? = null
     private var itemMode:SkbMenuMode? = null
+    // 容器按 KeyboardType 缓存复用，切走/回来不会重建视图。重新可见时的自动刷新用它去重，
+    // 避免与显式刷新（SettingsMenuClick 里的 showClipBoardView）在同一帧里连刷两次导致列表闪烁。
+    private var pendingRefreshOnShow = false
 
     init {
         mPaint.textSize = dp(22f)
@@ -79,6 +82,11 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
     fun showClipBoardView(item: SkbMenuMode) {
         CustomConstant.lockClipBoardEnable = false
         itemMode = item
+        // 显式刷新一到，就撤掉「重新可见自动刷新」的标记，保证一帧只刷一次（见 scheduleRefreshOnShow）
+        pendingRefreshOnShow = false
+        // 空列表提示的取色只在 initView 里做过一次；容器是缓存的，换主题后不补刷会一直是旧配色。
+        // 这里在每次取数时顺手刷一遍（showClipBoardView 覆盖显式刷新与重新可见两条路径）。
+        mTVLable?.setTextColor(activeTheme.keyTextColor)
         mRVSymbolsView.setHasFixedSize(true)
         val copyContents : MutableList<Clipboard> =
             if(itemMode == SkbMenuMode.ClipBoard) {
@@ -157,6 +165,39 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         mRVSymbolsView.setAdapter(adapter)
     }
 
+    /**
+     * 容器是按 KeyboardType 缓存的，切走时只是 GONE（甚至被 removeView），回来时不会重建 ——
+     * 而剪贴板/短语数据可能在别处被改过（典型：长按条目进 ClipEditActivity 编辑页，保存后返回），
+     * DB 变了但缓存的视图不会自己重取，于是「改了没反应」。所以重新可见时重取一次数据。
+     */
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        // 用「自身可见性」判断：回调里的 visibility 是发生变化的那个 view 的 ——
+        // 输入法重新显示时根视图变 VISIBLE，本容器即使已是 GONE 也会收到 VISIBLE 回调。
+        if (this.visibility == View.VISIBLE && isAttachedToWindow) {
+            scheduleRefreshOnShow()
+        }
+    }
+
+    /**
+     * 重新可见时的刷新。不能在这里同步直接调 showClipBoardView：
+     * SettingsMenuClick 先 switchKeyboard 显示本容器（这一步会触发 onVisibilityChanged），
+     * 紧接着还会显式再调一次 showClipBoardView，同步刷就会连刷两次、列表闪一下。
+     * 这里只打标记并 post 到下一帧；期间若有显式刷新（showClipBoardView 会清标记），
+     * 这次就跳过，从而保证一帧只刷一次。
+     */
+    private fun scheduleRefreshOnShow() {
+        if (itemMode == null) return // 首次显示时 itemMode 还没设，交给显式的 showClipBoardView
+        if (pendingRefreshOnShow) return
+        pendingRefreshOnShow = true
+        post {
+            if (pendingRefreshOnShow) {
+                pendingRefreshOnShow = false
+                itemMode?.let { showClipBoardView(it) }
+            }
+        }
+    }
+
     /** 长按剪贴板条目的菜单：编辑 / 分享 / 分词 / 收藏（置顶、删除仍走左滑） */
     private fun showItemMenu(anchor: View, item: Clipboard) {
         // 用系统 PopupMenu（同文也是这么做的）：自动贴着长按的条目出现，
@@ -164,7 +205,10 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         // 不会像自绘 PopupWindow 那样把点击漏给底下的列表。
         val popup = android.widget.PopupMenu(mContext, anchor)
         popup.menu.add(android.view.Menu.NONE, 1, 0, "编辑").setOnMenuItemClickListener {
-            editItem(item); true
+            // 短语模式必须走短语自己的编辑路径：ClipEditActivity 读写的是 clipboard 表，
+            // 而短语在 phrase 表里，拿它编辑短语会 findByContent 查不到行、保存整段跳过（改了没反应）。
+            if (itemMode == SkbMenuMode.Phrases) editPhraseItem(item) else editItem(item)
+            true
         }
         popup.menu.add(android.view.Menu.NONE, 2, 1, "分享").setOnMenuItemClickListener {
             shareItem(item); true
@@ -172,10 +216,28 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         popup.menu.add(android.view.Menu.NONE, 3, 2, "分词").setOnMenuItemClickListener {
             segmentItem(item); true
         }
-        popup.menu.add(android.view.Menu.NONE, 4, 3, "收藏").setOnMenuItemClickListener {
-            collectItem(item); true
+        // 「收藏」只对剪贴板条目有意义：短语模式下这条本来就是短语，再收藏只是重复/置顶，
+        // 语义上说不通，故该模式下不显示这一项。
+        if (itemMode != SkbMenuMode.Phrases) {
+            popup.menu.add(android.view.Menu.NONE, 4, 3, "收藏").setOnMenuItemClickListener {
+                collectItem(item); true
+            }
         }
         popup.show()
+    }
+
+    /**
+     * 短语模式下长按「编辑」：复用左滑「编辑」走的同一条路径 ——
+     * onSettingsMenuClick(AddPhrases, 现有短语)。它会先把该短语从 phrase 表删除，
+     * 再把内容填进「新增短语」界面供修改保存，改完回短语表，不再是「改了没反应」。
+     */
+    private fun editPhraseItem(item: Clipboard) {
+        runCatching {
+            inputView.onSettingsMenuClick(
+                SkbMenuMode.AddPhrases,
+                DataBaseKT.instance.phraseDao().queryByContent(item.content)
+            )
+        }
     }
 
     /** 编辑：交给独立 Activity —— 输入法没法给自己窗口里的输入框打字 */

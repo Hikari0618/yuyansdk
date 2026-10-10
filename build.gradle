@@ -24,23 +24,31 @@ android {
     namespace 'com.yuyan.imemodule'
     defaultConfig {
         minSdk 23
-        targetSdk 35
+        // 改动7：原为 35，与 app 模块（compileSdk/targetSdk 均为 36）不一致。
+        // 统一为 36，避免库以旧 targetSdk 编译、app 以 36 打包时的行为差异。
+        targetSdk 36
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a', "x86", "x86_64"
+            // 改动10：统一为 arm64-v8a。libs/{armeabi-v7a,x86,x86_64} 各目录只有
+            // libyuyanime.so，缺少 Sogou 三库，一旦放开这些 ABI 运行时会直接崩溃；
+            // 且这些无用目录（约 12MB）已删除，与 app 模块 abiFilters 保持一致。
+            abiFilters 'arm64-v8a'
         }
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments = [AROUTER_MODULE_NAME: project.getName()]
             }
         }
-        lintOptions {
-            abortOnError false
-        }
 
         buildConfigField "String", "versionName", "\"${versionNameDate()}\""
         buildConfigField "String", "AppCommitHead", "\"${getAppGitHead()}\""
         buildConfigField "String", "AppBuildTime", "\"${getAppBuildTime()}\""
+    }
+
+    // 改动6：lintOptions 原先写在 defaultConfig 里，AGP 8 会忽略；移到 android {} 顶层
+    // 并改用新的 lint {} DSL。
+    lint {
+        abortOnError false
     }
 
     //多渠道打包: app中多渠道配置要一致

@@ -4,9 +4,11 @@ package com.yuyan.imemodule.view.popup
 import android.graphics.Rect
 import android.view.KeyEvent
 import android.view.View
+import com.yuyan.imemodule.R
 import com.yuyan.imemodule.application.Launcher
 import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.entity.keyboard.SoftKey
+import com.yuyan.imemodule.keyboard.InputView
 import com.yuyan.imemodule.manager.InputModeSwitcher
 import com.yuyan.imemodule.prefs.AppPrefs
 import com.yuyan.imemodule.prefs.behavior.PopupMenuMode
@@ -58,9 +60,10 @@ class PopupComponent private constructor(){
             setText(content)
         }
         root.apply {
+            val (bottom, left) = anchorMargins(bounds)
             add(popup.root, lParams(bounds.width(), bounds.height()) {
-                bottomMargin = EnvironmentSingleton.instance.skbAreaHeight - (bounds.top + bounds.bottom)/2
-                leftMargin = EnvironmentSingleton.instance.leftMarginWidth + bounds.left
+                bottomMargin = bottom
+                leftMargin = left
             })
         }
         showingEntryUi = popup
@@ -100,9 +103,10 @@ class PopupComponent private constructor(){
         val popupWidth = EnvironmentSingleton.instance.skbWidth.div(10) * key.second.length / 2
         val keyboardUi = PopupKeyboardMenuUi(bounds, { dismissPopup() }, popupRadius, popupWidth, isSelect, key)
         root.apply {
+            val (bottom, left) = anchorMargins(bounds)
             add(keyboardUi.root, lParams {
-                bottomMargin = EnvironmentSingleton.instance.skbAreaHeight - (bounds.top + bounds.bottom)/2
-                leftMargin = EnvironmentSingleton.instance.leftMarginWidth + bounds.left + keyboardUi.offsetX
+                bottomMargin = bottom
+                leftMargin = left + keyboardUi.offsetX
             })
         }
         dismissPopup()
@@ -113,9 +117,10 @@ class PopupComponent private constructor(){
         val popupWidth = EnvironmentSingleton.instance.skbWidth.div(10)
         val keyboardUi = PopupKeyboardUi(bounds, { dismissPopup() }, popupRadius, popupWidth, keys)
         root.apply {
+            val (bottom, left) = anchorMargins(bounds)
             add(keyboardUi.root, lParams {
-                bottomMargin = EnvironmentSingleton.instance.skbAreaHeight - (bounds.top + bounds.bottom)/2
-                leftMargin = EnvironmentSingleton.instance.leftMarginWidth + bounds.left + keyboardUi.offsetX
+                bottomMargin = bottom
+                leftMargin = left + keyboardUi.offsetX
             })
         }
         dismissPopup()
@@ -128,6 +133,33 @@ class PopupComponent private constructor(){
 
     fun triggerFocused(): Pair<PopupMenuMode, String> {
         return showingContainerUi?.onTrigger()?:Pair(PopupMenuMode.None, "")
+    }
+
+    /**
+     * 实时计算气泡相对「气泡根视图」的锚点边距。
+     *
+     * [root] 在 InputView 里被 addRule(ALIGN_BOTTOM/ALIGN_LEFT, mSkbRoot)，
+     * 即它的左下角恒等于 mSkbRoot 的左下角；而 bounds 是 SoftKey 在「键盘视图」内的坐标。
+     * 原来用 skbAreaHeight / leftMarginWidth 这两个静态设计常量换算，键盘一旦悬浮/位移
+     * 就整体错位。这里改成用键盘视图和 mSkbRoot 的 getLocationInWindow 实时换算，
+     * 键盘被移到哪里气泡就跟到哪里。
+     * 返回 (bottomMargin, leftMargin)。
+     */
+    private fun anchorMargins(bounds: Rect): Pair<Int, Int> {
+        val inputView = root.parent as? InputView
+        val skbRoot = inputView?.mSkbRoot
+        val keyboardView = skbRoot?.findViewById<View>(R.id.skb_input_keyboard_view)
+        if (skbRoot != null && keyboardView != null) {
+            val kbLoc = IntArray(2).also { keyboardView.getLocationInWindow(it) }
+            val skbLoc = IntArray(2).also { skbRoot.getLocationInWindow(it) }
+            val keyCenterY = kbLoc[1] + (bounds.top + bounds.bottom) / 2
+            val bottomMargin = (skbLoc[1] + skbRoot.height) - keyCenterY
+            val leftMargin = (kbLoc[0] + bounds.left) - skbLoc[0]
+            return bottomMargin to leftMargin
+        }
+        // 退化：拿不到键盘视图时仍按旧的设计常量估算，避免气泡直接消失
+        return (EnvironmentSingleton.instance.skbAreaHeight - (bounds.top + bounds.bottom) / 2) to
+            (EnvironmentSingleton.instance.leftMarginWidth + bounds.left)
     }
 
     fun dismissPopup() {

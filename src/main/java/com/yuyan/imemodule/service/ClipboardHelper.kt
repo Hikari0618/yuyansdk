@@ -6,6 +6,11 @@ import com.yuyan.imemodule.database.DataBaseKT
 import com.yuyan.imemodule.database.entry.Clipboard
 import com.yuyan.imemodule.prefs.AppPrefs
 import com.yuyan.imemodule.utils.clipboardManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 
 /**
@@ -18,6 +23,9 @@ import kotlin.math.max
  *  - 内容去重：同一内容已存在时不再重复插入，只刷新时间（等于提到最前）
  */
 object ClipboardHelper : OnPrimaryClipChangedListener {
+
+    /** 剪贴板落库专用作用域：本 object 与进程同生命周期，任务都是有界的小写入，不会堆积。 */
+    private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun init() {
         Launcher.instance.context.clipboardManager.addPrimaryClipChangedListener(this)
@@ -37,20 +45,29 @@ object ClipboardHelper : OnPrimaryClipChangedListener {
             compareRules.fold(data) { acc, rule -> rule.replace(acc, "") }.isEmpty()
         ) return
 
-        val dao = DataBaseKT.instance.clipboardDao()
-        val exist = dao.findByContent(data)
-        if (exist != null) {
-            // 内容去重：已存在就不重复插入，只刷新时间；置顶项保持置顶
-            if (exist.isKeep != 0) return
-            dao.deleteByContent(data)
-        }
-        dao.insert(Clipboard(content = data))
-        val num = max(dao.getCount() - prefs.clipboardHistoryLimit.getValue(), 0)
-        dao.deleteOldest(num)
-        if (prefs.clipboardSuggestion.getValue()) {
-            // 先写内容再写时间：时间的变化用来触发建议行，必须保证此时内容已是新的
-            AppPrefs.getInstance().internal.clipboardUpdateContent.setValue(data)
-            AppPrefs.getInstance().internal.clipboardUpdateTime.setValue(System.currentTimeMillis())
+        // 落库放 IO 线程。本方法由系统在主线程回调，而下面这些操作（findByContent / insert /
+        // getCount / deleteOldest 带 ORDER BY 子查询）都是同步磁盘 I/O，历史上限默认 1000、
+        // 可设到 100000 —— 全放主线程时每次复制都可能卡顿甚至 ANR。
+        ioScope.launch {
+            val dao = DataBaseKT.instance.clipboardDao()
+            val exist = dao.findByContent(data)
+            if (exist != null) {
+                // 内容去重：已存在就不重复插入，只刷新时间；置顶项保持置顶
+                if (exist.isKeep != 0) return@launch
+                dao.deleteByContent(data)
+            }
+            dao.insert(Clipboard(content = data))
+            val num = max(dao.getCount() - prefs.clipboardHistoryLimit.getValue(), 0)
+            dao.deleteOldest(num)
+
+            if (prefs.clipboardSuggestion.getValue()) {
+                // 先写内容再写时间：时间的变化用来触发建议行，必须保证此时内容已是新的。
+                // 必须回到主线程写偏好 —— 监听者（ImeService/InputView）会碰 UI。
+                withContext(Dispatchers.Main) {
+                    AppPrefs.getInstance().internal.clipboardUpdateContent.setValue(data)
+                    AppPrefs.getInstance().internal.clipboardUpdateTime.setValue(System.currentTimeMillis())
+                }
+            }
         }
     }
 

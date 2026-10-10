@@ -4,14 +4,22 @@
 config_version: '0.40'
 
 schema_list:
-  - schema: luna_pinyin
-  - schema: luna_pinyin_simp
-  - schema: luna_pinyin_fluency
-  - schema: bopomofo
-  - schema: bopomofo_tw
-  - schema: cangjie5
-  - schema: stroke
-  - schema: terra_pinyin
+  # 必须与 assets/rime/ 下真实存在的 *.schema.yaml 的 schema_id 一致，
+  # 否则该方案在部署时不会被编译 → select_schema 失败 → 表现为「方案失效/打不出字」。
+  # 原清单写的是 luna_pinyin/bopomofo/cangjie5/terra_pinyin 等本仓库并不存在的方案，
+  # 导致内置拼音(pinyin)、九键(t9_pinyin)、英文(english)、七种双拼全部无法加载。
+  - schema: pinyin                 # 拼音·全键（CustomConstant.SCHEMA_ZH_QWERTY）
+  - schema: t9_pinyin              # 拼音·九键（SCHEMA_ZH_T9）
+  - schema: double_pinyin_flypy    # 小鹤双拼
+  - schema: double_pinyin_ls17     # 乱序17双拼（SCHEMA_ZH_DOUBLE_LX17）
+  - schema: double_pinyin_abc
+  - schema: double_pinyin_mspy
+  - schema: double_pinyin_natural
+  - schema: double_pinyin_sogou
+  - schema: double_pinyin_ziguang
+  - schema: english                # 英语方案（SCHEMA_EN）
+  - schema: stroke                 # 五笔画（SCHEMA_ZH_STROKE）
+  - schema: wanxiang               # 万象拼音PRO（由 /sdcard/yuyan 导入；未部署时 Rime 会跳过）
 
 switcher:
   caption: 〔方案選單〕

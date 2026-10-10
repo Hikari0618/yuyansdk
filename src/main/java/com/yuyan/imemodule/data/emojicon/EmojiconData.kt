@@ -1,5 +1,6 @@
 package com.yuyan.imemodule.data.emojicon
 
+import androidx.emoji2.text.EmojiCompat
 import com.yuyan.imemodule.R
 
 /**
@@ -34,10 +35,8 @@ object EmojiconData{
         R.drawable.icon_emoticon_5 to listOf("(⌒▽⌒)", "（￣▽￣）", "(=・ω・=)", "(｀・ω・´)", "(〜￣△￣)〜", "(･∀･)", "(°∀°)ﾉ", "(￣3￣)", "╮(￣▽￣)╭", "_(:3」∠)_", "( ´_ゝ｀)", "←_←", "→_→", "(<_<)", "(>_>)", "(;¬_¬)", "(\"▔□▔)/", "(ﾟДﾟ≡ﾟдﾟ)!?", "Σ(ﾟдﾟ;)", "Σ( ￣□￣||)", "(´；ω；`)", "（/TДT)/", "(^・ω・^ )", "(｡･ω･｡)", "(●￣(ｴ)￣●)", "ε=ε=(ノ≧∇≦)ノ", "(´･_･`)", "(-_-#)", "（￣へ￣）", "(￣ε(#￣) Σ", "ヽ(`Д´)ﾉ", "（#-_-)┯━┯", "(╯°口°)╯(┴—┴", "←◡←", "( ♥д♥)", "Σ>―(〃°ω°〃)♡→", "⁄(⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄", "(╬ﾟдﾟ)▄︻┻┳═一", "･*･:≡(　ε:)", "¯\\_(ツ)_/¯"),
     )
 
-    val emojiconData: Map<Int, List<String>>
-    init {
-        val emojiCompatInstance = YuyanEmojiCompat.getAsFlow().value
-        val emojicons: Map<Int, List<String>> = linkedMapOf(
+    /** 静态表情全集（与设备能力无关，只构建一次）。 */
+    private val emojicons: Map<Int, List<String>> = linkedMapOf(
             R.drawable.icon_emojibar_recents to emptyList(),
             R.drawable.icon_emojibar_wechat to listOf("💥炸弹", "🎇烟花", "🎉庆祝", "💖高甜表白", "🤔光速连怼", "👍花式夸人", "🎂生日快乐", "🙂认真敷衍", "🌷衷心感谢", "❤️土味情话", "😋萌语攻击", "🐶单身宣言", "💣群聊轰炸", "🥰谢谢红包", "🧧跪求红包"),
             R.drawable.icon_emojibar_hot to listOf("🌝🌝", "🌚🌚", "🐂🍺", "🤙🤙🤙", "💖你", "🦀🦀", "😅😅😅", "嘿嘿🤤🤤🤤", "出🚪😷", "勤💧🤲", "🍐🎼", "👉👈", "🧡ྀི💛ྀི❤️ྀི", "🉑🉑💗💗", "🌹🌹🌹", "💗🐯🈶", "ᥬ🌝᭄", "ᥬ🌚᭄", "ᥬ😂᭄", "(   ˊ ᵕ ˋ 💦)", "🤺💨退‼️", "👍👍👍对对对", "8️⃣🅱️Q了", "🍚⚔️", "老🤙", "🧯Q", "☁️？", "🌪️我👄里", "🌞☀️🥵☀️🌞", "有🧊", "冒🍚了", "📰👀", "📰😋", "🐮🐴💃🕺", "⬆️👄", "⬇️👄", "❤️👄", "💘💘💘", "🌪️😭", "太✔️🌶️", "🛡️🦶", "❤️你1️⃣万年", "💖里有你", "😘😘😘", "单身🐶", "着🥝", "好🥥", "🍎啥", "完🥚", "🍐解", "烦💩了", "🌸心", "有🍅", "😁👍", "你🍓🍅吧", "真🍰😁", "🍑跑", "🍓事", "绝绝子🎶📢", "开💗💗", "吃🍑🍑", "吃🍉🍉", "吃🍋🍋", "吃🐳🐳", "🌬️🐮🐝", "🐚❎住了", "🈶🧊😅", "开炫🍊🍊🍊", "😙❤️", "🎤给你", "🎤🐈", "👌格局小了", "✊格局正好", "👐格局打开", "🖖格局裂开", "整挺好👍👍👍", "👏👏👏优秀", "🈶1️⃣说1️⃣", "🉑🈶🉑🈚", "1️⃣🕸️💗深", "🍻🍚了", "🤡😀🤡🤡", "😀🔍🤡", "🈯🈯👉👉", "玩🎠", "阿巴阿巴😦😦😦", "🕊️💊❗", "🌶️🐔", "♡💌♡", "🍌💚", "来💃💃🎊🕺🕺", "👂懂👏👏", "🈶👀🈚🐷", "🍑💨", "🈶内👻", "🦈🦅", "🌶️👀", "🍾+🍋+🌿+🍒=🍹", "👅🐶", "🍓🚪", "👶怕", "在🦌上", "👣❤️", "🐒颜🈚😁", "🕳️👨", "我💔开", "🕊️💋", "搞🥢点", "你在想🍑", "🈶🈚吃🐔", "🈶🈚王者", "🎣🐡🐠🐟🦞", "送你🌸🌸", "💗💗💗加速", "和我👩‍❤️‍👨8️⃣", "给👴爪巴", "🐂🍺🐃🍺🐄🍺", "给👴🏻整笑了", "关你💨事", "🐊❤️", "胖成🐷了", "我🍋了", "🉑以", "你是🐷吗", "🌈💨", "我拒绝❌", "👴❤️了", "🌨🌨🌨", "💰💴💵💶💷", "晚安💤🌙", "🐴 了", "🔒了", "吃💩", "我🤮了", "🙄🙃", "我👀到了", "我💥了", "🤤🍦", "傻🐷🐷", "🗝️您配吗", "大吃一🐳", "下🌧️了", "打🏀吗", "💯💯💯", "💪💪💪", "👌👌👌", "👋👋👋", "💢💢💢", "🙉🙉🙉", "🙈🙈🙈", "😒😒😒", "😆😆😆", "🥺🥺🥺", "✨((🌕⥎🌕))✨", "🌿((🌑⥎🌑))🌿", "🌹((❤️⥎❤️))🌹", "💐((🌺⥎🌺))🌹", "🌸((☀️⥎☀️))🌸", "🍃((🌳⥎🌳))🍃", "🍂((🍁⥎🍁))🍂", "☃️((❄️⥎❄️))☃️", "💥((🔥⥎🔥))💥", "💥((💣⥎💣))💥", "🚞🚃🚃🚃💨", "🌑🌒🌓🌔🌕🌖🌗🌘🌑",),
@@ -52,15 +51,38 @@ object EmojiconData{
             R.drawable.icon_emojibar_flags to listOf("🏁", "🚩", "🎌", "🏴", "🏳️", "🏳️‍🌈", "🏳️‍⚧️", "🏴‍☠️", "🇦🇨", "🇦🇩", "🇦🇪", "🇦🇫", "🇦🇬", "🇦🇮", "🇦🇱", "🇦🇲", "🇦🇴", "🇦🇶", "🇦🇷", "🇦🇸", "🇦🇹", "🇦🇺", "🇦🇼", "🇦🇽", "🇦🇿", "🇧🇦", "🇧🇧", "🇧🇩", "🇧🇪", "🇧🇫", "🇧🇬", "🇧🇭", "🇧🇮", "🇧🇯", "🇧🇱", "🇧🇲", "🇧🇳", "🇧🇴", "🇧🇶", "🇧🇷", "🇧🇸", "🇧🇹", "🇧🇻", "🇧🇼", "🇧🇾", "🇧🇿", "🇨🇦", "🇨🇨", "🇨🇩", "🇨🇫", "🇨🇬", "🇨🇭", "🇨🇮", "🇨🇰", "🇨🇱", "🇨🇲", "🇨🇳", "🇨🇴", "🇨🇵", "🇨🇷", "🇨🇺", "🇨🇻", "🇨🇼", "🇨🇽", "🇨🇾", "🇨🇿", "🇩🇪", "🇩🇬", "🇩🇯", "🇩🇰", "🇩🇲", "🇩🇴", "🇩🇿", "🇪🇦", "🇪🇨", "🇪🇪", "🇪🇬", "🇪🇭", "🇪🇷", "🇪🇸", "🇪🇹", "🇪🇺", "🇫🇮", "🇫🇯", "🇫🇰", "🇫🇲", "🇫🇴", "🇫🇷", "🇬🇦", "🇬🇧", "🇬🇩", "🇬🇪", "🇬🇫", "🇬🇬", "🇬🇭", "🇬🇮", "🇬🇱", "🇬🇲", "🇬🇳", "🇬🇵", "🇬🇶", "🇬🇷", "🇬🇸", "🇬🇹", "🇬🇺", "🇬🇼", "🇬🇾", "🇭🇰", "🇭🇲", "🇭🇳", "🇭🇷", "🇭🇹", "🇭🇺", "🇮🇨", "🇮🇩", "🇮🇪", "🇮🇱", "🇮🇲", "🇮🇳", "🇮🇴", "🇮🇶", "🇮🇷", "🇮🇸", "🇮🇹", "🇯🇪", "🇯🇲", "🇯🇴", "🇯🇵", "🇰🇪", "🇰🇬", "🇰🇭", "🇰🇮", "🇰🇲", "🇰🇳", "🇰🇵", "🇰🇷", "🇰🇼", "🇰🇾", "🇰🇿", "🇱🇦", "🇱🇧", "🇱🇨", "🇱🇮", "🇱🇰", "🇱🇷", "🇱🇸", "🇱🇹", "🇱🇺", "🇱🇻", "🇱🇾", "🇲🇦", "🇲🇨", "🇲🇩", "🇲🇪", "🇲🇫", "🇲🇬", "🇲🇭", "🇲🇰", "🇲🇱", "🇲🇲", "🇲🇳", "🇲🇴", "🇲🇵", "🇲🇶", "🇲🇷", "🇲🇸", "🇲🇹", "🇲🇺", "🇲🇻", "🇲🇼", "🇲🇽", "🇲🇾", "🇲🇿", "🇳🇦", "🇳🇨", "🇳🇪", "🇳🇫", "🇳🇬", "🇳🇮", "🇳🇱", "🇳🇴", "🇳🇵", "🇳🇷", "🇳🇺", "🇳🇿", "🇴🇲", "🇵🇦", "🇵🇪", "🇵🇫", "🇵🇬", "🇵🇭", "🇵🇰", "🇵🇱", "🇵🇲", "🇵🇳", "🇵🇷", "🇵🇸", "🇵🇹", "🇵🇼", "🇵🇾", "🇶🇦", "🇷🇪", "🇷🇴", "🇷🇸", "🇷🇺", "🇷🇼", "🇸🇦", "🇸🇧", "🇸🇨", "🇸🇩", "🇸🇪", "🇸🇬", "🇸🇭", "🇸🇮", "🇸🇯", "🇸🇰", "🇸🇱", "🇸🇲", "🇸🇳", "🇸🇴", "🇸🇷", "🇸🇸", "🇸🇹", "🇸🇻", "🇸🇽", "🇸🇾", "🇸🇿", "🇹🇦", "🇹🇨", "🇹🇩", "🇹🇫", "🇹🇬", "🇹🇭", "🇹🇯", "🇹🇰", "🇹🇱", "🇹🇲", "🇹🇳", "🇹🇴", "🇹🇷", "🇹🇹", "🇹🇻", "🇹🇿", "🇺🇦", "🇺🇬", "🇺🇲", "🇺🇳", "🇺🇸", "🇺🇾", "🇺🇿", "🇻🇦", "🇻🇨", "🇻🇪", "🇻🇬", "🇻🇮", "🇻🇳", "🇻🇺", "🇼🇫", "🇼🇸", "🇽🇰", "🇾🇪", "🇾🇹", "🇿🇦", "🇿🇲", "🇿🇼", "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "🏴󠁧󠁢󠁷󠁬󠁳󠁿", ),
         )
 
-        emojiconData = emojicons.mapValues { (icon, emojiList) ->
-            when (icon) {
-                R.drawable.icon_emojibar_smileys, R.drawable.icon_emojibar_people, R.drawable.icon_emojibar_nature, R.drawable.icon_emojibar_food,
-                R.drawable.icon_emojibar_car, R.drawable.icon_emojibar_activity, R.drawable.icon_emojibar_objects, R.drawable.icon_emojibar_symbols,
-                R.drawable.icon_emojibar_flags -> emojiList.filter { emoji -> YuyanEmojiCompat.getEmojiMatch(emojiCompatInstance, emoji) }
-                else -> emojiList
+    // 依据「当前 EmojiCompat 实例」过滤后的结果缓存。
+    // metadata 用 LOAD_STRATEGY_MANUAL 后台加载：加载完成前 getAsFlow().value 为 null。
+    // 旧实现只在 object 初始化时按当时的实例过滤一次、结果不再重算 —— 首次访问若早于
+    // init()（object 初始化时机不确定）会直接读 lateinit 崩溃；即使不崩，加载完成前按
+    // null 过滤会把设备不认识的 emoji 全滤掉，且此后永不重算（症状：首次进表情页缺很多
+    // emoji，重启才好）。这里改为按需惰性重算：实例变化时重新过滤。
+    private var computed = false
+    private var cachedReady = false
+    private var cachedInstance: EmojiCompat? = null
+    private var cachedEmojiconData: Map<Int, List<String>> = emojicons
+
+    val emojiconData: Map<Int, List<String>>
+        get() {
+            val ready = YuyanEmojiCompat.isInitialized
+            val instance = if (ready) YuyanEmojiCompat.getAsFlow().value else null
+            if (!computed || ready != cachedReady || instance !== cachedInstance) {
+                computed = true
+                cachedReady = ready
+                cachedInstance = instance
+                // 未 init（systemFontPaint 也未就绪）时无法过滤，先全量返回避免表情页空白；
+                // 就绪后本 getter 会重算，此时 instance 可能仍为 null，交由 systemFont 兜底。
+                cachedEmojiconData = if (!ready) emojicons else emojicons.mapValues { (icon, emojiList) ->
+                    when (icon) {
+                        R.drawable.icon_emojibar_smileys, R.drawable.icon_emojibar_people, R.drawable.icon_emojibar_nature, R.drawable.icon_emojibar_food,
+                        R.drawable.icon_emojibar_car, R.drawable.icon_emojibar_activity, R.drawable.icon_emojibar_objects, R.drawable.icon_emojibar_symbols,
+                        R.drawable.icon_emojibar_flags -> emojiList.filter { emoji -> YuyanEmojiCompat.getEmojiMatch(instance, emoji) }
+                        else -> emojiList
+                    }
+                }
             }
+            return cachedEmojiconData
         }
-    }
 
     val wechatEmojiconData: Map<String, List<Array<String>>> = linkedMapOf(
         "💥炸弹" to listOf(arrayOf("[炸弹]")),

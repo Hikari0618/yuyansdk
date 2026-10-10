@@ -126,7 +126,7 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(me: MotionEvent): Boolean {
         var result = false
-        if (mGestureDetector!!.onTouchEvent(me)) {
+        if (mGestureDetector?.onTouchEvent(me) == true) {
             return true
         }
         when (val action = me.actionMasked) {
@@ -176,12 +176,16 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 relDistanceX = 0f
                 relDistanceY = 0f
                 if(mCurrentKey != null){
-                    if (mCurrentKey!!.repeatable()) {
-                        val msg = mHandler!!.obtainMessage(MSG_REPEAT)
-                        mHandler!!.sendMessageDelayed(msg, REPEAT_START_DELAY)
+                    // mHandler 在 onAttachedToWindow 里创建；触摸若发生在 attach 之前（或已 detach），
+                    // 原来的 mHandler!! 会直接 NPE。整段判空，handler 缺失时跳过重复/长按计时。
+                    mHandler?.let { handler ->
+                        if (mCurrentKey!!.repeatable()) {
+                            val msg = handler.obtainMessage(MSG_REPEAT)
+                            handler.sendMessageDelayed(msg, REPEAT_START_DELAY)
+                        }
+                        val msg = handler.obtainMessage(MSG_LONGPRESS)
+                        handler.sendMessageDelayed(msg, AppPrefs.getInstance().keyboardSetting.longPressTimeout.getValue().toLong())
                     }
-                    val msg = mHandler!!.obtainMessage(MSG_LONGPRESS)
-                    mHandler!!.sendMessageDelayed(msg, AppPrefs.getInstance().keyboardSetting.longPressTimeout.getValue().toLong())
                 }
             }
             MotionEvent.ACTION_UP -> {
@@ -256,7 +260,7 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 lastEventX = currentX
                 lastEventY = currentY
                 mAbortKey = true
-                mService!!.responseKeyEvent(SoftKey(code = if (distanceX > 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT))
+                mService?.responseKeyEvent(SoftKey(code = if (distanceX > 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT))
                 result = true
             }
         } else if(keyLableSmall?.isNotBlank() == true){
@@ -389,8 +393,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
         mSoftKeyboard = softSkb
     }
 
-    fun getSoftKeyboard(): SoftKeyboard {
-        return mSoftKeyboard!!
+    fun getSoftKeyboard(): SoftKeyboard? {
+        // 键盘未 setSoftKeyboard 时 mSoftKeyboard 为 null，原 mSoftKeyboard!! 会 NPE
+        // （例：容器在 setSoftKeyboard 之前调用本方法）。返回可空，由调用方判空。
+        return mSoftKeyboard
     }
 
     companion object {

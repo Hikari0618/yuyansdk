@@ -343,15 +343,24 @@ class ImeService : InputMethodService() {
     }
 
     override fun onWindowShown() {
-        if (isSoftKeyboard) mInputView.onWindowShown()
+        if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.onWindowShown()
         // 浮键盘开关可能在两次 startInput 之间被切换，每次显示窗口时重新定高
         if (isSoftKeyboard && ::mInputView.isInitialized) applyInputViewHeight(mInputView)
         super.onWindowShown()
     }
 
     override fun onWindowHidden() {
-        if(isSoftKeyboard) mInputView.onWindowHidden()
+        if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.onWindowHidden()
         super.onWindowHidden()
+    }
+
+    override fun onFinishInput() {
+        super.onFinishInput()
+        // 输入结束（收起键盘 / 切到别的输入框）时系统不会再替我们收尾：
+        // 残留的组合态（预选词高亮）会被带到下一个输入框，cursor 更新监听也一直开着。
+        // 这里显式收尾：结束 InputConnection 上的组合态，并关闭 cursor 监听。
+        finishComposingText()
+        currentInputConnection?.requestCursorUpdates(0)
     }
 
     /**
@@ -395,7 +404,7 @@ class ImeService : InputMethodService() {
     }
 
     fun sendUpKeyEvent(eventTime: Long, keyEventCode: Int, metaState: Int = 0) {
-        currentInputConnection.sendKeyEvent(
+        currentInputConnection?.sendKeyEvent(
             KeyEvent(eventTime, SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, keyEventCode, 0, metaState,
                 KeyCharacterMap.VIRTUAL_KEYBOARD, keyEventCode, KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE)
         )
@@ -405,7 +414,7 @@ class ImeService : InputMethodService() {
      * 向输入框提交预选词
      */
     fun setComposingText(text: CharSequence) {
-        currentInputConnection.setComposingText(text, 1)
+        currentInputConnection?.setComposingText(text, 1)
     }
 
 
@@ -413,41 +422,42 @@ class ImeService : InputMethodService() {
      * 结束提交预选词
      */
     fun finishComposingText() {
-        currentInputConnection.finishComposingText()
+        currentInputConnection?.finishComposingText()
     }
 
     /**
      * 发送字符串给编辑框
      */
     fun commitText(text: String) {
-        currentInputConnection.commitText(StringUtils.converted2FlowerTypeface(text), 1)
+        currentInputConnection?.commitText(StringUtils.converted2FlowerTypeface(text), 1)
     }
 
     /**
      * 发送字符串给编辑框
      */
     fun commitText(text: String, newCursorPosition: Int) {
-        currentInputConnection.commitText(StringUtils.converted2FlowerTypeface(text), newCursorPosition)
+        currentInputConnection?.commitText(StringUtils.converted2FlowerTypeface(text), newCursorPosition)
     }
 
     fun getTextBeforeCursor(length:Int) : String {
-        return currentInputConnection.getTextBeforeCursor(length, 0).toString()
+        // currentInputConnection 是平台类型（可空）：无连接时返回空串，避免 NPE
+        return currentInputConnection?.getTextBeforeCursor(length, 0)?.toString() ?: ""
     }
 
     fun commitTextEditMenu(id:Int) {
-        currentInputConnection.performContextMenuAction(id)
+        currentInputConnection?.performContextMenuAction(id)
     }
 
     fun performEditorAction(editorAction:Int) {
-        currentInputConnection.performEditorAction(editorAction)
+        currentInputConnection?.performEditorAction(editorAction)
     }
 
     fun deleteSurroundingText(length:Int) {
-        currentInputConnection.deleteSurroundingText(length, 0)
+        currentInputConnection?.deleteSurroundingText(length, 0)
     }
 
     fun setSelection(start: Int, end: Int) {
-        currentInputConnection.setSelection(start, end)
+        currentInputConnection?.setSelection(start, end)
     }
 
     fun handleHardwareKeyboard(newConfig: Configuration? = null) {
@@ -467,7 +477,7 @@ class ImeService : InputMethodService() {
             "[hw] hardwareKeyboard=$hardwareKeyboard soft=$isSoftKeyboard" +
                 " candView=${if (::mCandidateView.isInitialized) mCandidateView.visibility else -1}"
         )
-        currentInputConnection.requestCursorUpdates(if(isHardwareKeyboard)InputConnection.CURSOR_UPDATE_MONITOR else 0)
+        currentInputConnection?.requestCursorUpdates(if(isHardwareKeyboard)InputConnection.CURSOR_UPDATE_MONITOR else 0)
     }
 
 }

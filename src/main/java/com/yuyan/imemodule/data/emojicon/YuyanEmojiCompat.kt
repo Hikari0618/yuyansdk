@@ -24,6 +24,15 @@ object YuyanEmojiCompat {
     private lateinit var instanceNoReplace: InstanceHandler
     private lateinit var instanceReplaceAll: InstanceHandler
 
+    /** init() 是否已执行。EmojiconData 是 object，其初始化时机不确定，可能在 Launcher
+     *  后台线程调用 init() 之前就首次访问本单例；调用方据此判断能否安全过滤表情。 */
+    val isInitialized: Boolean get() = ::instanceNoReplace.isInitialized
+
+    /** init() 之前的兜底空流：此时 instanceNoReplace/instanceReplaceAll 还是 lateinit，
+     *  直接读会抛 UninitializedPropertyAccessException 崩溃；返回这个常驻空流让调用方
+     *  安全地拿到 null（init() 完成后重新取值即可）。 */
+    private val emptyInstanceFlow = MutableStateFlow<EmojiCompat?>(null)
+
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     /**
@@ -31,6 +40,9 @@ object YuyanEmojiCompat {
      * metadata in a background thread. After this method has been called, it is safe to call [getAsFlow].
      */
     fun init(context: Context) {
+        // 幂等：本 object 常驻、init() 可能被重复调用；若不拦，每次都会新建两个
+        // InstanceHandler 并再起两个 load 协程，造成句柄与加载任务累积（重复加载同一份元数据）。
+        if (::instanceNoReplace.isInitialized) return
         systemFontPaint = Paint().apply {
             typeface = Typeface.DEFAULT
         }
@@ -66,7 +78,10 @@ object YuyanEmojiCompat {
     }
 
     fun getEmojiMatch(emojiCompat:EmojiCompat?, emoji:String):Boolean {
-        return emojiCompat?.getEmojiMatch(emoji, metadataVersion) == EmojiCompat.EMOJI_SUPPORTED || systemFontPaint.hasGlyph(emoji)
+        // systemFontPaint 只在 init() 里赋值：init() 之前调用本方法（见 getAsFlow 注释）
+        // 读 lateinit 会崩；这里用 isInitialized 兜底，未初始化时退化为「不匹配」。
+        return emojiCompat?.getEmojiMatch(emoji, metadataVersion) == EmojiCompat.EMOJI_SUPPORTED ||
+            (::systemFontPaint.isInitialized && systemFontPaint.hasGlyph(emoji))
     }
 
     /**
@@ -78,6 +93,10 @@ object YuyanEmojiCompat {
      */
     @SuppressLint("RestrictedApi")
     fun getAsFlow(setAsDefaultInstance: Boolean = true): StateFlow<EmojiCompat?> {
+        // init() 之前 instanceNoReplace/instanceReplaceAll 仍是 lateinit，直接访问会抛
+        // UninitializedPropertyAccessException（EmojiconData 首次访问早于 init 时即崩）。
+        // 返回空流，让调用方拿到 null 而不是崩溃。
+        if (!::instanceNoReplace.isInitialized) return emptyInstanceFlow
         val instanceFlow = if (replaceAll) {
             instanceReplaceAll.publishedInstanceFlow
         } else {

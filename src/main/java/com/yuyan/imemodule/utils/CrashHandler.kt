@@ -32,13 +32,11 @@ class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
 
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
         if (!handleException(throwable) && mDefaultHandler != null) {
+            // 自己没兜住（崩溃信息写盘失败）时，交回系统默认处理器，保持原有行为
             mDefaultHandler!!.uncaughtException(thread, throwable)
         } else {
-            try {
-                Thread.sleep(2000)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
+            // 原实现无论是否记录成功都先 Thread.sleep(2000) 再杀进程，
+            // 等于每次崩溃都让界面白卡 2 秒；写盘是同步完成的，无需再等，直接杀进程。
             android.os.Process.killProcess(android.os.Process.myPid())
             exitProcess(1)
         }
@@ -59,8 +57,10 @@ class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
             // 落盘失败不能影响原有崩溃处理流程
         }
         collectDeviceInfo(mContext)
-        saveCrashInfoToFile(ex)
-        return true
+        // 原来这里恒定 return true，导致 uncaughtException 里
+        // `!handleException(...) && mDefaultHandler != null` 永远为 false —— 系统默认处理器分支不可达。
+        // 崩溃信息落盘失败（saveCrashInfoToFile 返回 null）时返回 false，让兜底分支生效。
+        return saveCrashInfoToFile(ex) != null
     }
 
     private fun collectDeviceInfo(ctx: Context?) {

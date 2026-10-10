@@ -90,9 +90,11 @@ class HandwritingContainer(context: Context?, inputView: InputView) : InputBaseC
             mRVRightSymbols.addFooterView(mLlAddSymbol)
         }
 
-        val softKeyboard = mMajorView?.getSoftKeyboard()
-        val softKeySymbolHolder = softKeyboard?.getKeyByCode(InputModeSwitcher.USER_KEYCODE_LEFT_SYMBOL)
-        add(mRVRightSymbols, lParams (width =softKeySymbolHolder!!.width(), height = matchParent).apply{
+        // getSoftKeyboard() 已改为可空（setSoftKeyboard 之前调用会 NPE，见 BaseKeyboardView）：
+        // 键盘视图未就绪时直接返回，等下次显示再补，避免在这里强行 !! 崩掉。
+        val softKeyboard = mMajorView?.getSoftKeyboard() ?: return
+        val softKeySymbolHolder = softKeyboard.getKeyByCode(InputModeSwitcher.USER_KEYCODE_LEFT_SYMBOL) ?: return
+        add(mRVRightSymbols, lParams (width =softKeySymbolHolder.width(), height = matchParent).apply{
             endOfParent(0)
             setMargins(softKeyboard.keyXMargin, softKeySymbolHolder.mTop + softKeyboard.keyYMargin,
                     softKeyboard.keyXMargin, EnvironmentSingleton.instance.skbHeight - softKeySymbolHolder.mBottom + softKeyboard.keyYMargin)

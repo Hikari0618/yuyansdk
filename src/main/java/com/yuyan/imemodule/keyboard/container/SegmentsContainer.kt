@@ -54,6 +54,11 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
 
     private val segments = mutableListOf<String>()
     private val selected = mutableSetOf<Int>()
+    /** 离开过分词页 → 下次进入必须按当前 sourceText 重建。
+     *  容器按 KeyboardType 缓存（切走只置 GONE 不销毁），只靠 pendingReset 兜不住
+     *  所有再进入路径（从别的入口回到分词页时它仍是 false），
+     *  表现为「离开再回来上次选中的词还是选中」。初值 true = 首次进入也重建。 */
+    private var needsResetOnShow = true
     private lateinit var adapter: SegmentAdapter
     private var selectAllButton: TextView? = null
     /** 工具栏（返回/全选/复制/收藏/分享），挂在候选栏那一行上 */
@@ -82,8 +87,9 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         if (shown) {
             onShown()
         } else {
-            // 离开分词页（返回、切键盘、输入法收起都算）：工具栏交还候选栏，
-            // 并把组合区的词收尾上屏（不提交会停在组合态，下次分词把它覆盖掉）
+            // 离开分词页（返回、切键盘、输入法收起都算）：标记下次进入必须重建，
+            // 工具栏交还候选栏，并把组合区的词收尾上屏（不提交会停在组合态，下次分词把它覆盖掉）
+            needsResetOnShow = true
             inputView.mSkbCandidatesBarView.setCustomRow(null)
             inputView.commitSegmentComposing()
         }
@@ -91,9 +97,13 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
 
     private fun onShown() {
         if (!::adapter.isInitialized) return
-        val didReset = pendingReset
-        if (pendingReset) {
-            pendingReset = false
+        // 需要重建的两种情况：外部发起了新的分词请求（pendingReset），
+        // 或本容器曾离开过（needsResetOnShow）——后者覆盖「从别的入口再回到分词页」，
+        // 否则会带着上次的选中状态与词列表重绘。
+        val shouldReset = pendingReset || needsResetOnShow
+        pendingReset = false
+        needsResetOnShow = false
+        if (shouldReset) {
             segments.clear()
             segments.addAll(WordTokenizer.tokenize(sourceText))
             selected.clear()
@@ -107,7 +117,7 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
         inputView.hideClipboardSuggestionBar()
         inputView.mSkbCandidatesBarView.setCustomRow(topBar)
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[seg] 分词页面显示 原文长度=${sourceText.length} 重置=$didReset 词数=${segments.size}"
+            "[seg] 分词页面显示 原文长度=${sourceText.length} 重置=$shouldReset 词数=${segments.size}"
         )
     }
 
@@ -162,6 +172,9 @@ class SegmentsContainer(context: Context, inputView: InputView) : BaseContainer(
                 }
                 context.getSystemService(ClipboardManager::class.java)
                     ?.setPrimaryClip(ClipData.newPlainText("", text))
+                // 这次复制的内容就是用户刚在分词页处理过的，回到键盘时不该再弹「复制建议行」
+                //（会把菜单栏顶掉）。打标记让 InputView.onStartInputView 消费一次。
+                inputView.suppressClipboardSuggestionOnce = true
                 toast("已复制")
             }
         }

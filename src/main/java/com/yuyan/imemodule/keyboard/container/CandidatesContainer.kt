@@ -122,6 +122,21 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
         })
     }
 
+    /**
+     * 左侧拼音/符号栏（mRVLeftPrefix）的宽度与上下边距都是按键盘几何算出来的，
+     * initView 里用当时的 skbWidth/skbHeight 算死。横竖屏切换或悬浮键盘改尺寸后，
+     * env 里的 skbWidth/skbHeight 会变，这里按新几何重算，否则左侧栏沿用旧宽度/边距
+     * （症状：旋转后左侧栏过宽或过窄、上下留白对不上）。
+     */
+    override fun updateSkbLayout() {
+        val params = mRVLeftPrefix.layoutParams as? LayoutParams ?: return
+        val skbHeightMargins = (instance.skbHeight * 0.01).toInt()
+        params.width = (instance.skbWidth * 0.18).toInt()
+        params.setMargins(0, skbHeightMargins, 0, skbHeightMargins)
+        mRVLeftPrefix.layoutParams = params
+        mRVLeftPrefix.requestLayout()
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private fun getIvDelete(): ImageView {
         val ivDelete = ImageView(context)
@@ -187,6 +202,10 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
             if (InputModeSwitcher.isChineseT9) {
                 mRVLeftPrefix.visibility = VISIBLE
                 updatePrefixsView()
+            } else {
+                // 双向设置：容器是按 KeyboardType 缓存的，只在 T9 时置 VISIBLE 而从不置回 GONE，
+                // 会导致「T9 下开过一次候选更多页」之后切到 26 键/手写再打开时左侧拼音栏仍然占位。
+                mRVLeftPrefix.visibility = GONE
             }
         }
     }

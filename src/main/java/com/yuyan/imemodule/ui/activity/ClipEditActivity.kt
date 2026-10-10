@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.yuyan.imemodule.database.DataBaseKT
 
@@ -56,6 +57,13 @@ class ClipEditActivity : AppCompatActivity() {
             val newContent = editText.text.toString()
             if (newContent.isNotBlank() && newContent != oldContent) {
                 val dao = DataBaseKT.instance.clipboardDao()
+                // content 是主键，insert 又是 onConflict=REPLACE：若改成一条已存在的内容，
+                // 会静默覆盖那条记录（连同它的 isKeep/time）。所以先按新内容查重，
+                // 命中就不覆盖、明确提示并中止，避免用户「保存了却把别的条目冲掉」。
+                if (dao.findByContent(newContent) != null) {
+                    Toast.makeText(this, "已存在相同内容的条目，未保存", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener // 不 finish，让用户接着改
+                }
                 // content 就是主键：改内容等于换主键，@Update 按新主键找不到行 → 必须先删旧行再插新行
                 val old = dao.findByContent(oldContent)
                 if (old != null) {

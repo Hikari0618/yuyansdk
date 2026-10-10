@@ -17,8 +17,10 @@ interface PhraseDao : BaseDao<Phrase> {
     @Query("delete from phrase where content = :content")
     fun deleteByContent(content: String)
 
+    // 返回可空：content 不是 phrase 表主键、SQL 可能查不到任何行。
+    // 声明成非空 Phrase 时调用处的 if (exist != null) 形同虚设，无行时行为不确定。
     @Query("select * from phrase where content = :content")
-    fun queryByContent(content: String): Phrase
+    fun queryByContent(content: String): Phrase?
 
     @Query("delete from phrase")
     fun deleteAll()

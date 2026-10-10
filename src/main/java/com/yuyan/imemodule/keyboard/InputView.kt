@@ -299,6 +299,9 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
      * 实测证据（非悬浮模式，skbH=640 areaH=203 应为 843）：
      *   [root] kbContainer=853 bar=203 keys=576 skbH=576 areaH=203
      * 853 = 720+133 是**悬浮模式**的值 —— 这层停留在上一次悬浮会话算出的尺寸。
+     *
+     * 同时同步按键区容器（keyboardRootView = skb_input_keyboard_view）的 layoutParams.height：
+     * KeyboardManager.setData 只在 init 调一次，之后尺寸变化不再同步（详见函数内注释）。
      */
     fun refreshKeyboardWrapperHeight() {
         val env = EnvironmentSingleton.instance
@@ -310,25 +313,45 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 mInputKeyboardContainer.layoutParams = it
             }
         }
+        // 按键区容器的高度也要一起同步：KeyboardManager.setData 只在 init 调一次，
+        // 把它钉成当时的 env.skbHeight；之后悬浮↔非悬浮切换 / 调整键盘高度都不会再改它，
+        // 导致 layoutParams 与实测高度长期不一致（目前靠 InputViewParent.onMeasure 的
+        // EXACTLY 兜住，但 layoutParams 一直是陈旧值）。同样幂等：值不同才写。
+        if (env.skbHeight > 0) {
+            mSkbRoot.findViewById<View>(R.id.skb_input_keyboard_view)?.let { keyboardRootView ->
+                keyboardRootView.layoutParams?.let {
+                    if (it.height != env.skbHeight) {
+                        it.height = env.skbHeight
+                        keyboardRootView.layoutParams = it
+                    }
+                }
+            }
+        }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        // 输入视图高度变化（窗口内容区/系统栏变化，实测打字时会在 1954/1821 之间跳，
-        // 差值 133）→ 位移必须按新的可用高度重新收一遍：
-        // 否则「位移 + 键盘高 > 输入视图高」会把键盘挤出可视区（表现为下缘被裁）。
-        if (EnvironmentSingleton.instance.keyboardModeFloat) {
-            val maxPad = (h - designKeyboardHeight()).coerceAtLeast(0)
-            if (bottomPadding > maxPad) bottomPadding = maxPad
-        }
-        // 窗口尺寸变化时包裹层也要按当前 env 重算（悬浮↔非悬浮切换后 initView 里那次
-        // 可能用的是切换前的值，实测非悬浮模式残留悬浮的 853 而非 843）。
-        refreshKeyboardWrapperHeight()
+        // [iv] 埋点留在 post 外，用「进入本次回调时」的当前值打印，方便与 post 里改后的值对比。
         com.yuyan.inputmethod.util.ImeLog.d(
             "[iv] h=$h old=$oldh pad=$bottomPadding rootH=${mSkbRoot.height}" +
                 " insetT=${rootWindowInsets?.systemWindowInsetTop}" +
                 " insetB=${rootWindowInsets?.systemWindowInsetBottom}"
         )
+        // onSizeChanged 是布局回调，在里面 setLayoutParams（refreshKeyboardWrapperHeight）
+        // 或直接改 this.bottomPadding 会再次 requestLayout，造成布局抖动/反复重排
+        //（悬浮键盘打字时尤其明显）。挪到 post：等这一轮布局收尾后再改尺寸。
+        post {
+            // 输入视图高度变化（窗口内容区/系统栏变化，实测打字时会在 1954/1821 之间跳，
+            // 差值 133）→ 位移必须按新的可用高度重新收一遍：
+            // 否则「位移 + 键盘高 > 输入视图高」会把键盘挤出可视区（表现为下缘被裁）。
+            if (EnvironmentSingleton.instance.keyboardModeFloat) {
+                val maxPad = (h - designKeyboardHeight()).coerceAtLeast(0)
+                if (bottomPadding > maxPad) bottomPadding = maxPad
+            }
+            // 窗口尺寸变化时包裹层也要按当前 env 重算（悬浮↔非悬浮切换后 initView 里那次
+            // 可能用的是切换前的值，实测非悬浮模式残留悬浮的 853 而非 843）。
+            refreshKeyboardWrapperHeight()
+        }
     }
 
     private var rootLayoutLogged = false
@@ -336,6 +359,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     private var mSkbRootWidth = 0
 
     private fun onMoveKeyboardEvent(event: MotionEvent?): Boolean {
+        // 【基准一致性】本方法与 BaseContainer.onMoveKeyboardEvent 写的是同一组位移 prefs，
+        // 但 clamp 上限的基准不同：这里用 mSkbRootHeight = maxOf(mSkbRoot.height, designKeyboardHeight())，
+        // 是正确基准 —— 用实测高会形成「越扁→上限越大」的自洽循环（见 designKeyboardHeight 注释）；
+        // 而 BaseContainer 版用的是 mSkbRoot.height（实测高）。两者行为会分叉，
+        // 若修改任一处的 clamp 逻辑，务必同步另一处。
         when (event?.action) {
             MotionEvent.ACTION_DOWN -> {
                 bottomPaddingValue = mBottomPaddingKey.getValue()
@@ -352,7 +380,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 val env = EnvironmentSingleton.instance
 
                 if (dx.absoluteValue > 10) {
-                    rightPaddingValue = (rightPaddingValue - dx.toInt()).coerceIn(0, this.width - mSkbRootWidth)
+                    // coerceIn 在 min>max 时会抛 IllegalArgumentException：窗口处于 wrap 瞬时态、
+                    // 或 mSkbRoot 被 padding 撑大时 this.width < mSkbRootWidth，上限会变成负数。
+                    // 用 maxOf(0, ...) 把上限兜到 0（等价于 BaseContainer 里的 if/else 写法），
+                    // 拖动时不会崩，最坏只是暂时夹到 0。
+                    rightPaddingValue = (rightPaddingValue - dx.toInt()).coerceIn(0, maxOf(0, this.width - mSkbRootWidth))
                     initialTouchX = event.rawX
                     if (env.keyboardModeFloat) rightPadding = rightPaddingValue else mSkbRoot.rightPadding = rightPaddingValue
                 }
@@ -361,7 +393,8 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                     // MATCH_PARENT（日志 winH=-1），this.height 是稳定的窗口高度
                     //（= 屏幕高 - 状态栏/导航栏），不是当初那个「键盘高 + 位移」的 wrap 值。
                     // 用 mScreenHeight 会偏大（超出窗口可见范围），把键盘顶出窗口顶边。
-                    bottomPaddingValue = (bottomPaddingValue - dy.toInt()).coerceIn(0, this.height - mSkbRootHeight)
+                    // 同上：this.height < mSkbRootHeight 时上限为负，coerceIn 会抛异常
+                    bottomPaddingValue = (bottomPaddingValue - dy.toInt()).coerceIn(0, maxOf(0, this.height - mSkbRootHeight))
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[move] dy=$dy pad=$bottomPaddingValue thisH=$height rootH=$mSkbRootHeight"
                     )
@@ -376,14 +409,6 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             }
         }
         return false
-    }
-
-    /** 触摸区应当从哪个屏幕 y 开始：跳过候选栏里当前空着的那部分（透明，透出 App 内容），
-     *  只圈住真有内容的区域 + 键盘。空着时若仍圈进触摸区，系统边缘返回手势会被吃掉。 */
-    fun touchableTop(): Int {
-        val loc = IntArray(2)
-        mSkbCandidatesBarView.getLocationOnScreen(loc)
-        return loc[1] + mSkbCandidatesBarView.contentTopOffset()
     }
 
     // 皮肤背景「缩放」结果缓存：scale 一张整屏位图要新建 w*h 的 bitmap（十几 MB），
@@ -1075,13 +1100,24 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         updateCandidateBar()
     }
 
+    /** 分词页里点过「复制」后置 true：下一次唤出键盘不要弹复制建议行。
+     *  那次复制的内容就是用户刚在分词页处理过的，再弹一行建议会把菜单栏顶掉 ——
+     *  用户实测「分词页分享/离开后回来，第一次唤出只剩建议行，要收起再呼出才正常」。
+     *  一次性消费。 */
+    var suppressClipboardSuggestionOnce = false
+
     fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
         InputModeSwitcher.requestInputWithSkb(editorInfo)
         restoreCandidatesBarIfNeeded()
         if (!restarting) {
             resetToIdleState()
             val clipboard = appPrefs.clipboard
-            if (clipboard.clipboardSuggestion.getValue()) {
+            // 分词页里点过「复制」→ 这一次不弹建议行（见 suppressClipboardSuggestionOnce 注释）。
+            // 同时把时间戳归零，避免它留到下一次唤出又冒出来。
+            if (suppressClipboardSuggestionOnce) {
+                suppressClipboardSuggestionOnce = false
+                appPrefs.internal.clipboardUpdateTime.setValue(0L)
+            } else if (clipboard.clipboardSuggestion.getValue()) {
                 val internal = appPrefs.internal
                 val lastTime = internal.clipboardUpdateTime.getValue()
                 if (System.currentTimeMillis() - lastTime <= clipboardItemTimeout * 1000) {

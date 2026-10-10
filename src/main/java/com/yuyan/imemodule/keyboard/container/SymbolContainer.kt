@@ -57,6 +57,9 @@ class SymbolContainer(context: Context, inputView: InputView) : BaseContainer(co
     private var mShowType: SymbolMode = SymbolMode.Symbol
     private var mVPSymbolsView: ViewPager2
     private var tabLayout: TabLayout
+    /** 符号/表情页的 Tab 与 ViewPager 绑定器。每次显示都会重新创建，
+     *  旧实例必须先 detach，否则监听器累积、tab 被重复创建。 */
+    private var mTabLayoutMediator: TabLayoutMediator? = null
     private val ivDelete: ImageView
     var isLockSymbol = false
     private var mHandler: Handler? = null
@@ -210,7 +213,10 @@ class SymbolContainer(context: Context, inputView: InputView) : BaseContainer(co
             onItemClickOperate(symbol)
         }
         val data = mSymbolsEmoji.keys.toList()
-        TabLayoutMediator(tabLayout, mVPSymbolsView) { tab, position ->
+        // 先 detach 旧绑定器再挂新的：本容器被缓存复用，反复进入符号页若只 attach 不 detach，
+        // 旧 mediator 的监听器仍挂在同一个 tabLayout/ViewPager2 上，回调累积、tab 重复创建。
+        mTabLayoutMediator?.detach()
+        mTabLayoutMediator = TabLayoutMediator(tabLayout, mVPSymbolsView) { tab, position ->
             tab.view.background = null
             tab.setCustomView(ImageView(context).apply {
                 setImageDrawable(ContextCompat.getDrawable(context,data[position]).apply {
@@ -218,7 +224,8 @@ class SymbolContainer(context: Context, inputView: InputView) : BaseContainer(co
                 })
             })
             tab.view.setPadding(dp(5))
-        }.attach()
+        }
+        mTabLayoutMediator!!.attach()
         mVPSymbolsView.currentItem = 0
     }
 
@@ -245,7 +252,9 @@ class SymbolContainer(context: Context, inputView: InputView) : BaseContainer(co
             onItemClickOperate(symbol)
         }
         val data = mSymbolsEmoji.keys.toList()
-        TabLayoutMediator(tabLayout, mVPSymbolsView) { tab, position ->
+        // 同 setSymbolsView：重新设置前先 detach，避免旧绑定器监听器累积。
+        mTabLayoutMediator?.detach()
+        mTabLayoutMediator = TabLayoutMediator(tabLayout, mVPSymbolsView) { tab, position ->
             tab.view.background = null
             tab.setCustomView(ImageView(context).apply {
                 setImageDrawable(ContextCompat.getDrawable(context,data[position]).apply {
@@ -253,7 +262,8 @@ class SymbolContainer(context: Context, inputView: InputView) : BaseContainer(co
                 })
             })
             tab.view.setPadding(dp(5))
-        }.attach()
+        }
+        mTabLayoutMediator!!.attach()
     }
 
     fun getMenuMode(): SymbolMode {

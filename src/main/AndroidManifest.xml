@@ -36,8 +36,8 @@
             android:name=".ui.activity.ClipEditActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:taskAffinity=""
-            android:launchMode="singleInstance"
+            android:taskAffinity="com.yuyan.imemodule.clipedit"
+            android:launchMode="standard"
             android:label="@string/edit"
             android:theme="@style/Theme.AppCompat.Dialog" />
 

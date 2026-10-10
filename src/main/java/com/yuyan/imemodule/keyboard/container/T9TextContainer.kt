@@ -86,7 +86,9 @@ open class T9TextContainer(context: Context?, inputView: InputView, skbValue: In
 
     // 更新键盘上侧边符号列表
     private fun updateKeyboardView() {
-        val softKeyboard = mMajorView!!.getSoftKeyboard()
+        // getSoftKeyboard() 已改为可空（setSoftKeyboard 之前调用会 NPE，见 BaseKeyboardView）：
+        // 键盘视图未就绪时直接返回，等下次显示再补。
+        val softKeyboard = mMajorView?.getSoftKeyboard() ?: return
         val softKeySymbolHolder = softKeyboard.getKeyByCode(InputModeSwitcher.USER_KEYCODE_LEFT_SYMBOL) ?: return
         val prefixLayoutParams = LayoutParams(softKeySymbolHolder.width(), LayoutParams.MATCH_PARENT)
         prefixLayoutParams.setMargins(

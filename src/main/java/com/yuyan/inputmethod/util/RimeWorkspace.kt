@@ -232,44 +232,86 @@ object RimeWorkspace {
     }
 
     /**
-     * 生成 default.yaml 的 schema_list（仅当工作区没有 default.yaml 时）。
-     * 遵循 rime 标准机制：方案列表由用户/方案包的 default.yaml（及 default.custom.yaml
-     * patch）维护——万象包自带 default.yaml，用户把 wanxiang_pro 等 id patch 进
-     * schema_list。App 不做全量扫描注册（那会把词库转换、反查等附属方案
-     * 也塞进方案列表）。
+     * App 内置方案 id —— 必须出现在 default.yaml 的 schema_list 里，
+     * 否则 Rime 部署时不会编译它们，select_schema 失败，表现为「方案失效/打不出字」。
+     * 与 assets/rime 下各 *.schema.yaml 的 schema_id 以及 CustomConstant 的 SCHEMA_* 常量保持一致。
+     */
+    private val BUILTIN_SCHEMA_IDS = listOf(
+        "pinyin",                    // 拼音·全键
+        "t9_pinyin",                 // 拼音·九键
+        "double_pinyin_flypy",       // 小鹤
+        "double_pinyin_ls17",        // 乱序17
+        "double_pinyin_abc",
+        "double_pinyin_mspy",
+        "double_pinyin_natural",
+        "double_pinyin_sogou",
+        "double_pinyin_ziguang",
+        "english",
+        "stroke",
+        "wanxiang"                   // 万象拼音PRO（/sdcard/yuyan 导入）
+    )
+
+    /**
+     * 保证工作区的 default.yaml 里包含全部内置方案。
+     *
+     * 原实现是 `if (target.exists()) return false` —— 一旦用户目录已有 default.yaml
+     * （用户自定义，或万象方案包自带），App 就再也不碰它。后果：内置方案只要不在清单里
+     * 就永远修不回来（实测 pinyin / t9_pinyin / english / 七种双拼全部无法加载）。
+     *
+     * 现在改为「补齐」而非「覆盖」：保留用户原有条目与顺序（用户方案仍排在前），
+     * 只把缺失的内置方案追加到 schema_list 末尾；文件不存在时才新建。
+     * 只动 schema_list，其它字段（switcher/punctuator/...）原样保留。
      */
     fun writeDefaultYamlIfNeeded(): Boolean {
         val target = File(userDir, "default.yaml")
-        if (target.exists()) return false // 尊重用户/方案包的 default.yaml
-        val schemas = allSchemas()
-        if (schemas.isEmpty()) return false
-        val newItems = schemas.map { "  - schema: ${it.first}" }
-        val sb = StringBuilder()
-        var inSchemaList = false
-        var spliced = false
-        if (target.exists()) {
-            for (line in target.readText().lines()) {
+
+        if (!target.exists()) {
+            val sb = StringBuilder()
+            sb.append("config_version: \"1\"\n")
+            sb.append("schema_list:\n")
+            BUILTIN_SCHEMA_IDS.forEach { sb.append("  - schema: ").append(it).append('\n') }
+            target.parentFile?.mkdirs()
+            target.writeText(sb.toString())
+            return true
+        }
+
+        val lines = target.readText().lines()
+        val existing = HashSet<String>()
+        var inList = false
+        var listStart = -1
+        var listEnd = -1
+        lines.forEachIndexed { i, line ->
+            val t = line.trim()
+            if (t == "schema_list:") {
+                inList = true
+                listStart = i
+                return@forEachIndexed
+            }
+            if (inList) {
                 when {
-                    line.trim() == "schema_list:" -> {
-                        sb.append(line).append("\n")
-                        newItems.forEach { sb.append(it).append("\n") }
-                        inSchemaList = true
-                        spliced = true
+                    t.startsWith("- ") -> {
+                        existing.add(t.removePrefix("- ").removePrefix("schema:").trim())
+                        listEnd = i
                     }
-                    inSchemaList && line.trimStart().startsWith("- ") -> continue // 跳过旧列表项
-                    else -> {
-                        inSchemaList = false
-                        sb.append(line).append("\n")
-                    }
+                    // 列表结束（遇到下一个顶层键或非缩进内容）
+                    t.isNotEmpty() && !t.startsWith("#") -> inList = false
                 }
             }
         }
-        if (!spliced) {
-            sb.append("config_version: \"1\"\n")
-            sb.append("schema_list:\n")
-            newItems.forEach { sb.append(it).append("\n") }
+
+        val missing = BUILTIN_SCHEMA_IDS.filterNot { existing.contains(it) }
+        if (missing.isEmpty()) return false
+
+        val out = ArrayList(lines)
+        if (listStart < 0) {
+            // 完全没有 schema_list：追加一个块
+            out.add("schema_list:")
+            missing.forEach { out.add("  - schema: $it") }
+        } else {
+            val insertAt = if (listEnd >= 0) listEnd + 1 else listStart + 1
+            missing.forEachIndexed { k, id -> out.add(insertAt + k, "  - schema: $id") }
         }
-        target.writeText(sb.toString())
+        target.writeText(out.joinToString("\n") + "\n")
         return true
     }
 }
