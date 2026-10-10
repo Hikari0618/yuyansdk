@@ -448,7 +448,17 @@ class ImeService : InputMethodService() {
             else resources.configuration.keyboard != Configuration.KEYBOARD_NOKEYS
         isSoftKeyboard = !hardwareKeyboard
         isHardwareKeyboard = hardwareKeyboard
-        setCandidatesViewShown(isHardwareKeyboard)
+        // 不显示系统级的独立候选视图（onCreateCandidatesView 提供的那个）。
+        //
+        // 系统给 IME 的窗口高度 = 输入视图 + 候选视图，候选视图（高度正好是一条候选栏）
+        // 一显隐，窗口内容区就跟着变 133 —— 实测输入视图高度在 1954/1821 之间跳、
+        // 键盘被挤压、最下面一行被裁（悬浮键盘打字时尤其明显）。
+        // 语燕的候选词本来就画在输入视图里的 CandidatesBar 上，这个独立候选视图是多余的。
+        setCandidatesViewShown(false)
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[hw] hardwareKeyboard=$hardwareKeyboard soft=$isSoftKeyboard" +
+                " candView=${if (::mCandidateView.isInitialized) mCandidateView.visibility else -1}"
+        )
         currentInputConnection.requestCursorUpdates(if(isHardwareKeyboard)InputConnection.CURSOR_UPDATE_MONITOR else 0)
     }
 
