@@ -171,7 +171,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             // 应用存储位移时只在「视图真正布局完成」后才 clamp：
             // 布局过程中的瞬时 height 偏小会把位移压小（症状：打字时键盘被往下压、下缘被裁）。
             // 拖动路径已经保证写入值合法，这里的 clamp 只是兜底。
-            val kbH = mSkbRoot.height
+            val kbH = maxOf(mSkbRoot.height, designKeyboardHeight())
             val kbW = mSkbRoot.width
             val canClamp = isLaidOut && kbH > 0 && kbH < height
             val maxBottom = if (canClamp) height - kbH else Int.MAX_VALUE
@@ -248,6 +248,21 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     // 死区问题改由 ImeService 的 touchableRegion 精确圈「候选栏+键盘」解决：
     // 窗口里 region 之外的区域不认领触摸，同样没有死区。
 
+    /**
+     * 键盘「应有的」完整高度（设计高度，不受父容器挤压影响）。
+     *
+     * 悬浮模式下键盘根是 wrap + 底部对齐，可用高度 = 输入视图高度 − 位移：
+     * 位移越大 → 可用空间越小 → 键盘被父容器压扁（日志实测按键区 720↔625）。
+     * 而拖动上限如果拿「被压扁后的实测高度」来算，会得到更大的上限，于是
+     * 「位移越大 → 越扁 → 上限越大」形成自洽循环，两个状态互相喂。
+     * 上限必须用这个常量，循环才能断开。
+     */
+    private fun designKeyboardHeight(): Int {
+        val env = EnvironmentSingleton.instance
+        return env.skbHeight + env.heightForCandidatesArea +
+            env.heightForKeyboardMove + env.systemNavbarWindowsBottom
+    }
+
     private var rootLayoutLogged = false
     private var mSkbRootHeight = 0
     private var mSkbRootWidth = 0
@@ -259,7 +274,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 rightPaddingValue = mRightPaddingKey.getValue()
                 initialTouchX = event.rawX
                 initialTouchY = event.rawY
-                mSkbRootHeight = mSkbRoot.height
+                mSkbRootHeight = maxOf(mSkbRoot.height, designKeyboardHeight())
                 mSkbRootWidth = mSkbRoot.width
                 return true
             }
