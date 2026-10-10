@@ -28,6 +28,13 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
     private lateinit var mRightPaddingKey: ManagedPreference.PInt
     private lateinit var mBottomPaddingKey: ManagedPreference.PInt
 
+    /** 「调整键盘高度」的影子覆盖层（含上/下两个把手 + 重置/确定）。
+     *  拖动改高度时要把「它」的高度设成 skbHeight，让把手贴住键盘上下缘。
+     *  注意：不能写成 `rootView.setLayoutParams(...)` —— 那会被 Kotlin 解析成
+     *  View.getRootView() 的合成属性，改到整个输入视图上去（症状：改高度时
+     *  上界被钉住不动、下界跟着手指走）。 */
+    private var mHeightShadowView: View? = null
+
     /**
      * 更新软键盘布局
      */
@@ -49,6 +56,7 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
     fun setKeyboardHeight() {
         val rootView = LayoutInflater.from(context).inflate(R.layout.layout_ime_keyboard_height_shadow, this, false)
         this.addView(rootView)
+        mHeightShadowView = rootView
         rootView.findViewById<View>(R.id.ll_keyboard_height_reset).setOnClickListener { _: View? ->
             EnvironmentSingleton.instance.keyBoardHeightRatio = 0.3f
             EnvironmentSingleton.instance.initData()
@@ -95,7 +103,7 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
                         LayoutParams.MATCH_PARENT,
                         EnvironmentSingleton.instance.skbHeight
                     )
-                    rootView.setLayoutParams(l)
+                    mHeightShadowView?.layoutParams = l
                     isHandling = false
                 }
             }
