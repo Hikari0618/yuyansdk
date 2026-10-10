@@ -32,6 +32,9 @@ schema:
 speller:
   alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA`/"
   delimiter: " '"
+  algebra:
+    # 键位映射来源：App 笔画键位（caps-lock 大写 H/S/P/N/Z/X，与本地 stroke.prism.bin 的键位集一致）
+    - xlit/hspnzx/HSPNZX/
 translator:
   dictionary: stroke
   preedit_format:

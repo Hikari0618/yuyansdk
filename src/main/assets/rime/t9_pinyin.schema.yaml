@@ -35,8 +35,13 @@ schema:
   name: "九键拼音"
   schema_id: t9_pinyin
 speller:
-  alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA`/"
+  alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321`/"
   delimiter: "''"
+  algebra:
+    # 键位映射来源：App T9PinYinUtils.t9KeyMap（九键，字母键位；与万象 9jian 的映射思路一致）
+    - erase/^xx$/
+    - derive/^(.*)$/\U$1/
+    - xlit/ABCDEFGHIJKLMNOPQRSTUVWXYZ/AAADDDGGGJJJMMMPPPPTTTWWWW/
 traditionalize:
   opencc_config: s2t.json
   option_name: traditionalization

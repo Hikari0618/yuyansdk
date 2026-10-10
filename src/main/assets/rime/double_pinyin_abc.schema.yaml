@@ -53,6 +53,36 @@ schema:
 speller:
   alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA`/"
   delimiter: "''"
+  algebra:
+    # 键位映射来源：rime/rime-double-pinyin 官方方案 double_pinyin_abc.schema.yaml（智能ABC双拼）
+    - erase/^xx$/
+    - derive/^([jqxy])u$/$1v/
+    - xform/^zh/A/
+    - xform/^ch/E/
+    - xform/^sh/V/
+    - xform/^([aoe].*)$/O$1/
+    - xform/ei$/Q/
+    - xform/ian$/W/
+    - xform/er$|iu$/R/
+    - xform/[iu]ang$/T/
+    - xform/ing$/Y/
+    - xform/uo$/O/
+    - xform/uan$/P/
+    - xform/i?ong$/S/
+    - xform/[iu]a$/D/
+    - xform/en$/F/
+    - xform/eng$/G/
+    - xform/ang$/H/
+    - xform/an$/J/
+    - xform/iao$/Z/
+    - xform/ao$/K/
+    - xform/in$|uai$/C/
+    - xform/ai$/L/
+    - xform/ie$/X/
+    - xform/ou$/B/
+    - xform/un$/N/
+    - xform/[uv]e$|ui$/M/
+    - xlit/QWERTYOPASDFGHJKLZXCVBNM/qwertyopasdfghjklzxcvbnm/
 traditionalize:
   opencc_config: s2t.json
   option_name: traditionalization

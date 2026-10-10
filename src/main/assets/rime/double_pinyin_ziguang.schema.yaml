@@ -53,6 +53,39 @@ schema:
 speller:
   alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA;`/"
   delimiter: "''"
+  algebra:
+    # 键位映射来源：万象 wanxiang_algebra.yaml 紫光双拼（去声调、转写为通用双拼键位）
+    - erase/^xx$/
+    - xform/^ng$/eng/
+    - xform/^n$/en/
+    - xform/^m$/me/
+    - derive/^([jqxy])u$/$1v/
+    - xform/^([aoe].*)$/O$1/
+    - xform/en$/W/
+    - xform/eng$/T/
+    - xform/in$|uai$/Y/
+    - xform/^zh/U/
+    - xform/^sh/I/
+    - xform/uo$/O/
+    - xform/ai$/P/
+    - xform/^ch/A/
+    - xform/[iu]ang$/G/
+    - xform/ang$/S/
+    - xform/ie$/D/
+    - xform/ian$/F/
+    - xform/(.)i?ong$/$1H/
+    - xform/er$|iu$/J/
+    - xform/ei$/K/
+    - xform/uan$/L/
+    - xform/ing$/;/
+    - xform/ou$/Z/
+    - xform/[iu]a$/X/
+    - xform/iao$/B/
+    - xform/ue$|ui$|ve$/N/
+    - xform/un$/M/
+    - xform/ao$/Q/
+    - xform/an$/R/
+    - xlit/WTYUIOPAGSDFHJKLZXBNMQR/wtyuiopagsdfhjklzxbnmqr/
 traditionalize:
   opencc_config: s2t.json
   option_name: traditionalization

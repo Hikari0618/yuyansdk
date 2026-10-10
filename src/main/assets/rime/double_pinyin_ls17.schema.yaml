@@ -48,6 +48,50 @@ schema:
 speller:
   alphabet: "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA`/"
   delimiter: "''"
+  algebra:
+    # 键位映射来源：App LX17PinYinUtils 键位表（乱序17，与万象 wanxiang_algebra.yaml 乱序17 韵母键一致）
+    - erase/^xx$/
+    - xform/^zh/Z/
+    - xform/^ch/C/
+    - xform/^sh/S/
+    - xform/^b/B/
+    - xform/^p/H/
+    - xform/^m/M/
+    - xform/^f/F/
+    - xform/^d/D/
+    - xform/^t/T/
+    - xform/^n/N/
+    - xform/^l/L/
+    - xform/^g/G/
+    - xform/^k/J/
+    - xform/^h/H/
+    - xform/^j/J/
+    - xform/^q/Q/
+    - xform/^x/X/
+    - xform/^r/N/
+    - xform/^z/W/
+    - xform/^c/F/
+    - xform/^s/M/
+    - xform/^y/Y/
+    - xform/^w/W/
+    - xform/^([aoe].*)$/Q$1/
+    - xform/(uang|ian)$/Q/
+    - xform/(iang|ui)$/C/
+    - xform/(ang|iao)$/Z/
+    - xform/(iong|ao)$/B/
+    - xform/(eng|ing)$/Y/
+    - xform/(ong|er)$/T/
+    - xform/(ie|uo)$/M/
+    - xform/(uai|uan|o|v)$/X/
+    - xform/(ai|[uv]e)$/L/
+    - xform/an$/N/
+    - xform/(ei|un)$/G/
+    - xform/(en|in)$/S/
+    - xform/(ua|ia|a)$/H/
+    - xform/(iu|ou)$/F/
+    - xform/e$/W/
+    - xform/i$/J/
+    - xform/u$/D/
 traditionalize:
   opencc_config: s2t.json
   option_name: traditionalization
