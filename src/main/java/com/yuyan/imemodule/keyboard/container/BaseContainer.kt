@@ -82,6 +82,11 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
             KeyboardLoaderUtil.instance.clearKeyboardMap()
             KeyboardManager.instance.clearKeyboard()
             updateSkbLayout()
+            // 包裹层高度也要按重置后的 skbHeight 重算 —— 漏了这一步时：
+            // 重置把 skbHeight 改回 640，但包裹层还停在调整后的值，根总高不变，
+            // 表现为「点重置后键盘下界被往上抬」（用户实测），
+            // 要点一下上把手（那条路径有刷新）才会突然跳回正确位置。
+            inputView.refreshKeyboardWrapperHeight()
         }
         rootView.findViewById<View>(R.id.ll_keyboard_height_sure).setOnClickListener { removeView(rootView) }
         rootView.findViewById<View>(R.id.iv_keyboard_height_Top).setOnTouchListener { v12: View, event -> onModifyKeyboardHeightEvent(v12, event) }
