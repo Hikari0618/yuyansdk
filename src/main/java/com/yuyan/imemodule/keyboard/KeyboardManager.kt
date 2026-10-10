@@ -14,6 +14,7 @@ import com.yuyan.imemodule.keyboard.container.SettingsContainer
 import com.yuyan.imemodule.keyboard.container.SymbolContainer
 import com.yuyan.imemodule.keyboard.container.T9TextContainer
 import com.yuyan.imemodule.prefs.AppPrefs
+import com.yuyan.imemodule.singleton.EnvironmentSingleton
 
 /**
  * 键盘显示管理类
