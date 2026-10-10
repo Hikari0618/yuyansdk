@@ -223,7 +223,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                             " kbContainer=${mInputKeyboardContainer.height}" +
                             " bar=${mSkbCandidatesBarView.height}/${mSkbCandidatesBarView.visibility}" +
                             " keys=${mInputKeyboardContainer.findViewById<View>(R.id.skb_input_keyboard_view)?.height}" +
-                            " bottomHolder=${mLlKeyboardBottomHolder.height}"
+                            " bottomHolder=${mLlKeyboardBottomHolder.height}" +
+                            " container=${KeyboardManager.instance.currentContainer?.javaClass?.simpleName}" +
+                            " contH=${KeyboardManager.instance.currentContainer?.height}" +
+                            " contLp=${KeyboardManager.instance.currentContainer?.layoutParams?.height}" +
+                            " skbH=${EnvironmentSingleton.instance.skbHeight}" +
+                            " areaH=${EnvironmentSingleton.instance.heightForCandidatesArea}"
                     )
                 }
             }
