@@ -282,6 +282,22 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             env.heightForKeyboardMove + env.systemNavbarWindowsBottom
     }
 
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // 输入视图高度变化（窗口内容区/系统栏变化，实测打字时会在 1954/1821 之间跳，
+        // 差值 133）→ 位移必须按新的可用高度重新收一遍：
+        // 否则「位移 + 键盘高 > 输入视图高」会把键盘挤出可视区（表现为下缘被裁）。
+        if (EnvironmentSingleton.instance.keyboardModeFloat) {
+            val maxPad = (h - designKeyboardHeight()).coerceAtLeast(0)
+            if (bottomPadding > maxPad) bottomPadding = maxPad
+        }
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[iv] h=$h old=$oldh pad=$bottomPadding rootH=${mSkbRoot.height}" +
+                " insetT=${rootWindowInsets?.systemWindowInsetTop}" +
+                " insetB=${rootWindowInsets?.systemWindowInsetBottom}"
+        )
+    }
+
     private var rootLayoutLogged = false
     private var mSkbRootHeight = 0
     private var mSkbRootWidth = 0
