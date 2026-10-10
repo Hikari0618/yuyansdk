@@ -14,6 +14,7 @@ import com.yuyan.imemodule.utils.AssetUtils.copyFileOrDir
 import com.yuyan.imemodule.utils.thread.ThreadPoolUtils
 import com.yuyan.inputmethod.core.Kernel
 import com.yuyan.inputmethod.util.RimeSyncScheduler
+import java.io.File
 
 class Launcher {
     lateinit var context: Context
@@ -40,9 +41,27 @@ class Launcher {
             // 复制词库文件
             val dataDictVersion = AppPrefs.getInstance().internal.dataDictVersion.getValue()
             if (dataDictVersion < CustomConstant.CURRENT_RIME_DICT_DATA_VERSIOM) {
+                // 复制前先保护「用户状态文件」：这三个在 assets/rime 里也存在，
+                // 而下面是 overwrite=true 的全量复制，会把用户的东西覆盖掉：
+                //   installation.yaml → sync_dir / installation_id
+                //   user.yaml         → 用户 profile
+                //   default.yaml      → schema_list 等自定义
+                // （此前只靠「版本号没变就不复制」回避，导致方案文件更新传不下去，
+                //   用户必须清空数据才能生效 —— 这是用户实测踩到的坑。）
+                val rimeDir = File(CustomConstant.RIME_DICT_PATH)
+                val userStateFiles = listOf("installation.yaml", "user.yaml", "default.yaml")
+                val backup = userStateFiles.associateWith { name ->
+                    File(rimeDir, name).takeIf { it.exists() }?.let {
+                        runCatching { it.readText() }.getOrNull()
+                    }
+                }
                 //rime词库
                 copyFileOrDir(context, "rime", "", CustomConstant.RIME_DICT_PATH, true)
                 copyFileOrDir(context, "hw", "", CustomConstant.HW_DICT_PATH, true)
+                // 还原用户状态文件
+                backup.forEach { (name, text) ->
+                    if (text != null) runCatching { File(rimeDir, name).writeText(text) }
+                }
                 AppPrefs.getInstance().internal.dataDictVersion.setValue(CustomConstant.CURRENT_RIME_DICT_DATA_VERSIOM)
             }
             Kernel.resetIme()  // 解决词库复制慢，导致先调用初始化问题
