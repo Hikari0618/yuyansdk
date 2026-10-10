@@ -196,10 +196,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             // 而底部移动条（iv_keyboard_holder）的高度 = 根高 − 按键容器高 = 891−853 = 38，
             // 被挤成 879−853 = 26，用户实测「小横条比以前小」。
             // 根改回 wrap_content 后：853（容器）+ 38（移动条）= 891，小横条恢复原样。
-            mInputKeyboardContainer.layoutParams?.let {
-                it.height = env.skbHeight + env.heightForCandidatesArea
-                mInputKeyboardContainer.layoutParams = it
-            }
+            refreshKeyboardWrapperHeight()
 
             mLlKeyboardBottomHolder.minimumHeight = env.heightForKeyboardMove
             val mIvKeyboardMove = ImageView(context).apply {
@@ -292,6 +289,29 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             env.heightForKeyboardMove + env.systemNavbarWindowsBottom
     }
 
+    /**
+     * 按键容器（包裹层）高度 = 按键区 + 候选区，必须跟着 EnvironmentSingleton 一起变。
+     *
+     * 原来只在 initView 里设一次。拖动「调整键盘高度」时 skbHeight 变了但没重设这层，
+     * 于是键盘根的总高度不变 —— 表现是**上界钉住不动、只有按键区下沿跟着变**
+     * （用户实测「拖上面的把手时是键盘下界在变」）。
+     *
+     * 实测证据（非悬浮模式，skbH=640 areaH=203 应为 843）：
+     *   [root] kbContainer=853 bar=203 keys=576 skbH=576 areaH=203
+     * 853 = 720+133 是**悬浮模式**的值 —— 这层停留在上一次悬浮会话算出的尺寸。
+     */
+    fun refreshKeyboardWrapperHeight() {
+        val env = EnvironmentSingleton.instance
+        mInputKeyboardContainer.layoutParams?.let {
+            val want = env.skbHeight + env.heightForCandidatesArea
+            // 只在真的不同时才写，避免 onSizeChanged 里反复触发布局
+            if (want > 0 && it.height != want) {
+                it.height = want
+                mInputKeyboardContainer.layoutParams = it
+            }
+        }
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         // 输入视图高度变化（窗口内容区/系统栏变化，实测打字时会在 1954/1821 之间跳，
@@ -301,6 +321,9 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             val maxPad = (h - designKeyboardHeight()).coerceAtLeast(0)
             if (bottomPadding > maxPad) bottomPadding = maxPad
         }
+        // 窗口尺寸变化时包裹层也要按当前 env 重算（悬浮↔非悬浮切换后 initView 里那次
+        // 可能用的是切换前的值，实测非悬浮模式残留悬浮的 853 而非 843）。
+        refreshKeyboardWrapperHeight()
         com.yuyan.inputmethod.util.ImeLog.d(
             "[iv] h=$h old=$oldh pad=$bottomPadding rootH=${mSkbRoot.height}" +
                 " insetT=${rootWindowInsets?.systemWindowInsetTop}" +

@@ -126,6 +126,10 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
                     KeyboardLoaderUtil.instance.clearKeyboardMap()
                     KeyboardManager.instance.clearKeyboard()
                     updateSkbLayout()
+                    // 包裹层高度必须跟着 skbHeight 一起更新，否则键盘根总高不变：
+                    // 表现为上界钉住不动、只有按键区下沿跟着变
+                    //（用户实测「拖上面的把手时是键盘下界在变」）。
+                    inputView.refreshKeyboardWrapperHeight()
                     // 覆盖层已在 setKeyboardHeight() 里铺满容器（四边对齐），
                     // 这里不再按 skbHeight 重设高度 —— 容器实测高度是 skbHeight+候选区，
                     // 按 skbHeight 设会让下面的把手跑到键盘外（「重置后下面的键消失」）。
