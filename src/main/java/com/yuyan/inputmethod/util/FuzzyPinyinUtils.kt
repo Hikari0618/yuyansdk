@@ -125,7 +125,7 @@ object FuzzyPinyinUtils {
         } else {
             sb.append("    __append:\n")
             OPTIONS.filter { it.key in enabled }.forEach { opt ->
-                genericRules(opt.key).forEach { sb.append("      - ").append(it).append("\n") }
+                rulesFor(schemaId, opt.key).forEach { sb.append("      - ").append(it).append("\n") }
             }
         }
         file.writeText(sb.toString())
@@ -142,7 +142,108 @@ object FuzzyPinyinUtils {
             .toList()
     }
 
-    /** 通用方案的模糊音 derive 规则 */
+    /**
+     * 双拼方案的模糊音规则表（按方案 × 选项）。
+     *
+     * 【为什么需要这张表】通用模糊音规则写的是全拼（如 derive/^zh/z/），
+     * 但 Rime 的 speller/algebra 按序执行，而本类写入的是 __append（加在末尾）——
+     * 此时码已经过双拼映射（zh→v、en→f …），全拼规则永远匹配不上。
+     * 所以必须把「全拼空间的模糊音对」翻译成「双拼码空间的键位对」。
+     *
+     * 【生成方式】对每个方案用它自身的 algebra 推演：
+     *   声母码 = 对该声母+参照韵母(a)取码，再扣掉 a 的韵码；
+     *   韵母码 = 对参照声母(b)+该韵母取码，再扣掉 b 的声母码。
+     * 结果与各双拼方案的公开键位表逐一核对一致。
+     */
+    private val DOUBLE_PINYIN_FUZZY: Map<String, Map<String, List<String>>> = mapOf(
+        "double_pinyin_flypy" to mapOf(   // 小鹤
+            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
+            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
+            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
+            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
+            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
+            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
+            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
+            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
+            "in_ing" to listOf("derive/b$/k/", "derive/k$/b/"),
+        ),
+        "double_pinyin_natural" to mapOf(   // 自然码
+            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
+            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
+            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
+            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
+            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
+            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
+            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
+            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
+            "in_ing" to listOf("derive/n$/y/", "derive/y$/n/"),
+        ),
+        "double_pinyin_abc" to mapOf(   // 智能ABC
+            "z_zh" to listOf("derive/^z/a/", "derive/^a/z/"),
+            "c_ch" to listOf("derive/^c/e/", "derive/^e/c/"),
+            "s_sh" to listOf("derive/^s/v/", "derive/^v/s/"),
+            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
+            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
+            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
+            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
+            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
+            "in_ing" to listOf("derive/c$/y/", "derive/y$/c/"),
+        ),
+        "double_pinyin_mspy" to mapOf(   // 微软
+            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
+            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
+            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
+            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
+            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
+            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
+            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
+            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
+            "in_ing" to listOf("derive/n$/;/", "derive/;$/n/"),
+        ),
+        "double_pinyin_sogou" to mapOf(   // 搜狗
+            "z_zh" to listOf("derive/^z/v/", "derive/^v/z/"),
+            "c_ch" to listOf("derive/^c/i/", "derive/^i/c/"),
+            "s_sh" to listOf("derive/^s/u/", "derive/^u/s/"),
+            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
+            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
+            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
+            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
+            "en_eng" to listOf("derive/f$/g/", "derive/g$/f/"),
+            "in_ing" to listOf("derive/n$/;/", "derive/;$/n/"),
+        ),
+        "double_pinyin_ziguang" to mapOf(   // 紫光
+            "z_zh" to listOf("derive/^z/u/", "derive/^u/z/"),
+            "c_ch" to listOf("derive/^c/a/", "derive/^a/c/"),
+            "s_sh" to listOf("derive/^s/i/", "derive/^i/s/"),
+            "nl" to listOf("derive/^n/l/", "derive/^l/n/"),
+            "rl" to listOf("derive/^r/l/", "derive/^l/r/"),
+            "hf" to listOf("derive/^f/h/", "derive/^h/f/"),
+            "kg" to listOf("derive/^k/g/", "derive/^g/k/"),
+            "en_eng" to listOf("derive/w$/t/", "derive/t$/w/"),
+            "in_ing" to listOf("derive/y$/;/", "derive/;$/y/"),
+        ),
+        "double_pinyin_ls17" to mapOf(   // 乱序17
+            "z_zh" to listOf("derive/^W/Z/", "derive/^Z/W/"),
+            "c_ch" to listOf("derive/^F/C/", "derive/^C/F/"),
+            "s_sh" to listOf("derive/^M/S/", "derive/^S/M/"),
+            "nl" to listOf("derive/^N/L/", "derive/^L/N/"),
+            "rl" to listOf("derive/^N/L/", "derive/^L/N/"),
+            "hf" to listOf("derive/^F/H/", "derive/^H/F/"),
+            "kg" to listOf("derive/^J/G/", "derive/^G/J/"),
+            "en_eng" to listOf("derive/S$/Y/", "derive/Y$/S/"),
+            "in_ing" to listOf("derive/S$/Y/", "derive/Y$/S/"),
+        ),
+    )
+
+    /**
+     * 取某方案某模糊音项对应的 derive 规则。
+     * 双拼方案走码空间翻译表（见 DOUBLE_PINYIN_FUZZY），
+     * 其余（全拼等）仍用全拼规则 —— 它们没有双拼映射，规则本就作用于原始输入。
+     */
+    private fun rulesFor(schemaId: String, key: String): List<String> =
+        DOUBLE_PINYIN_FUZZY[schemaId]?.get(key) ?: genericRules(key)
+
+    /** 通用（全拼）方案的模糊音 derive 规则 */
     private fun genericRules(key: String): List<String> = when (key) {
         "z_zh" -> listOf("derive/^zh/z/", "derive/^z([^h])/zh\$1/")
         "c_ch" -> listOf("derive/^ch/c/", "derive/^c([^h])/ch\$1/")
