@@ -187,14 +187,15 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             mSkbRoot.bottomPadding = 0
             mSkbRoot.rightPadding = 0
 
-            // 悬浮模式：把键盘根与按键容器按「设计高度」钉死。
-            // 实测（[root] 埋点）：按键区已钉在 720，但按键容器与键盘根仍会在
-            // 853/891 与 786 之间跳（容器 786 = 133 + 653，没跟上子视图的 720），
-            // 根一缩 → 底部对齐 → 顶边下移、键位网格按 720 绘制 → 下缘被裁。
-            // 三者都钉死后布局完全确定：根 = 按键区 + 候选栏 + 移动条 + 导航栏。
-            val rootH = env.skbHeight + env.heightForCandidatesArea +
-                env.heightForKeyboardMove + env.systemNavbarWindowsBottom
-            mSkbRoot.layoutParams?.let { it.height = rootH; mSkbRoot.layoutParams = it }
+            // 键盘根不再钉死高度（曾经钉过，是为了治「打字时根被压到 786」——
+            // 那个的真正原因是框架给「系统级独立候选视图」预留了上方 133，
+            // 已由 ImeService.onCreateCandidatesView 返回 null 根治）。
+            //
+            // 钉死的副作用：这里算 rootH 时 systemNavbarWindowsBottom 还是 0（insets 尚未回调），
+            // 于是根被钉成 720+133+26+0 = 879，比自然高度 891 少 12 ——
+            // 而底部移动条（iv_keyboard_holder）的高度 = 根高 − 按键容器高 = 891−853 = 38，
+            // 被挤成 879−853 = 26，用户实测「小横条比以前小」。
+            // 根改回 wrap_content 后：853（容器）+ 38（移动条）= 891，小横条恢复原样。
             mInputKeyboardContainer.layoutParams?.let {
                 it.height = env.skbHeight + env.heightForCandidatesArea
                 mInputKeyboardContainer.layoutParams = it
