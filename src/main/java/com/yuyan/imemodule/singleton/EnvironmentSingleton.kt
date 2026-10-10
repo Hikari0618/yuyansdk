@@ -91,6 +91,15 @@ class EnvironmentSingleton private constructor() {
         keyXMargin = (prefs.keyXMargin.getValue() / 1000f * skbWidth).toInt()
         keyYMargin = (prefs.keyYMargin.getValue() / 1000f * skbHeight).toInt()
         inputAreaHeight = skbHeight + heightForCandidatesArea
+        // 环境埋点：initData 被不同 context 以不同方向反复调用时，会算出两套尺寸，
+        // 表现为按键区高度来回跳（悬浮键盘打字时下缘被裁）。这里把来源和结果都打出来。
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[env] ctx=${context.javaClass.simpleName} w=${dm.widthPixels} h=${dm.heightPixels}" +
+                " land=$isLandscape float=$keyboardModeFloat" +
+                " skbH=$skbHeight area=$heightForCandidatesArea moveH=$heightForKeyboardMove" +
+                " navBottom=$systemNavbarWindowsBottom" +
+                " caller=${Throwable().stackTrace.getOrNull(2)?.toString()?.substringAfter("(")?.substringBefore(")")}"
+        )
     }
 
     var keyBoardHeightRatio: Float
