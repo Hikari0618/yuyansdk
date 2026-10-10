@@ -171,10 +171,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             // 存储的位移要按当前键盘尺寸收一遍，但**必须等尺寸量出来之后**：
             // mSkbRoot 还没布局时 height/width 为 0 或等于整屏，算出的上限会是 0，
             // 把键盘强行贴到右下角、而且再也拖不动（用户实测）。
-            // 尺寸不可信时按「不限制」处理，保留用户原来的位置。
+            // 上限同样用「屏幕高度」而不是 this.height —— 悬浮模式下输入视图是 wrap 的，
+            // 用它会自洽成「上限 = 当前位移」，键盘高度一变就把位移往下压。
             val kbH = mSkbRoot.height
             val kbW = mSkbRoot.width
-            val maxBottom = if (kbH > 0 && kbH < height) height - kbH else Int.MAX_VALUE
+            val limitH = EnvironmentSingleton.instance.mScreenHeight
+            val maxBottom = if (kbH > 0 && kbH < limitH) limitH - kbH else Int.MAX_VALUE
             val maxRight = if (kbW > 0 && kbW < width) width - kbW else Int.MAX_VALUE
             bottomPadding = mBottomPaddingKey.getValue().coerceIn(0, maxBottom)
             rightPadding = mRightPaddingKey.getValue().coerceIn(0, maxRight)
@@ -245,7 +247,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                     if (env.keyboardModeFloat) rightPadding = rightPaddingValue else mSkbRoot.rightPadding = rightPaddingValue
                 }
                 if (dy.absoluteValue > 10) {
-                    bottomPaddingValue = (bottomPaddingValue - dy.toInt()).coerceIn(0, this.height - mSkbRootHeight)
+                    // 上限必须用「屏幕高度」，不能用 this.height：
+                    // 悬浮模式下输入视图是 wrap 的（高度 = 键盘高 + 位移），
+                    // 用 this.height 会自洽成「上限 = 当前位移」——键盘挪不动，
+                    // 且键盘高度一变（打字出现候选栏）clamp 就把位移往下压。
+                    val limitH = if (env.keyboardModeFloat) env.mScreenHeight else this.height
+                    bottomPaddingValue = (bottomPaddingValue - dy.toInt()).coerceIn(0, limitH - mSkbRootHeight)
                     initialTouchY = event.rawY
                     if (env.keyboardModeFloat) bottomPadding = bottomPaddingValue else mSkbRoot.bottomPadding = bottomPaddingValue
                 }
