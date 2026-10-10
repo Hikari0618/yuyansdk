@@ -168,16 +168,22 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             mBottomPaddingKey = if (isLand) internal.keyboardBottomPaddingLandscapeFloat else internal.keyboardBottomPaddingFloat
             mRightPaddingKey = if (isLand) internal.keyboardRightPaddingLandscapeFloat else internal.keyboardRightPaddingFloat
 
-            // 存储的位移按当前键盘尺寸收一遍。窗口高度已在 applyInputViewHeight 里
-            // 设成 MATCH_PARENT，this.height 是稳定的窗口高度，可以直接用作上限；
-            // 但 mSkbRoot 还没布局时它的 height 可能是 0，此时不限制（否则算出上限 0，
-            // 把键盘贴到右下角且拖不动）。
+            // 应用存储位移时只在「视图真正布局完成」后才 clamp：
+            // 布局过程中的瞬时 height 偏小会把位移压小（症状：打字时键盘被往下压、下缘被裁）。
+            // 拖动路径已经保证写入值合法，这里的 clamp 只是兜底。
             val kbH = mSkbRoot.height
             val kbW = mSkbRoot.width
-            val maxBottom = if (kbH > 0 && kbH < height) height - kbH else Int.MAX_VALUE
-            val maxRight = if (kbW > 0 && kbW < width) width - kbW else Int.MAX_VALUE
-            bottomPadding = mBottomPaddingKey.getValue().coerceIn(0, maxBottom)
-            rightPadding = mRightPaddingKey.getValue().coerceIn(0, maxRight)
+            val canClamp = isLaidOut && kbH > 0 && kbH < height
+            val maxBottom = if (canClamp) height - kbH else Int.MAX_VALUE
+            val maxRight = if (isLaidOut && kbW > 0 && kbW < width) width - kbW else Int.MAX_VALUE
+            val storedBottom = mBottomPaddingKey.getValue()
+            val storedRight = mRightPaddingKey.getValue()
+            bottomPadding = storedBottom.coerceIn(0, maxBottom)
+            rightPadding = storedRight.coerceIn(0, maxRight)
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[pad] 应用存储位移 stored=$storedBottom→$bottomPadding storedR=$storedRight→$rightPadding" +
+                    " laidOut=$isLaidOut thisH=$height rootH=$kbH maxB=$maxBottom"
+            )
             mSkbRoot.bottomPadding = 0
             mSkbRoot.rightPadding = 0
 
