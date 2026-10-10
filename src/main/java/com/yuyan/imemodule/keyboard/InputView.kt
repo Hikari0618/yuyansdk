@@ -231,13 +231,22 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             rootLayoutLogged = true
             mSkbRoot.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or2, ob ->
                 if (b - t != ob - ot || r - l != or2 - ol) {
+                    val ivP = IntArray(2).also { (parent as? View)?.getLocationInWindow(it) }
+                    val rP = IntArray(2).also { mSkbRoot.getLocationInWindow(it) }
+                    val cC = IntArray(2).also { mInputKeyboardContainer.getLocationInWindow(it) }
+                    val bC = IntArray(2).also { mSkbCandidatesBarView.getLocationInWindow(it) }
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[root] h=${b - t} (old=${ob - ot})" +
                             " kbContainer=${mInputKeyboardContainer.height}" +
                             " bar=${mSkbCandidatesBarView.height}/${mSkbCandidatesBarView.visibility}" +
                             " keys=${mInputKeyboardContainer.findViewById<View>(R.id.skb_input_keyboard_view)?.height}" +
                             " bottomHolder=${mLlKeyboardBottomHolder.height}" +
-                            " ivH=${(parent as? View)?.height} ivPad=${(parent as? View)?.paddingBottom}" +
+                            // ivY/ivH = 输入视图在窗口里的 Y 和高度；rootY/rootH = 键盘根在窗口里的 Y 和高度。
+                            // 判据：rootY + h 应当 ≤ ivY + ivH，否则键盘下缘被裁。
+                            " ivY=${ivP[1]} ivH=${(parent as? View)?.height}" +
+                            " ivPad=${(parent as? View)?.paddingBottom} ownPadB=$bottomPadding" +
+                            " rootY=${rP[1]} rootPadB=${mSkbRoot.paddingBottom}" +
+                            " contY=${cC[1]} barY=${bC[1]}" +
                             " holderMin=${mLlKeyboardBottomHolder.minimumHeight}" +
                             " holderVis=${mLlKeyboardBottomHolder.visibility}" +
                             " holderKids=${mLlKeyboardBottomHolder.childCount}" +
