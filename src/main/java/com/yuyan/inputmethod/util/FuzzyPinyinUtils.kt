@@ -7,7 +7,7 @@ import java.io.File
  * 模糊音设置：自由开关常见模糊音对，写入 <方案>.custom.yaml 后自动重新部署。
  *
  * 万象拼音系列方案使用 wanxiang_algebra.yaml 中的命名补丁段（__patch）；
- * 其他方案用 __prepend 把标准模糊音规则插到 speller/algebra 最前面。
+ * 其他方案在 custom.yaml 里重写整条 speller/algebra：模糊音规则在前、方案原有映射在后。
  */
 object FuzzyPinyinUtils {
 
@@ -26,9 +26,6 @@ object FuzzyPinyinUtils {
     )
 
     private const val ENABLED_MARKER = "# enabled:"
-
-    /** 模糊音规则库文件名（写入用户目录，供 <方案>.custom.yaml 用 __patch 引用） */
-    private const val FUZZY_ALGEBRA_FILE = "yuyan_fuzzy.yaml"
 
     /** 万象拼音系列（algebra 由 wanxiang_algebra.yaml 提供命名补丁段） */
     fun isWanxiang(schemaId: String): Boolean {
@@ -126,19 +123,24 @@ object FuzzyPinyinUtils {
             }
             combo.forEach { sb.append("      - ").append(it).append("\n") }
         } else {
-            // ★ 模糊音必须插到 speller/algebra 的【最前面】——那时拼串还是完整拼音音节；
-            //   若用 __append 加在末尾，此时已被双拼映射成输入码（小鹤 fen→fF→ff），
-            //   规则作用域错位，prism 构建会异常（实测 21.8KB 塌成 4.4KB，该方案候选全消失）。
-            //
-            //   librime 只提供 __patch / __append / __merge（源码 config_compiler.h，无 __prepend），
-            //   所以用 __patch 重建整个列表：[模糊音规则...] + [方案原有 algebra]。
-            //   规则库放在 yuyan_fuzzy.yaml，通过引用引用，避免在 custom.yaml 里重复展开。
-            writeFuzzyAlgebraLibrary()
-            sb.append("    __patch:\n")
-            OPTIONS.filter { it.key in enabled }.forEach {
-                sb.append("      - yuyan_fuzzy:/").append(it.key).append("\n")
+            val rules = OPTIONS.filter { it.key in enabled }
+                .flatMap { FUZZY_RULES[it.key].orEmpty() }
+            val base = extractSchemaAlgebra(schemaId)
+            if (rules.isNotEmpty() && base.isNotEmpty()) {
+                // ★ 规则在前（作用于完整拼音音节）+ 方案原有 algebra 在后（继续做键位映射）。
+                //   为什么必须「重写整条列表」而不是打补丁：librime 的三个列表指令都插不到前面 ——
+                //     __append → AppendToList，只能加末尾（此时拼串已是输入码，规则匹配不上）；
+                //     __patch  → 引用内容必须是 ConfigMap，列表直接报 "invalid patch at ..."；
+                //     __merge  → MergeTree 只处理 ConfigMap，列表静默失败；
+                //     __prepend → 不存在（config_compiler.h 里没有）。
+                rules.forEach { sb.append("    - ").append(it).append("\n") }
+                base.forEach { sb.append("    - ").append(it).append("\n") }
+            } else {
+                // 抽不出原 algebra（含 __ 指令或格式不认识）→ 退回 __append。
+                // 放末尾虽匹配不上音节、但不破坏方案，属安全退化。
+                sb.append("    __append:\n")
+                rules.forEach { sb.append("      - ").append(it).append("\n") }
             }
-            sb.append("      - ").append(schemaId).append(".schema:/speller/algebra\n")
         }
         file.writeText(sb.toString())
         return true
@@ -155,19 +157,58 @@ object FuzzyPinyinUtils {
     }
 
     /**
-     * 写入模糊音规则库 yuyan_fuzzy.yaml（所有选项集中一份，供各方案 custom.yaml 用 __patch 引用）。
-     * 放在用户目录，与 rime 其它配置同级，可被 CreateReference 解析为 yuyan_fuzzy:/<key>。
+     * 从 <方案>.schema.yaml 抽出 speller.algebra 的规则行。
+     *
+     * 内置方案的 algebra 都是内联列表（无 __include），按缩进做文本抽取即可。
+     * 抽不出（出现 __ 指令、格式不认识）返回空列表，调用方退回 __append。
      */
-    private fun writeFuzzyAlgebraLibrary() {
-        val sb = StringBuilder()
-        sb.append("# 语燕输入法模糊音规则库（自动生成，请勿手改）\n")
-        sb.append("# 规则作用在「完整拼音音节」上，由 <方案>.custom.yaml 用 __patch 插到\n")
-        sb.append("# speller/algebra 最前面（先于双拼映射），因此对全拼/小鹤/微软等所有方案通用。\n")
-        FUZZY_RULES.forEach { (key, rules) ->
-            sb.append(key).append(":\n")
-            rules.forEach { sb.append("  - ").append(it).append("\n") }
+    private fun extractSchemaAlgebra(schemaId: String): List<String> {
+        val f = File(CustomConstant.RIME_DICT_PATH, "$schemaId.schema.yaml")
+        if (!f.exists()) return emptyList()
+        val out = ArrayList<String>()
+        var inSpeller = false
+        var inAlgebra = false
+        var spellerIndent = 0
+        var algebraIndent = 0
+        try {
+            for (raw in f.readText().lines()) {
+                val line = raw.trimEnd()
+                val t = line.trim()
+                if (t.isEmpty() || t.startsWith("#")) continue
+                val lead = line.length - line.trimStart().length
+                if (!inSpeller) {
+                    if (t == "speller:") {
+                        inSpeller = true
+                        spellerIndent = lead
+                    }
+                    continue
+                }
+                if (lead <= spellerIndent) {   // 已离开 speller 段
+                    inSpeller = false
+                    inAlgebra = false
+                    continue
+                }
+                if (!inAlgebra) {
+                    if (t == "algebra:") {
+                        inAlgebra = true
+                        algebraIndent = lead
+                    }
+                    continue
+                }
+                if (lead <= algebraIndent) {   // algebra 段结束
+                    inAlgebra = false
+                    continue
+                }
+                if (t.startsWith("- ")) {
+                    val rule = t.removePrefix("- ").substringBefore("  #").trim()
+                    if (rule.isEmpty() || rule.contains("__")) return emptyList()
+                    out.add(rule)
+                }
+            }
+        } catch (e: Exception) {
+            return emptyList()
         }
-        File(CustomConstant.RIME_DICT_PATH, FUZZY_ALGEBRA_FILE).writeText(sb.toString())
+        return out
     }
 
     /**
@@ -189,7 +230,7 @@ object FuzzyPinyinUtils {
      *   ② 更糟的是会让 prism 构建异常 —— 实测小鹤/全拼的 prism 从 21.8KB 塌成 4.4KB，
      *      导致该方案所有候选消失（用户现象：设了模糊音后这些音一个候选都没有）。
      *
-     * 用 __patch 重建列表、把规则放到最前面后，拼串还是完整拼音，于是：
+     * 用「重写整条 algebra」把规则放到最前面后，拼串还是完整拼音，于是：
      *   ① 规则与方案无关 —— 全拼/小鹤/微软/智能ABC/自然码… 全部通用，无需按方案翻译码空间；
      *   ② 写法与官方模糊音一致（derive/(e)n$/$1ng/ 之类）；
      *   ③ 派生出的音节会继续走完后面整条 algebra，最终码空间自动正确。
