@@ -981,7 +981,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             env.systemNavbarWindowsBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             val fullDisplayEnable = appPrefs.internal.fullDisplayKeyboardEnable.getValue()
             mLlKeyboardBottomHolder.minimumHeight = when {
-                env.keyboardModeFloat -> 0
+                // 悬浮模式也要给「移动条高度」：这里原来给 0，而 initView 的悬浮分支给的是
+                // heightForKeyboardMove —— 两处不一致，insets 一变（打字/布局过程中会反复变）
+                // holder 就在 38↔0 之间翻，键盘根高度跟着 891↔786 跳、按键区被挤，
+                // 键位网格按 720 绘制、容器只有 653 → 最下面一行被裁（用户实测）。
+                env.keyboardModeFloat -> env.heightForKeyboardMove
                 fullDisplayEnable -> env.heightForFullDisplayBar + env.systemNavbarWindowsBottom
                 else -> env.systemNavbarWindowsBottom
             }
