@@ -217,6 +217,13 @@ fun showFuzzyPinyinDialog(context: android.content.Context) {
         showToast("手写模式不支持模糊音设置")
         return
     }
+    // 只对【内置方案】开放：内置方案随安装包发布（RimeWorkspace.BUILTIN_SCHEMAS）。
+    // 用户自行部署的方案（万象拼音、雾凇等）不在其中，其模糊音应由用户自己在该方案的
+    // custom.yaml 里管理 —— 这里直接提示并返回，避免替用户改写他自己的配置。
+    if (!com.yuyan.inputmethod.util.RimeWorkspace.isBuiltinSchema(schemaId)) {
+        showToast("「$schemaId」是自行部署的方案，请在该方案的配置里设置模糊音")
+        return
+    }
     val options = com.yuyan.inputmethod.util.FuzzyPinyinUtils.OPTIONS
     val labels = options.map { it.label }.toTypedArray()
     val checked = options.map { it.key in com.yuyan.inputmethod.util.FuzzyPinyinUtils.getEnabled(schemaId) }.toBooleanArray()

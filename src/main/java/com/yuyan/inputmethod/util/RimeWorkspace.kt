@@ -35,6 +35,9 @@ object RimeWorkspace {
 
     val userDir: File get() = File(CustomConstant.RIME_DICT_PATH)
 
+    /** 是否为随 APK 附带的内置方案（用户自行部署的方案如万象拼音返回 false） */
+    fun isBuiltinSchema(schemaId: String): Boolean = schemaId in BUILTIN_SCHEMAS
+
     /** 所有可部署方案（内置 + 自定义），返回 (schemaId, 名称) */
     fun allSchemas(): List<Pair<String, String>> {
         val result = LinkedHashMap<String, String>()
