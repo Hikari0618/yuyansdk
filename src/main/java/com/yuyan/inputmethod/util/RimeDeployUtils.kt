@@ -65,6 +65,22 @@ object RimeDeployUtils {
             schemas.forEach { (id, name) -> log("  - $id ($name)") }
             val wrote = RimeWorkspace.writeDefaultYamlIfNeeded()
             log("default.yaml schema_list ${if (wrote) "已刷新" else "无需变更"}")
+            // 关键一步：default.custom.yaml 里的 patch: schema_list: 是【替换】语义，
+            // 会把上面写进 default.yaml 的清单整段覆盖掉（实测引擎日志只有 patching schema_list、
+            // 且没有任何 pinyin 编译记录）。必须再往 default.custom.yaml 追加 schema_list/+。
+            val patched = RimeWorkspace.ensureBuiltinSchemasInCustomPatch()
+            log("default.custom.yaml 内置方案追加 ${if (patched) "已写入" else "已存在"}")
+            // 诊断：把 default.custom.yaml 里与 schema_list 相关的行打出来，
+            // 便于确认最终生效的清单来源（替换 vs 追加）。
+            runCatching {
+                val cf = File(RimeWorkspace.userDir, "default.custom.yaml")
+                if (cf.exists()) {
+                    log("default.custom.yaml 相关行:")
+                    cf.readText().lines().forEachIndexed { i, l ->
+                        if (l.contains("schema_list") || l.contains("语燕输入法自动追加")) log("  ${i + 1}: $l")
+                    }
+                }
+            }
             // 诊断：把最终写进 default.yaml 的 schema_list 原文打出来。
             // 用户反馈「内置拼音方案失效」时，这一条能直接判定补齐逻辑有没有生效
             //（内置方案不在 schema_list 里 → 部署时不编译 → select_schema 失败）。

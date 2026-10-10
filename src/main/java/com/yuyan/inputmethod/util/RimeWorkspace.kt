@@ -248,8 +248,55 @@ object RimeWorkspace {
         "double_pinyin_ziguang",
         "english",
         "stroke",
-        "wanxiang"                   // 万象拼音PRO（/sdcard/yuyan 导入）
+        "wanxiang_pro"               // 万象拼音PRO（/sdcard/yuyan 导入；真实 schema_id 是 wanxiang_pro）
     )
+
+    /**
+     * 保证内置方案在 **default.custom.yaml** 里也被追加 —— 这一步是必需的。
+     *
+     * 关键：用户/方案包的 `default.custom.yaml` 里的 `patch: schema_list:` 是【替换】语义，
+     * 会把 default.yaml 里我们补好的 schema_list 整段覆盖掉，内置方案因此不会被编译，
+     * select_schema 失败。实测证据（引擎日志）：
+     *   config_data.cc:73] loading config file '.../rime/default.custom.yaml'.
+     *   config_compiler.cc:214] patching schema_list
+     *   deployment_tasks.cc:190] updating schemas.
+     * 而整个 646 行日志里除 wanxiang 系外没有任何 pinyin 编译记录 —— 即 pinyin 从未进入生效清单。
+     *
+     * 所以必须往 default.custom.yaml 写 `schema_list/+`（rime 标准的追加语义）：
+     * 无论对方用的是替换还是追加，内置方案都能出现在最终清单里。
+     * 只追加不动原有内容，并在首次修改前备份为 default.custom.yaml.bak。
+     */
+    fun ensureBuiltinSchemasInCustomPatch(): Boolean {
+        val f = File(userDir, "default.custom.yaml")
+        val marker = "# ---- 语燕输入法自动追加：内置方案（请勿删除本段）----"
+        val block = buildString {
+            append(marker).append('\n')
+            append("  schema_list/+:\n")
+            BUILTIN_SCHEMA_IDS.forEach { append("    - schema: ").append(it).append('\n') }
+        }.trimEnd('\n')
+
+        if (!f.exists()) {
+            f.parentFile?.mkdirs()
+            f.writeText("patch:\n$block\n")
+            return true
+        }
+        val text = f.readText()
+        if (text.contains(marker)) return false // 已经写过，不重复追加
+        runCatching { File(userDir, "default.custom.yaml.bak").writeText(text) }
+
+        val lines = text.lines().toMutableList()
+        val patchIdx = lines.indexOfFirst { it.trim() == "patch:" }
+        if (patchIdx >= 0) {
+            // 插到现有 patch: 之下（保持同一层级，不能另起一个 patch: 否则会覆盖掉用户原有的 patch）
+            lines.add(patchIdx + 1, block)
+        } else {
+            if (lines.isNotEmpty() && lines.last().isNotBlank()) lines.add("")
+            lines.add("patch:")
+            lines.add(block)
+        }
+        f.writeText(lines.joinToString("\n") + "\n")
+        return true
+    }
 
     /**
      * 保证工作区的 default.yaml 里包含全部内置方案。
