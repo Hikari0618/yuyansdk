@@ -253,6 +253,10 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                     // 且键盘高度一变（打字出现候选栏）clamp 就把位移往下压。
                     val limitH = if (env.keyboardModeFloat) env.mScreenHeight else this.height
                     bottomPaddingValue = (bottomPaddingValue - dy.toInt()).coerceIn(0, limitH - mSkbRootHeight)
+                    com.yuyan.inputmethod.util.ImeLog.d(
+                        "[move] dy=$dy pad=$bottomPaddingValue limitH=$limitH" +
+                            " thisH=$height rootH=$mSkbRootHeight"
+                    )
                     initialTouchY = event.rawY
                     if (env.keyboardModeFloat) bottomPadding = bottomPaddingValue else mSkbRoot.bottomPadding = bottomPaddingValue
                 }

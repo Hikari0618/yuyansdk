@@ -222,8 +222,18 @@ class ImeService : InputMethodService() {
             layoutParams.height = target
             view.setLayoutParams(layoutParams)
         }
+        // 窗口高度也必须跟着设。只设视图的 layoutParams 时窗口仍是 WRAP_CONTENT，
+        // 视图（MATCH_PARENT）在 wrap 的窗口里只能按内容撑开 —— 悬浮模式下输入视图
+        // 高度就成了「键盘高 + 位移」：位移加多少视图长多少，键盘下界被撑出屏幕
+        //（用户实测「往上划下界逐渐消失」），而且打字重新应用位移时这个 wrap 高度
+        // 又参与 clamp，把位置改写（「继续往下挤」）。
+        val dialog = window as? android.app.Dialog
+        val winAttrs = dialog?.window?.attributes
+        if (winAttrs != null && winAttrs.height != target) {
+            winAttrs.height = target
+            dialog.window.setAttributes(winAttrs)
+        }
         // 侧滑返回失效时看这行：窗口是不是又变成整屏了（整屏会吃掉系统边缘手势）
-        val winAttrs = (window as? android.app.Dialog)?.window?.attributes
         com.yuyan.inputmethod.util.ImeLog.d(
             "[window] float=$floatMode addPhrases=$addPhrases target=" +
                 (if (target == ViewGroup.LayoutParams.MATCH_PARENT) "MATCH_PARENT" else "WRAP_CONTENT") +
