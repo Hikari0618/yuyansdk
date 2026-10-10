@@ -356,11 +356,14 @@ class ImeService : InputMethodService() {
 
     override fun onFinishInput() {
         super.onFinishInput()
-        // 输入结束（收起键盘 / 切到别的输入框）时系统不会再替我们收尾：
-        // 残留的组合态（预选词高亮）会被带到下一个输入框，cursor 更新监听也一直开着。
-        // 这里显式收尾：结束 InputConnection 上的组合态，并关闭 cursor 监听。
-        finishComposingText()
-        currentInputConnection?.requestCursorUpdates(0)
+        // 【重要】这里不要再做 finishComposingText() 之类的收尾。
+        //
+        // 曾按代码审查建议加过收尾（结束组合态 + requestCursorUpdates(0)），但用户实测：
+        // 触发「退格长按左滑恢复被删文字」之后，输入一个字会立刻消失。
+        // 原因是 onFinishInput 在某些操作下会被触发（恢复被删文字会重启输入），
+        // 此时结束组合态会把用户正在输入的字直接收掉 —— 表现为输入即消失。
+        // 输入会话的收尾交给系统默认行为即可，这里只留一条日志便于确认触发时机。
+        com.yuyan.inputmethod.util.ImeLog.d("[life] onFinishInput 触发（不做组合态收尾）")
     }
 
     /**

@@ -65,6 +65,29 @@ object RimeDeployUtils {
             schemas.forEach { (id, name) -> log("  - $id ($name)") }
             val wrote = RimeWorkspace.writeDefaultYamlIfNeeded()
             log("default.yaml schema_list ${if (wrote) "已刷新" else "无需变更"}")
+            // 诊断：把最终写进 default.yaml 的 schema_list 原文打出来。
+            // 用户反馈「内置拼音方案失效」时，这一条能直接判定补齐逻辑有没有生效
+            //（内置方案不在 schema_list 里 → 部署时不编译 → select_schema 失败）。
+            try {
+                val df = File(RimeWorkspace.userDir, "default.yaml")
+                if (df.exists()) {
+                    val inList = df.readText().lines()
+                        .dropWhile { it.trim() != "schema_list:" }
+                        .drop(1)
+                        .takeWhile { it.trim().startsWith("- ") || it.trim().startsWith("#") || it.isBlank() }
+                        .filter { it.trim().startsWith("- ") }
+                    log("最终 schema_list 共 ${inList.size} 项:")
+                    inList.forEach { log("  $it") }
+                    val need = listOf("pinyin", "t9_pinyin", "english", "stroke", "double_pinyin_flypy")
+                    val text = inList.joinToString(" ")
+                    val missing = need.filterNot { text.contains(it) }
+                    log(if (missing.isEmpty()) "内置方案齐备 ✅" else "⚠ 缺失内置方案: $missing")
+                } else {
+                    log("⚠ 用户目录没有 default.yaml")
+                }
+            } catch (e: Exception) {
+                log("读取 default.yaml 失败: $e")
+            }
 
             // 3. 工作区 build/ 产物盘点（预编译词典是打字的关键）
             val buildDir = File(RimeWorkspace.userDir, "build")
