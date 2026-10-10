@@ -91,9 +91,28 @@ object RimeDeployUtils {
                     }
                 }
             }
-            // 诊断：把最终写进 default.yaml 的 schema_list 原文打出来。
-            // 用户反馈「内置拼音方案失效」时，这一条能直接判定补齐逻辑有没有生效
-            //（内置方案不在 schema_list 里 → 部署时不编译 → select_schema 失败）。
+            // 诊断：把各方案的 <方案>.custom.yaml 里 speller 相关行打出来。
+            // 模糊音设置是「按方案」写进这里的，用户遇到「设了模糊音没效果」时，
+            // 这一条能直接看出：设置到底落在哪个方案上、规则是什么。
+            runCatching {
+                val all = RimeWorkspace.userDir.listFiles()
+                val customs = ArrayList<File>()
+                if (all != null) {
+                    for (f in all) {
+                        if (f.isFile && f.name.endsWith(".custom.yaml")) customs.add(f)
+                    }
+                }
+                customs.sortBy { it.name }
+                log("方案级 custom.yaml 共 ${customs.size} 个:")
+                for (f in customs) {
+                    val lines = f.readText().lines().filter { l ->
+                        l.contains("speller") || l.contains("derive/") || l.contains("__append") ||
+                            l.contains("模糊音") || l.contains("enabled:")
+                    }
+                    log("  ${f.name}（${f.length()} bytes，speller/模糊音相关 ${lines.size} 行）:")
+                    for (l in lines.take(24)) log("    $l")
+                }
+            }
             try {
                 val df = File(RimeWorkspace.userDir, "default.yaml")
                 if (df.exists()) {
