@@ -231,7 +231,7 @@ class ImeService : InputMethodService() {
         val winAttrs = dialog?.window?.attributes
         if (winAttrs != null && winAttrs.height != target) {
             winAttrs.height = target
-            dialog.window.setAttributes(winAttrs)
+            dialog?.window?.setAttributes(winAttrs)
         }
         // 侧滑返回失效时看这行：窗口是不是又变成整屏了（整屏会吃掉系统边缘手势）
         com.yuyan.inputmethod.util.ImeLog.d(
