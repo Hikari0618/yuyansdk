@@ -211,6 +211,23 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             mSkbRoot.bottomPadding = mBottomPaddingKey.getValue()
             mSkbRoot.rightPadding = mRightPaddingKey.getValue()
         }
+        // 键盘根尺寸变化埋点：悬浮键盘打字时 region 顶边在 100/233 之间跳（差 133），
+        // 而候选栏自己的高度是稳定的（[h2] 只触发一次且 bar=133），所以要逐层打出
+        // 根 / 容器 / 候选栏 / 按键区 / 底部 holder 的高度，定位是哪一层在变。
+        if (!rootLayoutLogged) {
+            rootLayoutLogged = true
+            mSkbRoot.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or2, ob ->
+                if (b - t != ob - ot || r - l != or2 - ol) {
+                    com.yuyan.inputmethod.util.ImeLog.d(
+                        "[root] h=${b - t} (old=${ob - ot})" +
+                            " kbContainer=${mInputKeyboardContainer.height}" +
+                            " bar=${mSkbCandidatesBarView.height}/${mSkbCandidatesBarView.visibility}" +
+                            " keys=${mInputKeyboardContainer.findViewById<View>(R.id.skb_input_keyboard_view)?.height}" +
+                            " bottomHolder=${mLlKeyboardBottomHolder.height}"
+                    )
+                }
+            }
+        }
         updateTheme()
     }
 
@@ -226,6 +243,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     // 死区问题改由 ImeService 的 touchableRegion 精确圈「候选栏+键盘」解决：
     // 窗口里 region 之外的区域不认领触摸，同样没有死区。
 
+    private var rootLayoutLogged = false
     private var mSkbRootHeight = 0
     private var mSkbRootWidth = 0
 
