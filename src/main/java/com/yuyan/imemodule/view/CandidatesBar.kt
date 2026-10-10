@@ -546,6 +546,14 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             LayoutParams.MATCH_PARENT,
             instance.heightForCandidates - grow
         )
+        // 复制建议行必须一起更新：它是缓存复用的（mClipboardSuggestionView 只建一次），
+        // 高度在创建时按「当时的 heightForCandidates」设死 —— 悬浮↔非悬浮切换后
+        // 该值会变（实测 133↔87），不同步的话行高之和超出栏高，
+        // 建议行文字被顶下去、下沿被裁（用户实测「切一次模式后建议行被遮一半」）。
+        mClipboardSuggestionView?.layoutParams = LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            instance.heightForCandidates - grow
+        )
     }
 
     fun showCandidates() {

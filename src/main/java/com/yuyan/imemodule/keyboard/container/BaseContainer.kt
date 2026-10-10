@@ -101,7 +101,15 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
     var isHandling = false
     private fun onModifyKeyboardHeightEvent(v12: View, event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> lastY[0] = event.y
+            MotionEvent.ACTION_DOWN -> {
+                lastY[0] = event.y
+                // 无条件埋点：确认「上面那个把手」到底有没有收到触摸
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[kh] 上把手 DOWN y=${event.y} rawY=${event.rawY}" +
+                        " vH=${v12.height} vTop=${v12.top} shadowH=${mHeightShadowView?.height}" +
+                        " shadowVis=${mHeightShadowView?.visibility}"
+                )
+            }
             MotionEvent.ACTION_MOVE -> {
                 val y = event.y
                 if (!isHandling && abs((y - lastY[0]).toDouble()) > dp(10)) {
@@ -148,6 +156,10 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
                 initialTouchY = event.rawY
                 mSkbRootHeight = inputView.mSkbRoot.height
                 mSkbRootWidth = inputView.mSkbRoot.width
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[kh] 下把手 DOWN rawY=${event.rawY} float=${EnvironmentSingleton.instance.keyboardModeFloat}" +
+                        " storedPad=$bottomPaddingValue rootH=$mSkbRootHeight"
+                )
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
