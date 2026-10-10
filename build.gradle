@@ -59,7 +59,11 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
+            // 库模块不做自身压缩。库压缩时只按「库内部是否引用」判断可达性，
+            // 只被 app 模块引用的类会被删掉 —— 实测 CrashHandler / Launcher
+            // （以及它们的 $Companion）在库的 release 变体里被删，dex 里只剩引用，
+            // app 侧 NoClassDefFoundError 启动闪退。压缩统一交给 app 模块做。
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard.cfg'
             resValue("string", "app_name", "@string/ime_yuyan_name")
             resValue("drawable", "app_icon", "@drawable/ic_sdk_launcher")
