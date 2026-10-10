@@ -126,18 +126,20 @@ object FuzzyPinyinUtils {
             val rules = OPTIONS.filter { it.key in enabled }
                 .flatMap { FUZZY_RULES[it.key].orEmpty() }
             val base = extractSchemaAlgebra(schemaId)
-            if (rules.isNotEmpty() && base.isNotEmpty()) {
+            if (rules.isNotEmpty() && base != null) {
                 // ★ 规则在前（作用于完整拼音音节）+ 方案原有 algebra 在后（继续做键位映射）。
                 //   为什么必须「重写整条列表」而不是打补丁：librime 的三个列表指令都插不到前面 ——
                 //     __append → AppendToList，只能加末尾（此时拼串已是输入码，规则匹配不上）；
                 //     __patch  → 引用内容必须是 ConfigMap，列表直接报 "invalid patch at ..."；
                 //     __merge  → MergeTree 只处理 ConfigMap，列表静默失败；
                 //     __prepend → 不存在（config_compiler.h 里没有）。
+                //   注意 base 可能为空（全拼方案本来就没有 algebra）—— 那种情况下这个列表
+                //   就只有模糊音规则，正是我们要的；绝不能对它写 __append（会把节点变成 map）。
                 rules.forEach { sb.append("    - ").append(it).append("\n") }
                 base.forEach { sb.append("    - ").append(it).append("\n") }
             } else {
-                // 抽不出原 algebra（含 __ 指令或格式不认识）→ 退回 __append。
-                // 放末尾虽匹配不上音节、但不破坏方案，属安全退化。
+                // 抽取失败（含 __ 指令等）→ 退回 __append。此时 schema 里确实有 speller/algebra
+                // 节点，追加语义可用；放末尾虽匹配不上音节、但不破坏方案，属安全退化。
                 sb.append("    __append:\n")
                 rules.forEach { sb.append("      - ").append(it).append("\n") }
             }
@@ -159,12 +161,19 @@ object FuzzyPinyinUtils {
     /**
      * 从 <方案>.schema.yaml 抽出 speller.algebra 的规则行。
      *
-     * 内置方案的 algebra 都是内联列表（无 __include），按缩进做文本抽取即可。
-     * 抽不出（出现 __ 指令、格式不认识）返回空列表，调用方退回 __append。
+     * 返回值有两种「空」的含义，调用方必须区分：
+     *   - 返回空列表  → 方案本来就没有 algebra（如全拼 pinyin.schema.yaml），
+     *                   此时 custom.yaml 直接写「只有模糊音规则」的平铺列表即可；
+     *   - 返回 null    → 抽取失败（出现 __ 指令、格式不认识、文件读不到），
+     *                   此时退回 __append 做安全退化。
+     * 不能把两者都当空列表：对「没有 algebra 的方案」写 __append，
+     * 因为 schema 里没有 speller/algebra 节点，Rime 会把整个 __append 映射
+     * 直接赋给 speller/algebra（EditNode 的 overwriting 分支），
+     * 结果该节点成了 map 而不是 list，引擎无法使用 → 模糊音不生效（全拼实测）。
      */
-    private fun extractSchemaAlgebra(schemaId: String): List<String> {
+    private fun extractSchemaAlgebra(schemaId: String): List<String>? {
         val f = File(CustomConstant.RIME_DICT_PATH, "$schemaId.schema.yaml")
-        if (!f.exists()) return emptyList()
+        if (!f.exists()) return null
         val out = ArrayList<String>()
         var inSpeller = false
         var inAlgebra = false
@@ -201,14 +210,14 @@ object FuzzyPinyinUtils {
                 }
                 if (t.startsWith("- ")) {
                     val rule = t.removePrefix("- ").substringBefore("  #").trim()
-                    if (rule.isEmpty() || rule.contains("__")) return emptyList()
+                    if (rule.isEmpty() || rule.contains("__")) return null
                     out.add(rule)
                 }
             }
         } catch (e: Exception) {
-            return emptyList()
+            return null
         }
-        return out
+        return out   // 可能为空：方案本来就没有 algebra
     }
 
     /**
