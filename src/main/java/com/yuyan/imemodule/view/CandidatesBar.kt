@@ -696,6 +696,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
 
     private var lastAreaH = 0
 
+    /** 上一次钉住的栏高。悬浮↔非悬浮切换会让 heightForCandidatesArea 变（203↔133），
+     *  用它检测变化后重套行高（见 onMeasure）。 */
+    private var lastPinnedH = 0
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // 高度固定为设计高度（heightForCandidatesArea），待编辑行/候选行在栏「内部」收放。
         //
@@ -712,6 +716,15 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         val areaH = instance.heightForCandidatesArea
         if (areaH > 0) lastAreaH = areaH
         val pin = if (areaH > 0) areaH else lastAreaH
+        // 悬浮↔非悬浮切换时 heightForCandidatesArea 会变（实测 203↔133）：
+        // 栏高在这里按新值钉死，但两行的高度是 applyRowHeights() 从 heightForcomposing /
+        // heightForCandidates 设的 —— 那两个值可能还停在旧模式，于是「行高之和 ≠ 栏高」，
+        // 内容比栏高出一截，建议行文字被顶下去、下沿被裁（实测 bar=133 而 dataH=203）。
+        // 检测到钉住的高度变了就重套一次行高，保证栏高与行高永远一致。
+        if (pin > 0 && pin != lastPinnedH) {
+            lastPinnedH = pin
+            applyRowHeights()
+        }
         val widthMeasure = MeasureSpec.makeMeasureSpec(instance.skbWidth, MeasureSpec.EXACTLY)
         super.onMeasure(
             widthMeasure,
