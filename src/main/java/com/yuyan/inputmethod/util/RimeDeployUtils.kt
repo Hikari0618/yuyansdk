@@ -38,6 +38,16 @@ object RimeDeployUtils {
             val context = Launcher.instance.context
             log("应用版本: ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}")
 
+            // 0. 需要时先把 assets 的 rime 资源复制到用户目录。
+            // 放在部署里而不是只挂在应用启动上：部署是用户主动触发的，时机可控、
+            // 结果写进本日志，不会再出现「改动没下发却查不出来」的情况。
+            // 带版本号闸门，版本没变则跳过（不会每次部署都搬一遍几十 MB 的词库表）。
+            if (RimeWorkspace.copyAssetsIfNeeded(context)) {
+                log("assets/rime 已复制到用户目录（词库版本变化）")
+            } else {
+                log("assets/rime 无需复制（词库版本未变）")
+            }
+
             // 0. 权限与 sdcard 目录状态
             val hasPermission = RimeWorkspace.hasStoragePermission(context)
             log("文件访问权限: ${if (hasPermission) "已授予" else "未授予"}")

@@ -1,7 +1,10 @@
 package com.yuyan.inputmethod.util
 
+import android.content.Context
 import android.os.Environment
 import com.yuyan.imemodule.application.CustomConstant
+import com.yuyan.imemodule.prefs.AppPrefs
+import com.yuyan.imemodule.utils.AssetUtils
 import java.io.File
 
 /**
@@ -295,6 +298,42 @@ object RimeWorkspace {
             lines.add(block)
         }
         f.writeText(lines.joinToString("\n") + "\n")
+        return true
+    }
+
+    /**
+     * 把 assets 里的 rime 资源复制到用户目录 —— 需要时（版本号变化）才做。
+     *
+     * 复制前会保护「用户状态文件」（installation.yaml / user.yaml / default.yaml），
+     * 因为 copyFileOrDir 是 overwrite=true 的全量覆盖：
+     *   installation.yaml → sync_dir / installation_id
+     *   user.yaml         → 用户 profile
+     *   default.yaml      → schema_list 等自定义
+     *
+     * 调用点有两处（都带同一个版本闸门，先到先做、后到自动跳过）：
+     *   1. RimeDeployUtils.deploy() 开头 —— 主路径，部署是用户主动触发的，
+     *      时机可控、结果写进部署日志（推荐在这里发生）
+     *   2. Launcher.onInitDataChildThread() —— 兜底，避免用户从未部署过时
+     *      assets 完全没被复制（此时键盘本身就不可用）
+     *
+     * @return true 表示本次真的做了复制
+     */
+    fun copyAssetsIfNeeded(context: Context): Boolean {
+        val stored = AppPrefs.getInstance().internal.dataDictVersion.getValue()
+        if (stored >= CustomConstant.CURRENT_RIME_DICT_DATA_VERSIOM) return false
+
+        val rimeDir = File(CustomConstant.RIME_DICT_PATH)
+        val userStateFiles = listOf("installation.yaml", "user.yaml", "default.yaml")
+        val backup = userStateFiles.associateWith { name ->
+            File(rimeDir, name).takeIf { it.exists() }?.let { runCatching { it.readText() }.getOrNull() }
+        }
+        AssetUtils.copyFileOrDir(context, "rime", "", CustomConstant.RIME_DICT_PATH, true)
+        AssetUtils.copyFileOrDir(context, "hw", "", CustomConstant.HW_DICT_PATH, true)
+        backup.forEach { (name, text) ->
+            if (text != null) runCatching { File(rimeDir, name).writeText(text) }
+        }
+        AppPrefs.getInstance().internal.dataDictVersion
+            .setValue(CustomConstant.CURRENT_RIME_DICT_DATA_VERSIOM)
         return true
     }
 
