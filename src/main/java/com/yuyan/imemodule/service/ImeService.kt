@@ -89,9 +89,16 @@ class ImeService : InputMethodService() {
         return mInputView
     }
 
-    override fun onCreateCandidatesView(): View {
-        if (!::mCandidateView.isInitialized) mCandidateView = CandidateView(baseContext, this)
-        return mCandidateView
+    override fun onCreateCandidatesView(): View? {
+        // 返回 null：不向框架提供「系统级独立候选视图」。
+        //
+        // 框架会把候选视图放在输入视图【上方】，即使 setCandidatesViewShown(false) 隐藏它，
+        // 它占的高度仍会被预留 —— 实测打字时输入视图整体下移 133（ivY 100→233）、
+        // 高度少 133（ivH 1954→1821，底边不变），键盘根被顶到内容区最上沿并压扁
+        // （h 879→786 = 按键区少 67 + 小横条 26），表现为「上缘被压下、下缘被裁、
+        // 小横条变小」。语燕的候选词本来就画在输入视图内的 CandidatesBar 上，
+        // 这个独立候选视图是多余的（只有物理键盘模式会用到，见下方 isHardwareKeyboard 分支）。
+        return null
     }
 
     override fun onEvaluateInputViewShown(): Boolean {
@@ -301,7 +308,7 @@ class ImeService : InputMethodService() {
                             (if (::mInputView.isInitialized) mInputView.mSkbCandidatesBarView.debugSize() else "")
                     )
                 }
-            } else {
+            } else if (::mCandidateView.isInitialized) {
                 contentTopInsets = EnvironmentSingleton.instance.mScreenHeight
                 visibleTopInsets = EnvironmentSingleton.instance.mScreenHeight
                 touchableInsets = Insets.TOUCHABLE_INSETS_REGION
@@ -325,6 +332,7 @@ class ImeService : InputMethodService() {
     override fun onUpdateCursorAnchorInfo(cursorAnchorInfo: CursorAnchorInfo?) {
         super.onUpdateCursorAnchorInfo(cursorAnchorInfo)
         if (!isHardwareKeyboard || cursorAnchorInfo == null) return
+        if (!::mCandidateView.isInitialized) return
         cursorAnchorPosition[0] = cursorAnchorInfo.insertionMarkerHorizontal
         cursorAnchorPosition[1] = cursorAnchorInfo.insertionMarkerBottom
         val matrix = cursorAnchorInfo.getMatrix()
