@@ -187,6 +187,19 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             mSkbRoot.bottomPadding = 0
             mSkbRoot.rightPadding = 0
 
+            // 悬浮模式：把键盘根与按键容器按「设计高度」钉死。
+            // 实测（[root] 埋点）：按键区已钉在 720，但按键容器与键盘根仍会在
+            // 853/891 与 786 之间跳（容器 786 = 133 + 653，没跟上子视图的 720），
+            // 根一缩 → 底部对齐 → 顶边下移、键位网格按 720 绘制 → 下缘被裁。
+            // 三者都钉死后布局完全确定：根 = 按键区 + 候选栏 + 移动条 + 导航栏。
+            val rootH = env.skbHeight + env.heightForCandidatesArea +
+                env.heightForKeyboardMove + env.systemNavbarWindowsBottom
+            mSkbRoot.layoutParams?.let { it.height = rootH; mSkbRoot.layoutParams = it }
+            mInputKeyboardContainer.layoutParams?.let {
+                it.height = env.skbHeight + env.heightForCandidatesArea
+                mInputKeyboardContainer.layoutParams = it
+            }
+
             mLlKeyboardBottomHolder.minimumHeight = env.heightForKeyboardMove
             val mIvKeyboardMove = ImageView(context).apply {
                 setImageResource(R.drawable.ic_horizontal_line)
@@ -224,6 +237,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                             " bar=${mSkbCandidatesBarView.height}/${mSkbCandidatesBarView.visibility}" +
                             " keys=${mInputKeyboardContainer.findViewById<View>(R.id.skb_input_keyboard_view)?.height}" +
                             " bottomHolder=${mLlKeyboardBottomHolder.height}" +
+                            " ivH=${(parent as? View)?.height} ivPad=${(parent as? View)?.paddingBottom}" +
                             " holderMin=${mLlKeyboardBottomHolder.minimumHeight}" +
                             " holderVis=${mLlKeyboardBottomHolder.visibility}" +
                             " holderKids=${mLlKeyboardBottomHolder.childCount}" +
