@@ -168,15 +168,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             mBottomPaddingKey = if (isLand) internal.keyboardBottomPaddingLandscapeFloat else internal.keyboardBottomPaddingFloat
             mRightPaddingKey = if (isLand) internal.keyboardRightPaddingLandscapeFloat else internal.keyboardRightPaddingFloat
 
-            // 存储的位移要按当前键盘尺寸收一遍，但**必须等尺寸量出来之后**：
-            // mSkbRoot 还没布局时 height/width 为 0 或等于整屏，算出的上限会是 0，
-            // 把键盘强行贴到右下角、而且再也拖不动（用户实测）。
-            // 上限同样用「屏幕高度」而不是 this.height —— 悬浮模式下输入视图是 wrap 的，
-            // 用它会自洽成「上限 = 当前位移」，键盘高度一变就把位移往下压。
+            // 存储的位移按当前键盘尺寸收一遍。窗口高度已在 applyInputViewHeight 里
+            // 设成 MATCH_PARENT，this.height 是稳定的窗口高度，可以直接用作上限；
+            // 但 mSkbRoot 还没布局时它的 height 可能是 0，此时不限制（否则算出上限 0，
+            // 把键盘贴到右下角且拖不动）。
             val kbH = mSkbRoot.height
             val kbW = mSkbRoot.width
-            val limitH = EnvironmentSingleton.instance.mScreenHeight
-            val maxBottom = if (kbH > 0 && kbH < limitH) limitH - kbH else Int.MAX_VALUE
+            val maxBottom = if (kbH > 0 && kbH < height) height - kbH else Int.MAX_VALUE
             val maxRight = if (kbW > 0 && kbW < width) width - kbW else Int.MAX_VALUE
             bottomPadding = mBottomPaddingKey.getValue().coerceIn(0, maxBottom)
             rightPadding = mRightPaddingKey.getValue().coerceIn(0, maxRight)
@@ -247,15 +245,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                     if (env.keyboardModeFloat) rightPadding = rightPaddingValue else mSkbRoot.rightPadding = rightPaddingValue
                 }
                 if (dy.absoluteValue > 10) {
-                    // 上限必须用「屏幕高度」，不能用 this.height：
-                    // 悬浮模式下输入视图是 wrap 的（高度 = 键盘高 + 位移），
-                    // 用 this.height 会自洽成「上限 = 当前位移」——键盘挪不动，
-                    // 且键盘高度一变（打字出现候选栏）clamp 就把位移往下压。
-                    val limitH = if (env.keyboardModeFloat) env.mScreenHeight else this.height
-                    bottomPaddingValue = (bottomPaddingValue - dy.toInt()).coerceIn(0, limitH - mSkbRootHeight)
+                    // 上限用 this.height：窗口高度已在 applyInputViewHeight 里设成
+                    // MATCH_PARENT（日志 winH=-1），this.height 是稳定的窗口高度
+                    //（= 屏幕高 - 状态栏/导航栏），不是当初那个「键盘高 + 位移」的 wrap 值。
+                    // 用 mScreenHeight 会偏大（超出窗口可见范围），把键盘顶出窗口顶边。
+                    bottomPaddingValue = (bottomPaddingValue - dy.toInt()).coerceIn(0, this.height - mSkbRootHeight)
                     com.yuyan.inputmethod.util.ImeLog.d(
-                        "[move] dy=$dy pad=$bottomPaddingValue limitH=$limitH" +
-                            " thisH=$height rootH=$mSkbRootHeight"
+                        "[move] dy=$dy pad=$bottomPaddingValue thisH=$height rootH=$mSkbRootHeight"
                     )
                     initialTouchY = event.rawY
                     if (env.keyboardModeFloat) bottomPadding = bottomPaddingValue else mSkbRoot.bottomPadding = bottomPaddingValue
