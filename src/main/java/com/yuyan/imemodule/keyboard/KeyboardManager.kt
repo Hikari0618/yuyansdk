@@ -34,6 +34,17 @@ class KeyboardManager {
         keyboards.clear() // TODO 清空缓存界面，发现调用 PinyinService.onCreateInputView时，原输入界面全部会失效。
         mKeyboardRootView = keyboardRootView
         mInputView = inputView
+        // 按键区容器（InputViewParent）是 wrap 的 RelativeLayout，但实测会出现
+        // 「父 653 < 子 720」——子视图被裁，而键位网格是按 skbHeight(720) 绘制的，
+        // 于是最下面一行被切掉（用户实测：悬浮键盘打字时下缘被裁）。
+        // 它里面装的所有键盘容器（BaseContainer/ConstraintLayout）本来就都钉在 skbHeight 上，
+        // 所以这里也钉成 skbHeight，任何布局抖动都挤不到键盘。
+        val env = EnvironmentSingleton.instance
+        if (env.skbHeight > 0) {
+            keyboardRootView.layoutParams = (keyboardRootView.layoutParams ?: return).apply {
+                height = env.skbHeight
+            }
+        }
     }
 
     fun clearKeyboard() {
