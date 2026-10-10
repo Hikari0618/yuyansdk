@@ -57,9 +57,28 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
         val rootView = LayoutInflater.from(context).inflate(R.layout.layout_ime_keyboard_height_shadow, this, false)
         this.addView(rootView)
         mHeightShadowView = rootView
+        // 覆盖层四边对齐铺满整个按键容器：上/下两个把手才会稳定贴住键盘上下缘。
+        // （之前拖拽时按 skbHeight 设高度，但容器实测高度是 skbHeight+候选区，
+        //   例：容器 971 而 skbHeight 768 —— 两者不一致时下面的把手会跑到键盘外，
+        //   用户实测「用上面的键调过、点重置后下面的键就消失了」。）
+        rootView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply {
+            topToTop = LayoutParams.PARENT_ID
+            bottomToBottom = LayoutParams.PARENT_ID
+            startToStart = LayoutParams.PARENT_ID
+            endToEnd = LayoutParams.PARENT_ID
+        }
         rootView.findViewById<View>(R.id.ll_keyboard_height_reset).setOnClickListener { _: View? ->
             EnvironmentSingleton.instance.keyBoardHeightRatio = 0.3f
             EnvironmentSingleton.instance.initData()
+            // 位移必须一并归零：重置只管高度比的话，「拖过下面的把手再点重置」
+            // 键盘仍停在被抬高的位置（日志实测 rootPadB 停在 176 不归零、看起来无反应）。
+            inputView.bottomPadding = 0
+            inputView.rightPadding = 0
+            inputView.mSkbRoot.bottomPadding = 0
+            inputView.mSkbRoot.rightPadding = 0
+            mBottomPaddingKey.setValue(0)
+            mRightPaddingKey.setValue(0)
+            com.yuyan.inputmethod.util.ImeLog.d("[kh] 重置：高度比→0.3 位移→0（含存储值）")
             KeyboardLoaderUtil.instance.clearKeyboardMap()
             KeyboardManager.instance.clearKeyboard()
             updateSkbLayout()
@@ -99,11 +118,13 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
                     KeyboardLoaderUtil.instance.clearKeyboardMap()
                     KeyboardManager.instance.clearKeyboard()
                     updateSkbLayout()
-                    val l = LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        EnvironmentSingleton.instance.skbHeight
+                    // 覆盖层已在 setKeyboardHeight() 里铺满容器（四边对齐），
+                    // 这里不再按 skbHeight 重设高度 —— 容器实测高度是 skbHeight+候选区，
+                    // 按 skbHeight 设会让下面的把手跑到键盘外（「重置后下面的键消失」）。
+                    com.yuyan.inputmethod.util.ImeLog.d(
+                        "[kh] 拖高度 rat=$rat skbH=${EnvironmentSingleton.instance.skbHeight}" +
+                            " shadowH=${mHeightShadowView?.height} shadowVis=${mHeightShadowView?.visibility}"
                     )
-                    mHeightShadowView?.layoutParams = l
                     isHandling = false
                 }
             }
@@ -163,6 +184,12 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 mRightPaddingKey.setValue(rightPaddingValue)
                 mBottomPaddingKey.setValue(bottomPaddingValue)
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[kh] 拖位移结束 float=${EnvironmentSingleton.instance.keyboardModeFloat}" +
+                        " pad=$bottomPaddingValue right=$rightPaddingValue" +
+                        " ivPad=${inputView.paddingBottom} rootPadB=${inputView.mSkbRoot.paddingBottom}" +
+                        " ivH=${inputView.height} rootH=${inputView.mSkbRoot.height}"
+                )
             }
         }
         return false
