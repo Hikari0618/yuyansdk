@@ -672,6 +672,30 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         }
     }
 
+    /**
+     * 布局完成后的几何埋点。`[h]` 是 showCandidates() 里读的（布局之前），
+     * 看不到「候选栏那一行的高度在布局里时有时无」——那正是悬浮键盘打字时
+     * 上缘被压下/下缘被裁的来源（region 底边固定、顶边在跳，差值正好是栏高 133）。
+     */
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val holder = parent as? View
+        val root = holder?.parent as? View
+        val compH = if (::mComposingView.isInitialized) mComposingView.height else -1
+        val candH = if (::candidatesData.isInitialized) candidatesData.height else -1
+        val dataVis = if (::mCandidatesDataContainer.isInitialized) mCandidatesDataContainer.visibility else -1
+        val dataH = if (::mCandidatesDataContainer.isInitialized) mCandidatesDataContainer.height else -1
+        val menuVis = if (::mCandidatesMenuContainer.isInitialized) mCandidatesMenuContainer.visibility else -1
+        val menuH = if (::mCandidatesMenuContainer.isInitialized) mCandidatesMenuContainer.height else -1
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[h2] bar=$h oldBar=$oldh holderH=${holder?.height} rootH=${root?.height}" +
+                " dataVis=$dataVis dataH=$dataH menuVis=$menuVis menuH=$menuH" +
+                " compH=$compH candH=$candH areaH=${instance.heightForCandidatesArea}"
+        )
+    }
+
+    private var lastAreaH = 0
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // 高度固定为设计高度（heightForCandidatesArea），待编辑行/候选行在栏「内部」收放。
         //
@@ -680,13 +704,18 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 输入框被顶得上下抖；悬浮键盘位置偏高时窗口往上长，键盘底部直接被挤出屏幕。
         // 空带问题改用「触摸区精确圈 mSkbRoot（region 外的区域不认领触摸）」解决，
         // 不靠收缩栏高度，两者互不干扰。
-        val widthMeasure = MeasureSpec.makeMeasureSpec(instance.skbWidth, MeasureSpec.EXACTLY)
-        // heightForCandidatesArea 在环境初始化完成前是 0，那时钉成 0 会把候选栏压成 0 高
-        // （键盘整体矮一截，之后某次重新布局才「长回来」，正是悬浮键盘位置被顶出屏幕的来源之一）
+        //
+        // heightForCandidatesArea 在 EnvironmentSingleton 初始化完成前是 0：那时既不能钉 0
+        // （栏被压成 0 高、键盘矮一截），也不能退回「按内容测量」——内容此刻往往还是空的，
+        // 量出来同样是 0，于是布局里这一行时有时无（region 底边固定、顶边在 200/333 之间跳，
+        // 差值正好是栏高）。退回「上一次有效值」，没有有效值时才按内容测量。
         val areaH = instance.heightForCandidatesArea
+        if (areaH > 0) lastAreaH = areaH
+        val pin = if (areaH > 0) areaH else lastAreaH
+        val widthMeasure = MeasureSpec.makeMeasureSpec(instance.skbWidth, MeasureSpec.EXACTLY)
         super.onMeasure(
             widthMeasure,
-            if (areaH > 0) MeasureSpec.makeMeasureSpec(areaH, MeasureSpec.EXACTLY)
+            if (pin > 0) MeasureSpec.makeMeasureSpec(pin, MeasureSpec.EXACTLY)
             else MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
     }
