@@ -1,6 +1,7 @@
 package com.yuyan.inputmethod.util
 
 import com.yuyan.imemodule.application.CustomConstant
+import com.yuyan.imemodule.application.Launcher
 import java.io.File
 
 /**
@@ -112,8 +113,8 @@ object FuzzyPinyinUtils {
         sb.append("patch:\n")
         keptLines.filter { it.isNotBlank() && it.trim() != "patch:" }
             .forEach { sb.append(it).append("\n") }
-        sb.append("  speller/algebra:\n")
         if (wanxiang) {
+            sb.append("  speller/algebra:\n")
             // 保留用户已选的方案组合（base/pro/键盘位），默认：pro/小鹤双拼 + pro/间接辅助
             val combo = keptBaseCombo(if (file.exists()) file.readText() else "")
                 .ifEmpty { listOf("wanxiang_algebra:/pro/小鹤双拼", "wanxiang_algebra:/pro/间接辅助") }
@@ -126,22 +127,23 @@ object FuzzyPinyinUtils {
             val rules = OPTIONS.filter { it.key in enabled }
                 .flatMap { FUZZY_RULES[it.key].orEmpty() }
             val base = extractSchemaAlgebra(schemaId)
-            if (rules.isNotEmpty() && base != null) {
-                // ★ 规则在前（作用于完整拼音音节）+ 方案原有 algebra 在后（继续做键位映射）。
-                //   为什么必须「重写整条列表」而不是打补丁：librime 的三个列表指令都插不到前面 ——
-                //     __append → AppendToList，只能加末尾（此时拼串已是输入码，规则匹配不上）；
-                //     __patch  → 引用内容必须是 ConfigMap，列表直接报 "invalid patch at ..."；
-                //     __merge  → MergeTree 只处理 ConfigMap，列表静默失败；
-                //     __prepend → 不存在（config_compiler.h 里没有）。
-                //   注意 base 可能为空（全拼方案本来就没有 algebra）—— 那种情况下这个列表
-                //   就只有模糊音规则，正是我们要的；绝不能对它写 __append（会把节点变成 map）。
-                rules.forEach { sb.append("    - ").append(it).append("\n") }
-                base.forEach { sb.append("    - ").append(it).append("\n") }
-            } else {
-                // 抽取失败（含 __ 指令等）→ 退回 __append。此时 schema 里确实有 speller/algebra
-                // 节点，追加语义可用；放末尾虽匹配不上音节、但不破坏方案，属安全退化。
-                sb.append("    __append:\n")
-                rules.forEach { sb.append("      - ").append(it).append("\n") }
+            // ★ 抽取失败 → 不写文件、返回 false。绝不能退回 __append：
+            //   当 schema 里没有 speller/algebra 节点时（清数据后、方案尚未部署出来），
+            //   Rime 会把整个 {__append: ...} 映射直接赋给该节点 —— 列表变成 map，
+            //   键位映射全部失效 → 方案打不出字（现象：每键只有 1 个候选 cand=1）。
+            if (base == null) return false
+            // 一律写「平铺列表」= 模糊音规则 + 方案原有 algebra。
+            //   · 规则在前：作用于完整拼音音节，派生出的音节继续走后面的键位映射；
+            //   · 规则为空（用户取消全部勾选）时，列表就等于方案原有 algebra，方案不受影响。
+            // 为什么必须重写整条列表而不能打补丁：librime 的三个列表指令都插不到前面 ——
+            //   __append → 只能加末尾（此时拼串已是输入码，规则匹配不上）；
+            //   __patch  → 引用内容必须是 ConfigMap，列表直接报 "invalid patch at ..."；
+            //   __merge  → 只处理 ConfigMap，列表静默失败；
+            //   __prepend → 不存在（config_compiler.h 里没有）。
+            val algebra = rules + base
+            if (algebra.isNotEmpty()) {
+                sb.append("  speller/algebra:\n")
+                algebra.forEach { sb.append("    - ").append(it).append("\n") }
             }
         }
         file.writeText(sb.toString())
@@ -162,25 +164,56 @@ object FuzzyPinyinUtils {
      * 从 <方案>.schema.yaml 抽出 speller.algebra 的规则行。
      *
      * 返回值有两种「空」的含义，调用方必须区分：
+     *   - 返回空列表  → 方案本来就没有 algebra（如全拼 pinyin.schema.yaml）；
+     *   - 返回 null    → 抽取失败（出现 __ 指令、格式不认识，或用户目录与 assets 都读不到），
+     *                   此时调用方【不写文件】—— 绝不写空的 __append。
+     * 不能把两者都当空列表：对「没有 algebra 的方案」写 __append，
+     * 因为 schema 里没有 speller/algebra 节点，Rime 会把整个 __append 映射
+     * 直接赋给 speller/algebra（EditNode 的 overwriting 分支），
+     * 结果该节点成了 map 而不是 list，引擎无法使用 → 方案打不出字。
+     */
+    private fun extractSchemaAlgebra(schemaId: String): List<String>? {
+        // ① 用户目录（部署后的方案，最贴近实际生效的配置）
+        val userFile = File(CustomConstant.RIME_DICT_PATH, "$schemaId.schema.yaml")
+        if (userFile.exists()) {
+            val text = try {
+                userFile.readText()
+            } catch (e: Exception) {
+                null
+            }
+            if (text != null) return parseAlgebraText(text)
+        }
+        // ② 回退：assets 里的同名方案（assets 永远带完整 algebra）。
+        //    为什么必须回退：清数据后 / 首次部署完成前，用户目录里还没有这个文件；
+        //    此时若直接判为「抽取失败」，调用方就会写出空的 __append，把 speller/algebra
+        //    节点变成 map、键位映射全丢 —— 现象就是「设了模糊音后方案打不出字（cand=1）」。
+        return try {
+            Launcher.instance.context.assets.open("rime/$schemaId.schema.yaml")
+                .bufferedReader().use { parseAlgebraText(it.readText()) }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * 从 schema 文本里抽出 speller.algebra 的规则行。
+     * 返回值有两种「空」的含义，调用方必须区分：
      *   - 返回空列表  → 方案本来就没有 algebra（如全拼 pinyin.schema.yaml），
      *                   此时 custom.yaml 直接写「只有模糊音规则」的平铺列表即可；
-     *   - 返回 null    → 抽取失败（出现 __ 指令、格式不认识、文件读不到），
-     *                   此时退回 __append 做安全退化。
+     *   - 返回 null    → 抽取失败（出现 __ 指令、格式不认识），此时不写文件。
      * 不能把两者都当空列表：对「没有 algebra 的方案」写 __append，
      * 因为 schema 里没有 speller/algebra 节点，Rime 会把整个 __append 映射
      * 直接赋给 speller/algebra（EditNode 的 overwriting 分支），
      * 结果该节点成了 map 而不是 list，引擎无法使用 → 模糊音不生效（全拼实测）。
      */
-    private fun extractSchemaAlgebra(schemaId: String): List<String>? {
-        val f = File(CustomConstant.RIME_DICT_PATH, "$schemaId.schema.yaml")
-        if (!f.exists()) return null
+    private fun parseAlgebraText(content: String): List<String>? {
         val out = ArrayList<String>()
         var inSpeller = false
         var inAlgebra = false
         var spellerIndent = 0
         var algebraIndent = 0
         try {
-            for (raw in f.readText().lines()) {
+            for (raw in content.lines()) {
                 val line = raw.trimEnd()
                 val t = line.trim()
                 if (t.isEmpty() || t.startsWith("#")) continue

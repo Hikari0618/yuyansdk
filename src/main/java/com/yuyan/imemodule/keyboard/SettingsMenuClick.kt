@@ -244,7 +244,13 @@ fun showFuzzyPinyinDialog(context: android.content.Context) {
         .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
         .setPositiveButton("保存并部署") { _, _ ->
             val enabled = options.filterIndexed { i, _ -> checked[i] }.map { it.key }.toSet()
-            com.yuyan.inputmethod.util.FuzzyPinyinUtils.save(schemaId, enabled)
+            val ok = com.yuyan.inputmethod.util.FuzzyPinyinUtils.save(schemaId, enabled)
+            if (!ok) {
+                // 方案文件还没部署出来（刚清过数据 / 首次安装未部署完）：
+                // 此时不能写配置，否则会把 speller/algebra 变成 map 毁掉方案。
+                showToast("方案尚未部署完成，请先打开一次输入法、等部署结束后再设置")
+                return@setPositiveButton
+            }
             showToast("已保存模糊音，正在重新部署…")
             Thread {
                 val result = com.yuyan.inputmethod.util.RimeDeployUtils.deploy()
