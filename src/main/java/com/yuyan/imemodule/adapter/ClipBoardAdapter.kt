@@ -89,7 +89,13 @@ class ClipBoardAdapter(context: Context, datas: MutableList<Clipboard>) :
 
     override fun onBindViewHolder(holder: SymbolHolder, position: Int) {
         val data = mDatas[position]
-        holder.textView.text = data.content.replace("\n", "\\n")
+        // 预览文本：把换行渲染成空格。
+        // 原写法是 replace("\n", "\\n") —— 它把真实换行显示成【字面量「\n」】（反斜杠+n），
+        // 于是复制到「水濑阳梦\n」这种带结尾换行的内容时，列表里会看到「水濑阳梦\n」这串假文本，
+        // 看起来像「空白没被渲染出来」。实际内容没有被改动：存储（ClipboardHelper）与
+        // 上屏/复制用的都是原始 content，只有这一处显示错。
+        // 顺带把连续换行折叠成一个空格、去掉首尾空白，避免多行内容在预览里出现空行。
+        holder.textView.text = data.content.replace(Regex("[\\r\\n]+"), " ").trim()
         holder.ivTopTips.visibility = if(data.isKeep == 1)View.VISIBLE else View.GONE
     }
 
