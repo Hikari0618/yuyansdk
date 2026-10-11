@@ -92,11 +92,11 @@ speller:
     - xform/e$/W/
     - xform/i$/J/
     - xform/u$/D/
-    # ★ 大小写归一：上面所有规则产出的都是【大写】输入码（ba→BH），
-    #   而键盘输入是小写，引擎不会自动转小写 → prism 查不到 → 方案打不出字。
-    #   其他 6 个双拼方案末尾都有这一条，乱序17 之前漏了。
-    #   这 17 个字母正是本方案的 17 个键位（乱序17 的由来）。
-    - xlit/BCDFGHJLMNQSTWXYZ/bcdfghjlmnqstwxyz/
+    # ⚠ 这里【不能】加 xlit 转小写：本方案与九键(t9_pinyin)同属「字母码」方案 ——
+    #   键位表就是大写（app 侧 LX17PinYinUtils.lx17KeyMap / lx17PinyinMap 全是大写），
+    #   键盘送进引擎的也是大写（ime.log 可见 char=72('H')），且 RimeEngine 用
+    #   compositionText...part.all { it.isUpperCase() } 反查拼音。转小写会导致
+    #   prism 存小写、输入大写 → 永远查不到 → 打不出字。
 traditionalize:
   opencc_config: s2t.json
   option_name: traditionalization
