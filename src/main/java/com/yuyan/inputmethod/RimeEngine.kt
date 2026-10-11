@@ -283,7 +283,13 @@ object RimeEngine {
                 QwertyPinYinUtils.getQwertyComposition(composition, comment)
             }
         }
-        return if (!composition.endsWith("'") && result.endsWith("'")) result.dropLast(1) else result
+        val finalResult = if (!composition.endsWith("'") && result.endsWith("'")) result.dropLast(1) else result
+        // ★ 兜底：双拼的显示串由 DoublePinYinUtils 从「输入码 + 候选注释」反推拼音，
+        //   注释缺失或格式与预期不符时（comment.split("'").zip(compositionList) 只按较短的一方配对）
+        //   会算出空串，待编辑区于是整条空掉 —— 用户实测：小鹤打 nihc 到第 4 个键「待编辑栏全没了」
+        //   （此时引擎其实有 100 个候选、组合串就是 nihc，纯粹是显示串算没了）。
+        //   上面已判过 composition 非空，算不出来就退回原始输入码，保证待编辑区永不为空。
+        return finalResult.ifEmpty { composition }
     }
 
     /**
