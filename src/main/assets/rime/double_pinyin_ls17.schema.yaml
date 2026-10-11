@@ -92,6 +92,11 @@ speller:
     - xform/e$/W/
     - xform/i$/J/
     - xform/u$/D/
+    # ★ 大小写归一：上面所有规则产出的都是【大写】输入码（ba→BH），
+    #   而键盘输入是小写，引擎不会自动转小写 → prism 查不到 → 方案打不出字。
+    #   其他 6 个双拼方案末尾都有这一条，乱序17 之前漏了。
+    #   这 17 个字母正是本方案的 17 个键位（乱序17 的由来）。
+    - xlit/BCDFGHJLMNQSTWXYZ/bcdfghjlmnqstwxyz/
 traditionalize:
   opencc_config: s2t.json
   option_name: traditionalization
