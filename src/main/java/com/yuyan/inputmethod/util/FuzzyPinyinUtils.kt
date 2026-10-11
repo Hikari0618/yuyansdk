@@ -32,7 +32,15 @@ object FuzzyPinyinUtils {
     fun isWanxiang(schemaId: String): Boolean {
         val schemaFile = File(CustomConstant.RIME_DICT_PATH, "$schemaId.schema.yaml")
         return try {
-            schemaFile.exists() && schemaFile.readText().contains("wanxiang_algebra")
+            // ★ 只看【非注释行】。内置方案的注释里也会提到 wanxiang_algebra —— 例如
+            //   double_pinyin_ls17 / sogou / ziguang 的「键位映射来源…与万象 wanxiang_algebra.yaml 一致」。
+            //   用整文件 contains 判断会把这三个方案误判成万象方案，进而往它们的 custom.yaml 里写
+            //   `wanxiang_algebra:/模糊音_xx` 这种本方案根本不存在的引用 → algebra 构建失败 → 打不出字。
+            //   真万象方案是在非注释行引用它（如 `- wanxiang_algebra:/base/全拼`）。
+            schemaFile.exists() && schemaFile.readLines().any { line ->
+                val t = line.trim()
+                !t.startsWith("#") && t.contains("wanxiang_algebra")
+            }
         } catch (e: Exception) {
             false
         }

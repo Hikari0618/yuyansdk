@@ -171,6 +171,9 @@ object RimeDeployUtils {
             log("build/ 产物 ${buildFiles.size} 个:")
             buildFiles.forEach { log("  - ${it.name} (${it.length()} bytes)") }
 
+            // 3.5 自愈：修回被误判成万象方案而写坏的模糊音 custom.yaml（必须在引擎重启前）
+            repairMiswrittenFuzzyCustoms()
+
             // 4. 停止引擎并以完整检查模式重启，触发方案编译
             log("重启引擎（full_check=true，开始编译方案）…")
             Rime.destroy()
@@ -217,6 +220,31 @@ object RimeDeployUtils {
     }
 
     /**
+     * 自愈：修回「内置方案被误判成万象方案」而写坏的模糊音 custom.yaml。
+     *
+     * 内置方案 double_pinyin_ls17 / sogou / ziguang 的注释里提到了 wanxiang_algebra（写键位来源用的），
+     * 而旧的 FuzzyPinyinUtils.isWanxiang 用整文件 contains 判断 → 把这三个方案误判成万象方案 →
+     * 往它们的 custom.yaml 写了 `wanxiang_algebra:/模糊音_xx` 这种本方案根本不存在的引用 →
+     * librime 解析不到 → algebra 构建失败 → 打不出字。
+     *
+     * 判断本身已改为忽略注释行；这里再把历史上已经写坏的文件修回来。
+     * 只动「本 App 自己生成的」（带生成头注释）且方案确实不是万象的，绝不碰用户手写的配置。
+     */
+    private fun repairMiswrittenFuzzyCustoms() {
+        val userDir = RimeWorkspace.userDir
+        userDir.listFiles()?.filter { it.isFile && it.name.endsWith(".custom.yaml") }?.forEach { f ->
+            val id = f.name.removeSuffix(".custom.yaml")
+            val text = runCatching { f.readText() }.getOrNull() ?: return@forEach
+            if (!text.startsWith("# 模糊音设置（由语燕输入法生成")) return@forEach
+            if (!text.contains("wanxiang_algebra:/")) return@forEach
+            if (FuzzyPinyinUtils.isWanxiang(id)) return@forEach
+            val enabled = FuzzyPinyinUtils.getEnabled(id)
+            val ok = FuzzyPinyinUtils.save(id, enabled)
+            log("自愈: $id.custom.yaml 误写了 wanxiang_algebra 引用 → 已按当前开关重写（$ok）")
+        }
+    }
+
+    /**
      * 部署产物自检：把「静默坏」变成「立刻知道坏」。
      *
      * 为什么需要：模糊音毁方案（cand=1）、emoji 词典缺失这两次事故，引擎侧都是**零报错**，
@@ -255,6 +283,10 @@ object RimeDeployUtils {
                         if (!hasItem) {
                             problems.add("$id: custom.yaml 的 speller/algebra: 下面一个条目都没有")
                         }
+                    }
+                    // 非万象方案不应引用 wanxiang_algebra（会解析不到 → algebra 构建失败 → 打不出字）
+                    if (lines.any { it.trim().contains("wanxiang_algebra:/") } && !FuzzyPinyinUtils.isWanxiang(id)) {
+                        problems.add("$id: custom.yaml 引用了 wanxiang_algebra，但该方案不是万象方案（algebra 会构建失败 → 打不出字）")
                     }
                 }
             }
