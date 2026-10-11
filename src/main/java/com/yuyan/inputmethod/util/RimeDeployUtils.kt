@@ -22,6 +22,13 @@ object RimeDeployUtils {
     private const val TAG = "RimeDeploy"
 
     private val logLines = StringBuilder()
+
+    /** 部署前要求的最小可用存储（MB）。低于此值直接拒绝部署，绝不开始。 */
+    private const val MIN_FREE_SPACE_MB = 2048L
+
+    /** 看门狗触发阈值（MB）：部署期间可用存储跌破此值立刻结束进程。 */
+    private const val WATCHDOG_ABORT_MB = 512L
+
     private fun log(line: String) {
         logLines.append(line).append("\n")
         Log.i(TAG, line)
@@ -37,6 +44,30 @@ object RimeDeployUtils {
         return try {
             val context = Launcher.instance.context
             log("应用版本: ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}")
+
+            // ★ 部署前存储检查（硬保险）。
+            // 曾出现一次「点部署后设备存储被写满、用户被迫清除应用数据」的事故：
+            // 部署会跑 full_check 维护（重建用户词典等），一旦那条路径失控，会以极快速度
+            // 写满设备。这里在开跑前就拦一道：可用空间不足直接拒绝，绝不开始。
+            val freeMb = try {
+                val stat = android.os.StatFs(RimeWorkspace.userDir.absolutePath)
+                stat.availableBytes / 1024 / 1024
+            } catch (e: Exception) {
+                -1L
+            }
+            log("可用存储: ${if (freeMb < 0) "未知" else "${freeMb}MB"}")
+            if (freeMb in 0 until MIN_FREE_SPACE_MB) {
+                val msg = "可用存储不足（${freeMb}MB < ${MIN_FREE_SPACE_MB}MB），已中止部署。请先清理存储再试。"
+                log("⚠ $msg")
+                writeLogFile(context)
+                return msg
+            }
+
+            // ★ 部署期间的空间看门狗。
+            // 上面的检查只能拦住「一开始就不够」的情况；如果某条路径在中途失控增长，
+            // 仍然会在几秒内写满设备。看门狗每秒采样一次可用空间，一旦跌破下限就
+            // 立刻结束进程 —— 宁可中断部署，也不能把设备写满。
+            startSpaceWatchdog(context, freeMb)
 
             // 0. 需要时先把 assets 的 rime 资源复制到用户目录。
             // 放在部署里而不是只挂在应用启动上：部署是用户主动触发的，时机可控、
@@ -197,6 +228,49 @@ object RimeDeployUtils {
         } catch (e: Exception) {
             log("读取引擎日志失败: $e")
         }
+    }
+
+    /**
+     * 部署期间的空间看门狗。
+     *
+     * 只作兜底：正常部署不会触发。之所以需要它，是因为部署会跑 full_check 维护
+     * （重建用户词典等），那条路径一旦失控会在几秒内写满设备（实测发生过一次，
+     * 用户被迫清除应用数据）。看门狗每秒采样可用存储，跌破下限就结束进程 ——
+     * 宁可中断部署，也不能把设备写满。
+     */
+    private fun startSpaceWatchdog(context: android.content.Context, initialFreeMb: Long) {
+        Thread {
+            while (true) {
+                try {
+                    Thread.sleep(1000)
+                    val freeMb = try {
+                        android.os.StatFs(RimeWorkspace.userDir.absolutePath).availableBytes / 1024 / 1024
+                    } catch (e: Exception) {
+                        -1L
+                    }
+                    if (freeMb in 0 until WATCHDOG_ABORT_MB) {
+                        // 尽量留一条记录再结束（此时通常还写得进几十 KB）
+                        try {
+                            File(RimeWorkspace.SD_RIME_DIR, "deploy_aborted.log").appendText(
+                                "部署期间可用存储跌破 ${WATCHDOG_ABORT_MB}MB" +
+                                    "（当前 ${freeMb}MB，起始 ${initialFreeMb}MB），" +
+                                    "已强制结束进程以防写满设备。" +
+                                    "时间：${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}\n"
+                            )
+                        } catch (_: Exception) {
+                        }
+                        android.os.Process.killProcess(android.os.Process.myPid())
+                        return@Thread
+                    }
+                } catch (e: InterruptedException) {
+                    return@Thread
+                } catch (_: Exception) {
+                }
+            }
+        }.apply {
+            isDaemon = true
+            name = "deploy-space-watchdog"
+        }.start()
     }
 
     /** 写日志文件：优先 sdcard（方便用户取），无权限则写应用内部 */
