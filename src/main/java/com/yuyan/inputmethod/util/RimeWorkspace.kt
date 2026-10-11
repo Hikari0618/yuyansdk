@@ -3,6 +3,7 @@ package com.yuyan.inputmethod.util
 import android.content.Context
 import android.os.Environment
 import com.yuyan.imemodule.application.CustomConstant
+import com.yuyan.imemodule.application.Launcher
 import com.yuyan.imemodule.prefs.AppPrefs
 import com.yuyan.imemodule.utils.AssetUtils
 import java.io.File
@@ -353,15 +354,19 @@ object RimeWorkspace {
      */
     fun writeDefaultYamlIfNeeded(): Boolean {
         val target = File(userDir, "default.yaml")
+        val template = readAssetDefaultYaml()
+        var changed = false
 
         if (!target.exists()) {
-            val sb = StringBuilder()
-            sb.append("config_version: \"1\"\n")
-            sb.append("schema_list:\n")
-            BUILTIN_SCHEMA_IDS.forEach { sb.append("  - schema: ").append(it).append('\n') }
+            // 新建时用 assets 的【完整模板】（含 punctuator / switcher / menu / key_binder /
+            // recognizer / ascii_composer），再补内置方案。
+            // 原实现只写 config_version + schema_list 两行 —— 后果见 ensureTopLevelSections 注释。
             target.parentFile?.mkdirs()
-            target.writeText(sb.toString())
-            return true
+            target.writeText(template ?: "config_version: \"1\"\nschema_list:\n")
+            changed = true
+        } else if (template != null) {
+            // 已存在：补齐模板里有、用户文件里缺的顶层段（只补缺失的，不覆盖已有内容）
+            if (ensureTopLevelSections(target, template)) changed = true
         }
 
         val lines = target.readText().lines()
@@ -389,7 +394,7 @@ object RimeWorkspace {
         }
 
         val missing = BUILTIN_SCHEMA_IDS.filterNot { existing.contains(it) }
-        if (missing.isEmpty()) return false
+        if (missing.isEmpty()) return changed
 
         val out = ArrayList(lines)
         if (listStart < 0) {
@@ -402,5 +407,62 @@ object RimeWorkspace {
         }
         target.writeText(out.joinToString("\n") + "\n")
         return true
+    }
+
+    /**
+     * 把模板里有、目标文件里缺的「顶层段」补进目标文件。
+     *
+     * 【为什么必须做】stroke / pinyin 等方案写的是 `punctuator: import_preset: default`，
+     * librime 的 legacy_preset_config_plugin 会取 `default.yaml` 的 punctuator 段
+     * （`Reference{"default","punctuator",false}` —— **非 optional**）：
+     * 取不到就 `failed to include section default:punctuator`，
+     * 整个方案构建失败（实测：笔画键盘按键只能当普通字母上屏、且部署很慢）。
+     * menu / navigator / selector 那几个是 optional，缺了不报错但也应补齐。
+     *
+     * 而本函数早期新建 default.yaml 时只写 config_version + schema_list 两行，
+     * 这些段全缺；再加上复制 assets 时会「保护用户 default.yaml」（保留残缺文件），
+     * 问题就永久存在。这里按 assets 模板补齐缺失的段，不动用户已有内容。
+     */
+    private fun ensureTopLevelSections(target: File, template: String): Boolean {
+        val cur = target.readText()
+        val curKeys = cur.lineSequence()
+            .filter { it.isNotEmpty() && !it.startsWith(" ") && !it.startsWith("#") && it.contains(":") }
+            .map { it.substringBefore(":").trim() }
+            .toSet()
+        val missing = splitTopLevelBlocks(template)
+            .filter { it.first != "schema_list" && !curKeys.contains(it.first) }
+        if (missing.isEmpty()) return false
+        val sb = StringBuilder(cur.trimEnd('\n'))
+        missing.forEach { (_, body) -> sb.append("\n").append(body.trimEnd('\n')).append("\n") }
+        target.writeText(sb.toString())
+        return true
+    }
+
+    /** 把 YAML 文本按顶层段切开：返回 (键, 该段完整原文) 列表 */
+    private fun splitTopLevelBlocks(text: String): List<Pair<String, String>> {
+        val out = ArrayList<Pair<String, String>>()
+        var key: String? = null
+        val body = StringBuilder()
+        for (line in text.lines()) {
+            val isTop = line.isNotEmpty() && !line.startsWith(" ") && !line.startsWith("#") && line.contains(":")
+            if (isTop) {
+                key?.let { out.add(it to body.toString()) }
+                key = line.substringBefore(":").trim()
+                body.setLength(0)
+                body.append(line).append("\n")
+            } else if (key != null) {
+                body.append(line).append("\n")
+            }
+        }
+        key?.let { out.add(it to body.toString()) }
+        return out
+    }
+
+    /** 读取 assets 里的 default.yaml 模板（读不到返回 null，调用方退回旧行为） */
+    private fun readAssetDefaultYaml(): String? = try {
+        Launcher.instance.context.assets.open("rime/default.yaml")
+            .bufferedReader().use { it.readText() }
+    } catch (e: Exception) {
+        null
     }
 }
