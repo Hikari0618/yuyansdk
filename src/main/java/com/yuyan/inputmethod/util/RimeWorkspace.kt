@@ -220,12 +220,29 @@ object RimeWorkspace {
             }
         }
         // 万象词库命名兼容：import_tables 引用 xxx.pro / xxx.pure（release 包命名），
-        // 源码仓库中文件名为 xxx.dict.yaml——为缺失的变体名生成别名副本
+        // 源码仓库中文件名为 xxx.dict.yaml —— 为缺失的变体名生成别名副本。
+        //
+        // ★★ 必须排除「已经是变体别名」的文件，否则会指数膨胀 ★★
+        // 过滤条件是 endsWith(".dict.yaml")，而这里生成的别名（zi.pro.dict.yaml）同样满足。
+        // 不排除的话，下一次部署会把别名当成源文件，再生成 zi.pro.pro.dict.yaml、
+        // zi.pro.pure.dict.yaml …… 每次部署文件数翻倍，且每个都是整份词典的完整拷贝：
+        //   1 次 → 3 个 / 2 次 → 7 个 / N 次 → 2^(N+1)-1 个
+        // 实测设备上 dicts/ 涨到 25GB、上千个文件（历史「部署写满存储」的真正机制）。
+        // 同时把历史上已经膨胀出来的垃圾文件删掉。
         val dictsDir = File(userDir, "dicts")
         if (dictsDir.isDirectory) {
+            val variants = listOf("pro", "pure")
             dictsDir.listFiles()?.filter { it.isFile && it.name.endsWith(".dict.yaml") }?.forEach { f ->
                 val stem = f.name.removeSuffix(".dict.yaml")
-                for (variant in listOf("pro", "pure")) {
+                val parts = stem.split(".")
+                // 基础名只允许 1 段（zi）；变体别名允许 2 段且第二段是 pro/pure。
+                // 3 段及以上（zi.pro.pro）必然是膨胀产物 —— 删除，不再作为源文件。
+                if (parts.size >= 3) {
+                    if (f.delete()) fileCount++
+                    return@forEach
+                }
+                if (parts.size == 2) return@forEach   // 已是别名，跳过
+                for (variant in variants) {
                     val alias = File(dictsDir, "$stem.$variant.dict.yaml")
                     if (!alias.exists()) {
                         f.copyTo(alias)
