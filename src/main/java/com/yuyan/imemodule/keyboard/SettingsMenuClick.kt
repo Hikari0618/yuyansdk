@@ -217,6 +217,16 @@ fun showFuzzyPinyinDialog(context: android.content.Context) {
         showToast("手写模式不支持模糊音设置")
         return
     }
+    // 模糊音只对【拼音类】方案有意义。
+    // 笔画(stroke)的 speller 不是拼音音节（algebra 只有一条 xlit/hspnzx/HSPNZX/），
+    // 英文(english)也不是拼音 —— 给它们加拼音模糊音规则毫无作用，
+    // 还会平白改写它们的 custom.yaml。这类方案直接提示并返回。
+    if (schemaId == com.yuyan.imemodule.application.CustomConstant.SCHEMA_ZH_STROKE ||
+        schemaId == com.yuyan.imemodule.application.CustomConstant.SCHEMA_EN
+    ) {
+        showToast("「$schemaId」不是拼音方案，不支持模糊音设置")
+        return
+    }
     // 只对【内置方案】开放：内置方案随安装包发布（RimeWorkspace.BUILTIN_SCHEMAS）。
     // 用户自行部署的方案（万象拼音、雾凇等）不在其中，其模糊音应由用户自己在该方案的
     // custom.yaml 里管理 —— 这里直接提示并返回，避免替用户改写他自己的配置。
