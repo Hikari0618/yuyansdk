@@ -44,7 +44,12 @@ class ImeService : InputMethodService() {
     private lateinit var mCandidateView: CandidateView
     private val onThemeChangeListener = OnThemeChangeListener { _: Theme? ->
         if (isHardwareKeyboard) { if (::mCandidateView.isInitialized) mCandidateView.updateTheme() }
-        else if (::mInputView.isInitialized) mInputView.updateTheme()
+        else if (::mInputView.isInitialized) {
+            mInputView.updateTheme()
+            // 已缓存的键盘容器（英文/符号/设置等）不会自己跟着主题变 ——
+            // 不一起刷新，系统切深浅色后切过去还是上一个模式的颜色。
+            KeyboardManager.instance.updateThemeForAllKeyboards()
+        }
     }
     private val clipboardUpdateContent = getInstance().internal.clipboardUpdateContent
     private val clipboardUpdateContentListener = ManagedPreference.OnChangeListener<String> { _, value ->

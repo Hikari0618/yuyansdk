@@ -14,6 +14,8 @@ import com.yuyan.imemodule.keyboard.container.SettingsContainer
 import com.yuyan.imemodule.keyboard.container.SymbolContainer
 import com.yuyan.imemodule.keyboard.container.T9TextContainer
 import com.yuyan.imemodule.prefs.AppPrefs
+import com.yuyan.imemodule.data.theme.Theme
+import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.singleton.EnvironmentSingleton
 
 /**
@@ -64,6 +66,19 @@ class KeyboardManager {
     fun clearKeyboard() {
         keyboards.clear()
         if (::mInputView.isInitialized) mInputView.initView(mInputView.context)
+    }
+
+    /**
+     * 主题变化（含系统深浅色切换）时，刷新【所有已缓存】键盘。
+     *
+     * 容器按类型缓存在 keyboards 里、切走时只置 GONE 不重建，因此它们不会自己跟着主题变：
+     * 不刷新就会出现「当前键盘颜色对了，切到英文键盘还是上一个模式的颜色」。
+     * 由 ImeService 的主题变化监听器调用（ThemeManager.activeTheme 的 setter 会 fireChange）。
+     */
+    fun updateThemeForAllKeyboards() {
+        val theme: Theme = ThemeManager.activeTheme
+        keyboards.values.forEach { it?.updateTheme(theme) }
+        currentContainer?.updateTheme(theme)
     }
 
     /**

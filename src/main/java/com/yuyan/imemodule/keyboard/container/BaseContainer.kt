@@ -7,6 +7,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.constraintlayout.widget.ConstraintLayout
 import com.yuyan.imemodule.R
+import com.yuyan.imemodule.data.theme.Theme
 import com.yuyan.imemodule.prefs.AppPrefs
 import com.yuyan.imemodule.singleton.EnvironmentSingleton
 import com.yuyan.imemodule.utils.KeyboardLoaderUtil
@@ -34,6 +35,16 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
      *  View.getRootView() 的合成属性，改到整个输入视图上去（症状：改高度时
      *  上界被钉住不动、下界跟着手指走）。 */
     private var mHeightShadowView: View? = null
+
+    /**
+     * 主题（含系统深浅色切换）变化时刷新本容器内的视图。
+     *
+     * 基类默认空实现；带按键的容器（InputBaseContainer）覆盖它，把新主题传给 TextKeyboard。
+     * 容器是按类型缓存的（KeyboardManager.keyboards），切走时只置 GONE 不重建 ——
+     * 它们不会自己跟着主题变，所以必须由外部显式刷新一次。
+     * 这正是「系统切深浅色后，切到英文键盘还是上一个模式的颜色」的根因。
+     */
+    open fun updateTheme(theme: Theme) {}
 
     /**
      * 更新软键盘布局

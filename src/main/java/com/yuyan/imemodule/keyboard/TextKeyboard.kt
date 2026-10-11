@@ -93,6 +93,7 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
         keyRadius = prefs.keyRadius.getValue()
         mActiveTheme = theme
         mPaint.color = mActiveTheme.keyTextColor
+        mKeyboardChanged = true   // 与 setSoftKeyboard 一致：强制重绘缓存位图
         invalidateView()
     }
 

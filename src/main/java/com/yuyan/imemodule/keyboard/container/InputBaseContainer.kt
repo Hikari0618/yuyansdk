@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import com.yuyan.imemodule.keyboard.InputView
 import com.yuyan.imemodule.keyboard.TextKeyboard
+import com.yuyan.imemodule.data.theme.Theme
 
 /**
  * 输入键盘容器父类，用于进行输入键盘相关处理（判断）。
@@ -22,5 +23,16 @@ open class InputBaseContainer(context: Context?, inputView: InputView) : BaseCon
      */
     fun updateStates() {
         mMajorView!!.updateStates()
+    }
+
+    /**
+     * 主题变化时把新主题交给按键视图。
+     *
+     * TextKeyboard.mActiveTheme 是缓存字段（只在 setSoftKeyboard 里赋值），
+     * 而 TextKeyboard.setTheme() 原本没有任何调用点 —— 于是缓存键盘的按键颜色
+     * 永远停留在创建时那一套。这里把它接上。
+     */
+    override fun updateTheme(theme: Theme) {
+        mMajorView?.setTheme(theme)
     }
 }
