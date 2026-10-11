@@ -188,7 +188,18 @@ object RimeDeployUtils {
             log("用户目录内容: ${userDirFiles.joinToString(", ")}")
 
             log("====== 部署完成 ======")
+            val problems = selfCheckSchemas(schemas)
+            if (problems.isEmpty()) {
+                log("产物自检: 全部通过 ✅")
+            } else {
+                log("产物自检: 发现 ${problems.size} 处异常 ⚠")
+                problems.forEach { log("  ⚠ $it") }
+            }
             summary.append("✅ 部署完成，共 ").append(schemas.size).append(" 个方案")
+            if (problems.isNotEmpty()) {
+                summary.append("\n⚠ 自检发现 ").append(problems.size).append(" 处异常：")
+                problems.take(5).forEach { summary.append("\n  · ").append(it) }
+            }
             appendEngineLogTail()
             val logFile = writeLogFile(context)
             if (logFile != null) {
@@ -203,6 +214,57 @@ object RimeDeployUtils {
             val logFile = runCatching { writeLogFile(Launcher.instance.context) }.getOrNull()
             "❌ 部署失败: $e\n📄 详细日志: ${logFile?.absolutePath ?: "(写入失败)"}"
         }
+    }
+
+    /**
+     * 部署产物自检：把「静默坏」变成「立刻知道坏」。
+     *
+     * 为什么需要：模糊音毁方案（cand=1）、emoji 词典缺失这两次事故，引擎侧都是**零报错**，
+     * 只能事后翻日志才看出来。但坏的时候指纹其实很明显，部署完成时扫一遍就能抓出来：
+     *   · custom.yaml 里挂着【空的 __append:】—— Rime 会把整个 {__append: ...} 映射直接
+     *     赋给 speller/algebra，列表变成 map，键位映射全丢 → 方案打不出字（cand=1）；
+     *   · speller/algebra: 下面一个条目都没有；
+     *   · build/<方案>.prism.bin 缺失或为 0 —— 该方案根本没编译出来。
+     * 异常写进部署日志和返回消息，用户不用等「打字打不出来」才发现。
+     */
+    private fun selfCheckSchemas(schemas: List<Pair<String, String>>): List<String> {
+        val problems = mutableListOf<String>()
+        val userDir = RimeWorkspace.userDir
+        for ((id, _) in schemas) {
+            // ① custom.yaml：空的 __append 是「毁掉方案」的指纹
+            val custom = File(userDir, "$id.custom.yaml")
+            if (custom.exists()) {
+                val lines = runCatching { custom.readText().lines() }.getOrNull()
+                if (lines == null) {
+                    problems.add("$id: custom.yaml 读取失败")
+                } else {
+                    val idx = lines.indexOfFirst { it.trim() == "__append:" }
+                    if (idx >= 0) {
+                        val hasChild = lines.drop(idx + 1)
+                            .takeWhile { it.isBlank() || it.startsWith(" ") || it.startsWith("\t") }
+                            .any { it.trim().startsWith("- ") }
+                        if (!hasChild) {
+                            problems.add("$id: custom.yaml 里有空的 __append:（会把 speller/algebra 变成 map → 方案打不出字）")
+                        }
+                    }
+                    val algIdx = lines.indexOfFirst { it.trim() == "speller/algebra:" }
+                    if (algIdx >= 0) {
+                        val hasItem = lines.drop(algIdx + 1)
+                            .takeWhile { it.isBlank() || it.startsWith(" ") || it.startsWith("\t") }
+                            .any { it.trim().startsWith("- ") || it.trim() == "__append:" || it.trim() == "__patch:" }
+                        if (!hasItem) {
+                            problems.add("$id: custom.yaml 的 speller/algebra: 下面一个条目都没有")
+                        }
+                    }
+                }
+            }
+            // ② prism：缺失或为 0 说明该方案根本没编译出来
+            val prism = File(userDir, "build/$id.prism.bin")
+            if (!prism.exists() || prism.length() == 0L) {
+                problems.add("$id: build/$id.prism.bin 缺失或为空（方案未编译成功）")
+            }
+        }
+        return problems
     }
 
     /** 把 librime 引擎日志（/sdcard/yuyan/logs 最新一个 glog 文件）的尾部并入部署日志——
