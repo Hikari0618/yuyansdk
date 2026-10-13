@@ -140,8 +140,11 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
                 true
             }
             KeyEvent.KEYCODE_ENTER -> {
-                if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) sendKeyEvent(keyCode)
-                else commitDecInfoText(DecodingInfo.composingStrForCommit)
+                // 同 InputView：待编辑栏还有内容时回车先上屏组合串，
+                // 不能用 isCandidatesEmpty 判断（组合非空但候选暂空会误判成空闲、回车被透传）。
+                val composing = DecodingInfo.composingStrForCommit
+                if (DecodingInfo.isAssociate || composing.isEmpty()) sendKeyEvent(keyCode)
+                else commitDecInfoText(composing)
                 resetToIdleState()
                 true
             }

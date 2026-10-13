@@ -628,8 +628,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             }
             KeyEvent.KEYCODE_CLEAR -> resetToIdleState()
             KeyEvent.KEYCODE_ENTER -> {
-                if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) sendKeyEvent(keyCode)
-                else commitDecInfoText(DecodingInfo.composingStrForCommit)
+                // 待编辑栏还有内容（引擎仍在组合）时，回车先把组合串原样上屏。
+                // 不能用 isCandidatesEmpty 判断：组合非空但候选暂空时（万象命令、未成词、
+                // URL 输入框等）会被误判成「没在输入」，于是把回车直接透传给应用 ——
+                // 网址栏里就变成触发搜索，而不是上屏待编辑内容（同文 Trime 会先上屏）。
+                val composing = DecodingInfo.composingStrForCommit
+                if (DecodingInfo.isAssociate || composing.isEmpty()) sendKeyEvent(keyCode)
+                else commitDecInfoText(composing)
                 resetToIdleState()
             }
             KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {
