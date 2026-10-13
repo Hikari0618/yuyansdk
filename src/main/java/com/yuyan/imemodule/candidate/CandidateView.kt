@@ -178,7 +178,12 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
         val label = keyChar.toChar().toString()
         return when {
             keyCode == KeyEvent.KEYCODE_DEL -> {
-                if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) {
+                // 与 InputView 软键盘路径保持一致：用「引擎是否已结束组合」判断。
+                // 不能用 isCandidatesEmpty —— 组合非空但没有候选词时（万象命令、未成词、
+                // 上屏瞬间）会误判成「没在输入」，于是删掉的是编辑框里已上屏的字、
+                // 待编辑区却不变（软键盘路径当年就是这个 bug，注释里记着「用户实测」）。
+                // 本条是实体键盘（isHardwareKeyboard）才走的路径，之前漏改了。
+                if (DecodingInfo.isEngineFinish || DecodingInfo.isAssociate) {
                     sendKeyEvent(keyCode)
                 } else {
                     DecodingInfo.deleteAction()
