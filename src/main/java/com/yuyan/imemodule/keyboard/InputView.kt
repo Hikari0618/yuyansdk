@@ -611,7 +611,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     private fun processFunctionKey(event: KeyEvent) {
         when (val keyCode = event.keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_SPACE -> {
-                if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) {
+                // 透传条件里加上「组合串为空」——「没有候选」不等于「不在输入」。
+                // 组合非空但候选暂空时（URL 输入框、未成词、万象命令等）若把空格透传，
+                // 组合串会被 resetToIdleState 丢掉、空格被塞进输入框，而不是把待编辑内容上屏。
+                // 判据与上面的回车分支一致。
+                val composing = DecodingInfo.composingStrForCommit
+                if (DecodingInfo.isAssociate || (DecodingInfo.isCandidatesEmpty && composing.isEmpty())) {
                     if (keyCode == KeyEvent.KEYCODE_SPACE) {
                         // 空格用「文本提交」而不是键值事件：
                         // 远控类应用（UU远程等）只转发文本，InputConnection.sendKeyEvent
@@ -623,8 +628,11 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                         sendKeyEvent(keyCode)
                     }
                     resetToIdleState()
-                }
-                else chooseAndUpdate()
+                } else if (DecodingInfo.isCandidatesEmpty) {
+                    // 组合非空、候选暂空 → 把待编辑内容原样上屏（与回车一致）
+                    commitDecInfoText(composing)
+                    resetToIdleState()
+                } else chooseAndUpdate()
             }
             KeyEvent.KEYCODE_CLEAR -> resetToIdleState()
             KeyEvent.KEYCODE_ENTER -> {

@@ -122,8 +122,17 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
     private fun processFunctionKeys(event: KeyEvent): Boolean {
         return when (val keyCode = event.keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_SPACE -> {
-                if (DecodingInfo.isCandidatesEmpty || (DecodingInfo.isAssociate && !mSkbCandidatesBarView.isActiveCand())) {
+                // 透传条件同样加上「组合串为空」，理由见下面的回车分支：
+                // 「没有候选」不等于「不在输入」，组合非空时不应把空格透传给应用
+                // （否则组合串被丢掉、空格被塞进输入框，而不是把待编辑内容上屏）。
+                val composing = DecodingInfo.composingStrForCommit
+                if ((DecodingInfo.isAssociate && !mSkbCandidatesBarView.isActiveCand()) ||
+                    (DecodingInfo.isCandidatesEmpty && composing.isEmpty())) {
                     sendKeyEvent(keyCode)
+                    resetToIdleState()
+                } else if (DecodingInfo.isCandidatesEmpty) {
+                    // 组合非空、候选暂空 → 把待编辑内容原样上屏（与回车一致）
+                    commitDecInfoText(composing)
                     resetToIdleState()
                 } else {
                     chooseAndUpdate()
