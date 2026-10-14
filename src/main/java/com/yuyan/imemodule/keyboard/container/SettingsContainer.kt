@@ -173,11 +173,15 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 // 开关组用 UI 侧记的下标（引擎读不到组状态）
                 mSwitchGroupIndex[key]?.let { cur = it }
                 val states = if (p.size > 2) p.subList(1, p.size - 1) else emptyList()
+                // 对齐同文：方案没声明 states（或只声明 1 个）的开关【不显示】。
+                // 这类开关没有可读的状态名，显示出来只能退化成「开/关」，认不出是哪一项。
+                // 同文 SwitchOptionEntry.fromSwitch 里同样有一句 `if (labels.size <= 1) return null`。
+                if (states.size <= 1) return@forEach
                 val currentLabel = states.getOrElse(cur) {
                     if (cur != 0) "开" else "关"
                 }
                 // 标签直接用方案声明的当前状态名（「大字集」「上下文开」「中标」「简体」…），
-                // 不再拼任何写死的中文附注。只有极少数没写 states 的开关会落到「开/关」。
+                // 不拼任何写死的中文附注（同文也是直接用方案的 states，App 侧零映射表）。
                 funItems.add(
                     SkbFunItem(currentLabel, R.drawable.ic_menu_setting, SkbMenuMode.RimeSwitchToggle, key)
                 )
