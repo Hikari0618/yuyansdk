@@ -77,15 +77,27 @@ object RimeWorkspace {
         return result.map { (id, name) -> id to (if (name.isEmpty()) id else name) }
     }
 
-    /** 仅自定义方案（排除内置），供键盘方案菜单展示——按 default.yaml 的
-     *  schema_list 过滤：词库转换、反查等附属方案不进方案列表（rime 标准机制）。
-     *  内置清单由 assets 动态扫出，不再写死。 */
+    /** 仅自定义方案（排除内置），供键盘方案菜单展示。
+     *
+     *  **只展示「已启用」的方案**（引擎的 enabled 清单 = default.yaml / default.custom.yaml
+     *  声明过的那批），绝不能用 available —— 那会把方案包里的附属派生方案一并漏进菜单：
+     *  万象包里就有 wanxiang_mixedcode / wanxiang_reverse / wanxiang_abbrev / _phrase /
+     *  _t9 / _t9i 等 9 个，用户根本不该在其中选。
+     *  方案包用「注释掉 schema_list 条目」表达「可选、取消注释才启用」
+     *  （万象 default.yaml 里 `# - schema: wanxiang_t9` 就是这个意思），所以 enabled 才是权威名单。
+     *
+     *  附带好处：用户自己在 default.custom.yaml 里写的方案（例如 wanxiang_english）
+     *  会出现在菜单里 —— 这是旧实现（只认 default.yaml + 写死清单）做不到的。
+     *  引擎未就绪时回退到 default.yaml 的声明清单。 */
     fun customSchemas(): List<Pair<String, String>> {
         val builtin = builtinSchemaIds().toSet()
-        val active = activeSchemaIds()
-        return allSchemas().filter {
-            it.first !in builtin && (active.isEmpty() || it.first in active)
-        }
+        val all = allSchemas()
+        val availableIds = all.map { it.first }.toSet()
+        val names = all.toMap()
+        val enabled = com.yuyan.inputmethod.core.Rime.enabledSchemaIds()
+        val pool = enabled.ifEmpty { activeSchemaIds().toList() }
+        return pool.filter { it in availableIds && it !in builtin }
+            .map { it to (names[it] ?: it) }
     }
 
     /** 当前 default.yaml 的 schema_list（用户/方案包维护的可用方案列表） */
