@@ -186,6 +186,16 @@ object RimeDeployUtils {
             Rime.destroy()
             Rime.startup(context, true)
             log("引擎重启完成")
+            // ★ 重启后必须重新选一次方案：Engine::Startup 只 create_session、**不 select_schema**，
+            //   而 startup(true) 正是「销毁会话 → 重建会话」——重建出来的会话没有方案，
+            //   之后所有按键都会被引擎拒绝（表现为字母直接上屏、没有待编辑区），
+            //   用户只能靠手动换一次方案才恢复（实测踩过这个坑）。
+            runCatching {
+                com.yuyan.inputmethod.core.Kernel.initImeSchema(
+                    com.yuyan.imemodule.prefs.AppPrefs.getInstance().internal.pinyinModeRime.getValue()
+                )
+                log("部署后已重新选择方案: ${Rime.getCurrentRimeSchema()}")
+            }.onFailure { log("部署后重新选择方案失败: $it") }
 
             // 5. 引擎状态诊断
             try {

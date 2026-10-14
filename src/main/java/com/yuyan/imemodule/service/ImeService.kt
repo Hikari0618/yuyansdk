@@ -110,14 +110,44 @@ class ImeService : InputMethodService() {
         return if(getInstance().keyboardSetting.showVirtualKeyboardOnPhysicalKeyboard.getValue()) true else super.onEvaluateInputViewShown()
     }
 
+    /**
+     * 键盘每次开始输入时自愈一次：**引擎会话如果丢了方案，按键会被引擎全部拒绝**，
+     * 表现为「字母直接上屏、没有待编辑区」，用户只能靠手动换一次方案才恢复。
+     *
+     * 会话为什么会没有方案（三条都是实测过的路径）：
+     *   1. 部署：RimeDeployUtils.deploy() 里 Rime.destroy() + startup(fullCheck=true)
+     *      重建了会话，而 Engine::Startup 只 create_session、**从不 select_schema**；
+     *   2. 进程被系统回收后重建：Launcher 里那次 initImeSchema 若碰上「方案文件/部署
+     *      还没就绪」，select_schema 会失败（Launcher 里「解决词库复制慢，导致先调用
+     *      初始化问题」的注释正是在跟这件事打架）；
+     *   3. 任何原因导致的会话重建（息屏久了被回收、切换输入框等）。
+     *
+     * 这里成本极低（键盘弹出时一次 JNI 读），但能把上面全部情况兜住 ——
+     * 不依赖「用户自己想起来换一次方案」。
+     */
+    private fun ensureRimeSchemaReady() {
+        try {
+            if (com.yuyan.inputmethod.core.Rime.getCurrentRimeSchema().isNotEmpty()) return
+            val pref = com.yuyan.imemodule.prefs.AppPrefs.getInstance().internal.pinyinModeRime.getValue()
+            com.yuyan.inputmethod.core.Kernel.initImeSchema(pref)
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[life] 引擎会话无方案 → 自愈重选 '$pref'，结果='${com.yuyan.inputmethod.core.Rime.getCurrentRimeSchema()}'"
+            )
+        } catch (e: Throwable) {
+            com.yuyan.inputmethod.util.ImeLog.d("[life] 方案自愈失败: " + android.util.Log.getStackTraceString(e))
+        }
+    }
+
     override fun onStartInput(editorInfo: EditorInfo?, restarting: Boolean) {
         YuyanEmojiCompat.setEditorInfo(editorInfo)
         handleHardwareKeyboard()
+        ensureRimeSchemaReady()
         if (isHardwareKeyboard && ::mCandidateView.isInitialized)mCandidateView.onStartInput(editorInfo, restarting)
         super.onStartInput(editorInfo, restarting)
     }
 
     override fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
+        ensureRimeSchemaReady()
         if (isSoftKeyboard && ::mInputView.isInitialized)mInputView.onStartInputView(editorInfo, restarting)
         super.onStartInputView(editorInfo, restarting)
     }
