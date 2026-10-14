@@ -106,19 +106,26 @@ object RimeDeployUtils {
             schemas.forEach { (id, name) -> log("  - $id ($name)") }
             val wrote = RimeWorkspace.writeDefaultYamlIfNeeded()
             log("default.yaml schema_list ${if (wrote) "已刷新" else "无需变更"}")
-            // 关键一步：default.custom.yaml 里的 patch: schema_list: 是【替换】语义，
-            // 会把上面写进 default.yaml 的清单整段覆盖掉（实测引擎日志只有 patching schema_list、
-            // 且没有任何 pinyin 编译记录）。必须再往 default.custom.yaml 追加 schema_list/+。
-            val patched = RimeWorkspace.ensureBuiltinSchemasInCustomPatch()
-            log("default.custom.yaml 内置方案追加 ${if (patched) "已写入" else "已存在"}")
-            // 诊断：把 default.custom.yaml 里与 schema_list 相关的行打出来，
-            // 便于确认最终生效的清单来源（替换 vs 追加）。
+            // 关键一步：把「用户/方案包声明的清单 ∪ 已生效清单 ∪ App 内置方案」交给
+            // librime 自己写回 default.custom.yaml（同文的 levers/switcher API）。
+            // 旧做法是 App 手写 `schema_list/+` —— 它和用户自己的 `schema_list:`（替换语义）
+            // 在同一个 patch 里打架，最终生效哪个取决于引擎处理键的顺序，实测把用户写的
+            // wanxiang_english 顶掉了；而且那份清单写死了 12 个方案 id（含 wanxiang_pro），
+            // 用户换成雾凇等别的方案就识别不出来。
+            // 先清掉旧版本写进去的 `schema_list/+` 段（见 cleanupLegacySchemaListPlus 注释）
+            val cleaned = RimeWorkspace.cleanupLegacySchemaListPlus()
+            if (cleaned) log("已清理旧版写入的 schema_list/+ 段")
+            // 返回 true 表示清单变了 —— 必须在下面真正的部署【之前】调用，同一次部署即可生效。
+            val listChanged = RimeWorkspace.ensureBuiltinSchemasEnabled()
+            log("启用清单 ${if (listChanged) "已更新（本次部署生效）" else "无需变更"}")
+            // 诊断：把 default.custom.yaml 里与 schema_list / generator 相关的行打出来，
+            // 便于确认最终清单的来源与格式（librime 自己写的会带 customization 头）。
             runCatching {
                 val cf = File(RimeWorkspace.userDir, "default.custom.yaml")
                 if (cf.exists()) {
                     log("default.custom.yaml 相关行:")
                     cf.readText().lines().forEachIndexed { i, l ->
-                        if (l.contains("schema_list") || l.contains("语燕输入法自动追加")) log("  ${i + 1}: $l")
+                        if (l.contains("schema_list") || l.contains("generator")) log("  ${i + 1}: $l")
                     }
                 }
             }

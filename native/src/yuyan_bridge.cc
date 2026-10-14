@@ -8,6 +8,9 @@
 #include "yuyan_bridge.h"
 
 #include <rime_api.h>
+// levers 模块（custom_settings / switcher_settings）：方案列表与启用清单的官方接口，
+// 同文输入法 librime_jni/levers.cc 用的就是这套。
+#include <rime_levers_api.h>
 
 // 强制链接 librime-lua / librime-octagram 的模块注册对象：
 // RIME_REGISTER_MODULE 生成的 rime_require_module_* 符号必须被引用，
@@ -77,6 +80,101 @@ void ResetAssociateCache() {
 RimeApi* rime() {
   static RimeApi* api = rime_get_api();
   return api;
+}
+
+// ---- 方案列表：librime levers / switcher API（同文输入法同款机制）----
+//
+// 方案清单不该由 App 写死，也不该由 App 手写 default.custom.yaml。
+// librime 的 levers 是独立模块（RIME_REGISTER_CUSTOM_MODULE(levers)），
+// 用 rime_get_api()->find_module("levers") 取到，官方接口：
+//   switcher_settings_init() + load_settings()  → 读 default.custom.yaml 的 schema_list
+//   get_available_schema_list()  → 引擎扫到的全部可用方案（含用户自行导入的）
+//   get_selected_schema_list()   → 当前生效的启用清单
+//   select_schemas() + save_settings() → 由 librime 自己把清单写回 default.custom.yaml
+// 同文输入法的方案管理（SchemaListFragment）就是这么实现，见其 librime_jni/levers.cc。
+RimeLeversApi* LeversApi() {
+  static RimeLeversApi* api = []() -> RimeLeversApi* {
+    RimeApi* r = rime();
+    if (!r || !r->find_module) return nullptr;
+    RimeModule* module = r->find_module("levers");
+    return module ? reinterpret_cast<RimeLeversApi*>(module->get_api()) : nullptr;
+  }();
+  return api;
+}
+
+// SwitcherSettings 的 RAII 包装：构造时 init + load_settings，析构时 destroy。
+// 必须在引擎 Startup（setup + initialize）之后调用 —— user_data_dir 由 traits 决定。
+class SwitcherScope {
+ public:
+  SwitcherScope() {
+    levers_ = LeversApi();
+    if (!levers_ || !levers_->switcher_settings_init) return;
+    settings_ = levers_->switcher_settings_init();
+    if (settings_ && levers_->load_settings &&
+        !levers_->load_settings(reinterpret_cast<RimeCustomSettings*>(settings_))) {
+      // 不致命：首次运行、default.custom.yaml 还不存在时会失败。
+      DebugLog("[schemas] load_settings 失败（首次运行可忽略）\n");
+    }
+  }
+  ~SwitcherScope() {
+    if (levers_ && settings_ && levers_->custom_settings_destroy) {
+      levers_->custom_settings_destroy(
+          reinterpret_cast<RimeCustomSettings*>(settings_));
+    }
+  }
+  SwitcherScope(const SwitcherScope&) = delete;
+  SwitcherScope& operator=(const SwitcherScope&) = delete;
+
+  bool ok() const { return levers_ && settings_; }
+
+  // available=true 取「全部可用」，false 取「当前启用」
+  std::vector<std::pair<std::string, std::string>> List(bool available) {
+    std::vector<std::pair<std::string, std::string>> out;
+    if (!ok()) return out;
+    RimeSchemaList list{};
+    Bool got = available ? levers_->get_available_schema_list(settings_, &list)
+                         : levers_->get_selected_schema_list(settings_, &list);
+    if (!got) return out;
+    for (size_t i = 0; i < list.size; ++i) {
+      const RimeSchemaListItem& item = list.list[i];
+      out.emplace_back(item.schema_id ? item.schema_id : "",
+                       item.name ? item.name : "");
+    }
+    if (levers_->schema_list_destroy) levers_->schema_list_destroy(&list);
+    return out;
+  }
+
+  // 覆盖写启用清单并落盘（librime 自己维护 default.custom.yaml 的格式与生成头注释）
+  bool Select(const std::vector<std::string>& ids) {
+    if (!ok() || !levers_->select_schemas || !levers_->save_settings) return false;
+    std::vector<const char*> ptrs;
+    ptrs.reserve(ids.size());
+    for (const auto& id : ids) ptrs.push_back(id.c_str());
+    if (!levers_->select_schemas(settings_, ptrs.data(),
+                                 static_cast<int>(ptrs.size()))) {
+      return false;
+    }
+    // save_settings 才真正落盘 —— 必须调用（同文 selectSchemas 里也是这么写的）
+    return levers_->save_settings(
+               reinterpret_cast<RimeCustomSettings*>(settings_)) != 0;
+  }
+
+ private:
+  RimeLeversApi* levers_ = nullptr;
+  RimeSwitcherSettings* settings_ = nullptr;
+};
+
+// 输出格式：每行 "schema_id\t方案名"（沿用 GetSwitches 的制表符约定）
+std::string FormatSchemaList(
+    const std::vector<std::pair<std::string, std::string>>& items) {
+  std::string out;
+  for (const auto& item : items) {
+    out += item.first;
+    out += '\t';
+    out += item.second;
+    out += '\n';
+  }
+  return out;
 }
 
 // 词根反查结果按空格拆分（多音字多个读音）
@@ -526,6 +624,35 @@ std::string Engine::GetSwitches() {
   }
   dbg("done bytes=" + std::to_string(out.size()));
   return out;
+}
+
+// ---- 方案列表（实现见文件开头 LeversApi / SwitcherScope 的说明）----
+
+std::string Engine::AvailableSchemas() {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  // 引擎没起来时不能碰 levers：switcher_settings_init 会用到未初始化的 Service
+  if (!initialized_) return {};
+  return FormatSchemaList(SwitcherScope().List(true));
+}
+
+std::string Engine::EnabledSchemas() {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (!initialized_) return {};
+  return FormatSchemaList(SwitcherScope().List(false));
+}
+
+bool Engine::SetEnabledSchemas(const std::vector<std::string>& ids) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (!initialized_) return false;
+  SwitcherScope switcher;
+  if (!switcher.ok()) {
+    DebugLog("[schemas] levers 不可用，无法写启用清单\n");
+    return false;
+  }
+  bool ok = switcher.Select(ids);
+  DebugLog("[schemas] SetEnabledSchemas %zu 项 -> %s\n", ids.size(),
+           ok ? "OK" : "FAILED");
+  return ok;
 }
 
 bool Engine::SelectCandidate(int index) {

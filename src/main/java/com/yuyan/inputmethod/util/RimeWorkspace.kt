@@ -19,57 +19,72 @@ object RimeWorkspace {
     /** 语燕专属的 sdcard 目录（勿用 /sdcard/rime：那是同文输入法等工作区，文件混入会破坏部署） */
     const val SD_RIME_DIR = "/sdcard/yuyan"
 
-    /** 内置方案（随 APK 附带，不作为“自定义方案”展示） */
-    private val BUILTIN_SCHEMAS = setOf(
-        CustomConstant.SCHEMA_ZH_T9,
-        CustomConstant.SCHEMA_ZH_QWERTY,
-        CustomConstant.SCHEMA_EN,
-        CustomConstant.SCHEMA_ZH_STROKE,
-        CustomConstant.SCHEMA_ZH_DOUBLE_LX17,
-        "double_pinyin_flypy",
-        "double_pinyin_abc",
-        "double_pinyin_mspy",
-        "double_pinyin_sogou",
-        "double_pinyin_natural",
-        "double_pinyin_ziguang",
-    )
+    /**
+     * 内置方案 id —— **从 assets/rime 下的 *.schema.yaml 动态扫出**，不再写死清单。
+     * APK 里增删方案时清单自动跟随；用户自行导入的方案（万象、雾凇…）不在其中，
+     * 会作为「自定义方案」出现在输入方式菜单里。
+     *
+     * （旧实现是写死的 set，还额外塞了 wanxiang_pro —— 于是用户换任何别的方案都识别不出来，
+     *   而 wanxiang_pro 本身又不是 App 能保证存在的。）
+     */
+    private var cachedBuiltinIds: List<String>? = null
+
+    fun builtinSchemaIds(): List<String> {
+        cachedBuiltinIds?.let { return it }
+        val out = LinkedHashSet<String>()
+        runCatching {
+            val assets = com.yuyan.imemodule.application.Launcher.instance.context.assets
+            val names = assets.list("rime") ?: return@runCatching
+            names.sorted().forEach { name ->
+                if (!name.endsWith(".schema.yaml")) return@forEach
+                val fallback = name.removeSuffix(".schema.yaml")
+                // 以文件里的 schema/schema_id 为准（权威），取不到才退回文件名
+                val id = runCatching {
+                    assets.open("rime/$name").bufferedReader().use { reader ->
+                        Regex("^\\s*schema_id:\\s*['\"]?([\\w\\-.]+)")
+                            .find(reader.readText())?.groupValues?.get(1)
+                    }
+                }.getOrNull() ?: fallback
+                out.add(id)
+            }
+        }
+        val list = out.toList()
+        cachedBuiltinIds = list
+        return list
+    }
 
     val userDir: File get() = File(CustomConstant.RIME_DICT_PATH)
 
     /** 是否为随 APK 附带的内置方案（用户自行部署的方案如万象拼音返回 false） */
-    fun isBuiltinSchema(schemaId: String): Boolean = schemaId in BUILTIN_SCHEMAS
+    fun isBuiltinSchema(schemaId: String): Boolean = builtinSchemaIds().contains(schemaId)
 
-    /** 所有可部署方案（内置 + 自定义），返回 (schemaId, 名称) */
+    /** 所有可部署方案（内置 + 自定义），返回 (schemaId, 名称)。
+     *
+     *  **清单来自引擎**（librime levers 的 get_available_schema_list，同文同款）：
+     *  引擎自己扫用户目录里所有 *.schema.yaml —— 用户往 /sdcard/yuyan 丢什么方案就用什么，
+     *  App 一个方案名都不写死。引擎未就绪（首次部署早期）时退回目录扫描。 */
     fun allSchemas(): List<Pair<String, String>> {
+        val fromEngine = com.yuyan.inputmethod.core.Rime.availableSchemas()
+        if (fromEngine.isNotEmpty()) {
+            return fromEngine.map { (id, name) -> id to (if (name.isEmpty()) id else name) }
+        }
+        // 回退：引擎还没起来（或 levers 取不到）时按目录扫，至少别让 UI 空着
         val result = LinkedHashMap<String, String>()
-        // 内置方案固定顺序
-        listOf(
-            CustomConstant.SCHEMA_ZH_T9,
-            CustomConstant.SCHEMA_ZH_QWERTY,
-            "double_pinyin_natural",
-            "double_pinyin_mspy",
-            "double_pinyin_sogou",
-            "double_pinyin_flypy",
-            "double_pinyin_abc",
-            "double_pinyin_ziguang",
-            CustomConstant.SCHEMA_ZH_DOUBLE_LX17,
-            CustomConstant.SCHEMA_ZH_STROKE,
-            CustomConstant.SCHEMA_EN,
-        ).forEach { result[it] = "" }
-        // 用户目录下的方案（含万象拼音等）
         userDir.listFiles()?.filter { it.isFile && it.name.endsWith(".schema.yaml") }?.forEach { f ->
             val info = parseSchemaFile(f) ?: return@forEach
-            result.putIfAbsent(info.first, info.second)
+            result[info.first] = info.second
         }
         return result.map { (id, name) -> id to (if (name.isEmpty()) id else name) }
     }
 
     /** 仅自定义方案（排除内置），供键盘方案菜单展示——按 default.yaml 的
-     *  schema_list 过滤：词库转换、反查等附属方案不进方案列表（rime 标准机制） */
+     *  schema_list 过滤：词库转换、反查等附属方案不进方案列表（rime 标准机制）。
+     *  内置清单由 assets 动态扫出，不再写死。 */
     fun customSchemas(): List<Pair<String, String>> {
+        val builtin = builtinSchemaIds().toSet()
         val active = activeSchemaIds()
         return allSchemas().filter {
-            it.first !in BUILTIN_SCHEMAS && (active.isEmpty() || it.first in active)
+            it.first !in builtin && (active.isEmpty() || it.first in active)
         }
     }
 
@@ -256,70 +271,91 @@ object RimeWorkspace {
     }
 
     /**
-     * App 内置方案 id —— 必须出现在 default.yaml 的 schema_list 里，
-     * 否则 Rime 部署时不会编译它们，select_schema 失败，表现为「方案失效/打不出字」。
-     * 与 assets/rime 下各 *.schema.yaml 的 schema_id 以及 CustomConstant 的 SCHEMA_* 常量保持一致。
+     * 清理历史版本写进 default.custom.yaml 的「内置方案追加」段 —— 旧机制的残留。
+     *
+     * 旧版本会往里手写：
+     *   # ---- 语燕输入法自动追加：内置方案（请勿删除本段）----
+     *     schema_list/+:
+     *       - schema: pinyin
+     *       ...
+     * 新机制改由 librime 自己写 schema_list。这段要是留着，同一个 patch 里就又有
+     * `schema_list/+`（追加）又有 `schema_list`（替换）—— 又回到「谁生效看键序」的坑。
+     * 所以每次部署前按标记行定位并整段删掉。
      */
-    private val BUILTIN_SCHEMA_IDS = listOf(
-        "pinyin",                    // 拼音·全键
-        "t9_pinyin",                 // 拼音·九键
-        "double_pinyin_flypy",       // 小鹤
-        "double_pinyin_ls17",        // 乱序17
-        "double_pinyin_abc",
-        "double_pinyin_mspy",
-        "double_pinyin_natural",
-        "double_pinyin_sogou",
-        "double_pinyin_ziguang",
-        "english",
-        "stroke",
-        "wanxiang_pro"               // 万象拼音PRO（/sdcard/yuyan 导入；真实 schema_id 是 wanxiang_pro）
-    )
+    fun cleanupLegacySchemaListPlus(): Boolean {
+        val f = File(userDir, "default.custom.yaml")
+        if (!f.exists()) return false
+        val text = f.readText()
+        if (!text.contains("# ---- 语燕输入法自动追加")) return false
+        runCatching { File(userDir, "default.custom.yaml.bak").writeText(text) }
+        val out = ArrayList<String>()
+        var skipping = false
+        for (line in text.lines()) {
+            if (line.contains("# ---- 语燕输入法自动追加")) {
+                skipping = true
+                continue
+            }
+            if (skipping) {
+                // 标记段的内容都是缩进行（schema_list/+ 及其 - schema: 条目）；
+                // 碰到非缩进非空行说明这一段结束了，该行要保留。
+                val indented = line.startsWith(" ") || line.startsWith("\t")
+                if (line.isNotBlank() && !indented) {
+                    skipping = false
+                } else {
+                    continue
+                }
+            }
+            out.add(line)
+        }
+        f.writeText(out.joinToString("\n"))
+        return true
+    }
 
     /**
-     * 保证内置方案在 **default.custom.yaml** 里也被追加 —— 这一步是必需的。
+     * 保证 App 的内置方案出现在**启用清单**里 —— 全部交给 librime 的 levers / switcher API
+     * （同文输入法的机制），App 不再手写 default.custom.yaml。
      *
-     * 关键：用户/方案包的 `default.custom.yaml` 里的 `patch: schema_list:` 是【替换】语义，
-     * 会把 default.yaml 里我们补好的 schema_list 整段覆盖掉，内置方案因此不会被编译，
-     * select_schema 失败。实测证据（引擎日志）：
-     *   config_data.cc:73] loading config file '.../rime/default.custom.yaml'.
-     *   config_compiler.cc:214] patching schema_list
-     *   deployment_tasks.cc:190] updating schemas.
-     * 而整个 646 行日志里除 wanxiang 系外没有任何 pinyin 编译记录 —— 即 pinyin 从未进入生效清单。
+     * 为什么废弃旧做法：旧实现往 default.custom.yaml 里手写 `schema_list/+`，
+     * 而用户/方案包自己的 `patch: schema_list:` 是【替换】语义 —— 同一个 patch 里两个键
+     * 都指向 schema_list，最终生效哪个取决于引擎处理键的顺序。实测后果：用户写的
+     * `wanxiang_english` 被顶掉，「选择键盘」里根本看不到这个方案。
+     * 而且旧实现还写死 12 个方案 id（含 wanxiang_pro）—— 用户换雾凇等任何别的方案
+     * 都进不了清单，表现为「装了方案但识别不出来」。
      *
-     * 所以必须往 default.custom.yaml 写 `schema_list/+`（rime 标准的追加语义）：
-     * 无论对方用的是替换还是追加，内置方案都能出现在最终清单里。
-     * 只追加不动原有内容，并在首次修改前备份为 default.custom.yaml.bak。
+     * 现在：
+     *   可用 = 引擎 availableSchemas()（扫用户目录里所有 *.schema.yaml，含用户自己导入的）
+     *   启用 = 引擎 enabledSchemaIds()（default.custom.yaml 的 schema_list 经部署合并后的结果）
+     *   内置 = assets 动态扫出（builtinSchemaIds()），不再写死
+     *   目标 = (启用 ∪ 内置) ∩ 可用
+     * 只有清单真的变化时才调 setEnabledSchemas()，返回 true 表示**需要重新部署**。
+     *
+     * 注意：librime 的 get_selected_schema_list 读的是**部署产物**（staging 里 merged 的
+     * default.yaml），所以本函数要在部署之后调用才读得到有效清单（同文也是
+     * setEnabledSchemata 之后再 deploy 一次）。宿主机 yuyan_test 已实测：
+     *   available 不依赖部署；setEnabledSchemas 能正确写出 default.custom.yaml；
+     *   enabled 必须先部署过才非空。
      */
-    fun ensureBuiltinSchemasInCustomPatch(): Boolean {
-        val f = File(userDir, "default.custom.yaml")
-        val marker = "# ---- 语燕输入法自动追加：内置方案（请勿删除本段）----"
-        val block = buildString {
-            append(marker).append('\n')
-            append("  schema_list/+:\n")
-            BUILTIN_SCHEMA_IDS.forEach { append("    - schema: ").append(it).append('\n') }
-        }.trimEnd('\n')
+    fun ensureBuiltinSchemasEnabled(): Boolean {
+        val available = com.yuyan.inputmethod.core.Rime.availableSchemas().map { it.first }
+        if (available.isEmpty()) return false   // 引擎未就绪：不能冒险覆盖用户的清单
+        val availableSet = available.toSet()
+        // 三方来源合并（只增不减，任何一方都不会被丢掉）：
+        //   base    = 用户目录 default.yaml 的 schema_list（方案包/用户声明的清单）
+        //   enabled = 已生效清单（部署后才读得到；首次部署前为空）
+        //   builtin = App 内置方案（assets 动态扫出）
+        // 关键：必须带上 base —— 首次部署时 enabled 还是空的，只按 enabled∪内置 写会把
+        // 用户/方案包声明的方案整段挤掉（旧代码那个「schemas 丢失」的坑就是这么来的）。
+        val base = activeSchemaIds()
+        val enabled = com.yuyan.inputmethod.core.Rime.enabledSchemaIds()
 
-        if (!f.exists()) {
-            f.parentFile?.mkdirs()
-            f.writeText("patch:\n$block\n")
-            return true
-        }
-        val text = f.readText()
-        if (text.contains(marker)) return false // 已经写过，不重复追加
-        runCatching { File(userDir, "default.custom.yaml.bak").writeText(text) }
+        val target = LinkedHashSet<String>()
+        base.forEach { if (it in availableSet) target.add(it) }
+        enabled.forEach { if (it in availableSet) target.add(it) }
+        builtinSchemaIds().forEach { if (it in availableSet) target.add(it) }
 
-        val lines = text.lines().toMutableList()
-        val patchIdx = lines.indexOfFirst { it.trim() == "patch:" }
-        if (patchIdx >= 0) {
-            // 插到现有 patch: 之下（保持同一层级，不能另起一个 patch: 否则会覆盖掉用户原有的 patch）
-            lines.add(patchIdx + 1, block)
-        } else {
-            if (lines.isNotEmpty() && lines.last().isNotBlank()) lines.add("")
-            lines.add("patch:")
-            lines.add(block)
-        }
-        f.writeText(lines.joinToString("\n") + "\n")
-        return true
+        if (target.isEmpty()) return false
+        if (target.toList() == enabled.toList()) return false   // 没变化就别动文件
+        return com.yuyan.inputmethod.core.Rime.setEnabledSchemas(target.toList())
     }
 
     /**
@@ -410,7 +446,8 @@ object RimeWorkspace {
             }
         }
 
-        val missing = BUILTIN_SCHEMA_IDS.filterNot { existing.contains(it) }
+        // 内置清单动态来自 assets（不再写死）；用户自己的方案不由这里负责
+        val missing = builtinSchemaIds().filterNot { existing.contains(it) }
         if (missing.isEmpty()) return changed
 
         val out = ArrayList(lines)

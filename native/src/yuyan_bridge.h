@@ -83,6 +83,17 @@ class Engine {
   // 读取当前方案的 switcher 选项（name\t状态0\t状态1\t当前值 每行一条），
   // 供键盘菜单动态展示（同文机制：部署后选项自动出现，无需硬编码）
   std::string GetSwitches();
+
+  // ---- 方案列表：librime levers/switcher API（同文输入法同款机制）----
+  // 返回每行一条 "schema_id\t方案名"；引擎未就绪或取不到时返回空串。
+  //   AvailableSchemas()：引擎扫到的【全部可用】方案（含用户自行导入的万象/雾凇等）
+  //   EnabledSchemas()  ：当前【生效】的启用清单（default.custom.yaml 的 schema_list）
+  // App 不再写死任何方案 id —— 清单一律来自引擎。
+  std::string AvailableSchemas();
+  std::string EnabledSchemas();
+  // 覆盖写启用清单 —— 交给 librime 自己写 default.custom.yaml（同文 setEnabledSchemata）。
+  // 返回是否成功；成功后需要重新部署才会生效（由调用方触发）。
+  bool SetEnabledSchemas(const std::vector<std::string>& ids);
   // 开关组（schema 里用 options: 定义的组，如 s2s/s2t/s2hk/s2tw）切换
   void SetOptionGroup(const std::string& options, int index);
   bool GetContext(ContextInfo* out);

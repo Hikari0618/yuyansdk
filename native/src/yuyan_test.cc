@@ -116,6 +116,8 @@ int main(int argc, char** argv) {
   int page = 0;
   bool page_down = false;
   int select = -1;
+  bool print_schemas = false;
+  std::string set_schemas;
 
   for (int i = 2; i < argc; i++) {
     if (!strcmp(argv[i], "--deploy")) deploy = true;
@@ -129,6 +131,8 @@ int main(int argc, char** argv) {
     else if (!strcmp(argv[i], "--gen-reverse") && i + 1 < argc) gen_reverse = argv[++i];
     else if (!strcmp(argv[i], "--bench-assoc") && i + 1 < argc) bench_assoc = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--idle") && i + 1 < argc) idle_seconds = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--schemas")) print_schemas = true;
+    else if (!strcmp(argv[i], "--set-schemas") && i + 1 < argc) set_schemas = argv[++i];
   }
 
   yuyan::Engine& engine = yuyan::Engine::Instance();
@@ -145,6 +149,27 @@ int main(int argc, char** argv) {
     return GenReverse(user_dir, gen_reverse);
   }
   PrintStatus();
+
+  // ---- 方案列表验证（librime levers/switcher API）----
+  if (!set_schemas.empty()) {
+    std::vector<std::string> ids;
+    std::string cur;
+    for (char c : set_schemas) {
+      if (c == ',') {
+        if (!cur.empty()) ids.push_back(cur);
+        cur.clear();
+      } else {
+        cur.push_back(c);
+      }
+    }
+    if (!cur.empty()) ids.push_back(cur);
+    bool ok = engine.SetEnabledSchemas(ids);
+    printf("[set-schemas] %zu 项 -> %s\n", ids.size(), ok ? "OK" : "FAILED");
+  }
+  if (print_schemas) {
+    printf("[available]\n%s", engine.AvailableSchemas().c_str());
+    printf("[enabled]\n%s", engine.EnabledSchemas().c_str());
+  }
 
   if (!schema.empty()) {
     bool ok = engine.SelectSchema(schema);

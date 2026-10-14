@@ -202,5 +202,42 @@ class Rime(fullCheck: Boolean) {
 
         @JvmStatic
         external fun selectRimeAssociate(index: Int): Boolean
+
+        // ---- 方案列表：librime levers / switcher API（同文输入法同款机制）----
+        // 每行一条 "schema_id\t方案名"；空串表示引擎未就绪或取不到。
+        @JvmStatic
+        external fun getRimeAvailableSchemas(): String
+
+        @JvmStatic
+        external fun getRimeEnabledSchemas(): String
+
+        /** ids 以 \n 分隔（空串 = 清空）。成功后需重新部署才生效。 */
+        @JvmStatic
+        external fun setRimeEnabledSchemas(ids: String): Boolean
+
+        /** 引擎扫到的【全部可用】方案（含用户自行导入的万象/雾凇等）。引擎未就绪时返回空。 */
+        @JvmStatic
+        fun availableSchemas(): List<Pair<String, String>> =
+            parseSchemaList(getRimeAvailableSchemas())
+
+        /** 当前【生效】的启用清单（default.custom.yaml 的 schema_list 经部署合并后的结果）。 */
+        @JvmStatic
+        fun enabledSchemaIds(): List<String> =
+            parseSchemaList(getRimeEnabledSchemas()).map { it.first }
+
+        /** 覆盖写启用清单 —— 交给 librime 自己写 default.custom.yaml。成功后需重新部署。 */
+        @JvmStatic
+        fun setEnabledSchemas(ids: List<String>): Boolean =
+            setRimeEnabledSchemas(ids.joinToString("\n"))
+
+        /** "schema_id\t方案名" 每行一条 → List<Pair>（名称可能为空：已启用清单不带名字）。 */
+        private fun parseSchemaList(raw: String): List<Pair<String, String>> {
+            if (raw.isEmpty()) return emptyList()
+            return raw.split('\n').filter { it.isNotBlank() }.map { line ->
+                val tab = line.indexOf('\t')
+                if (tab < 0) line.trim() to ""
+                else line.substring(0, tab) to line.substring(tab + 1).trim()
+            }
+        }
     }
 }

@@ -290,6 +290,34 @@ Java_com_yuyan_inputmethod_core_Rime_selectRimeAssociate(JNIEnv*, jclass,
                                                           : JNI_FALSE;
 }
 
+// ---- 方案列表（librime levers/switcher API，同文同款机制）----
+// 返回每行 "schema_id\t方案名"；空串表示取不到。
+
+JNIEXPORT jstring JNICALL
+Java_com_yuyan_inputmethod_core_Rime_getRimeAvailableSchemas(JNIEnv* env, jclass) {
+  return JFromString(env, yuyan::Engine::Instance().AvailableSchemas());
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_yuyan_inputmethod_core_Rime_getRimeEnabledSchemas(JNIEnv* env, jclass) {
+  return JFromString(env, yuyan::Engine::Instance().EnabledSchemas());
+}
+
+// ids 以 \n 分隔（空串 = 清空清单）。成功后需重新部署才生效。
+JNIEXPORT jboolean JNICALL
+Java_com_yuyan_inputmethod_core_Rime_setRimeEnabledSchemas(JNIEnv* env, jclass,
+                                                           jstring ids) {
+  std::vector<std::string> list;
+  std::istringstream ss(JToStdString(env, ids));
+  std::string line;
+  while (std::getline(ss, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    if (!line.empty()) list.push_back(line);
+  }
+  return yuyan::Engine::Instance().SetEnabledSchemas(list) ? JNI_TRUE
+                                                           : JNI_FALSE;
+}
+
 // ---- com.yuyan.inputmethod.util.RimeSyncUtils ----
 
 JNIEXPORT jboolean JNICALL

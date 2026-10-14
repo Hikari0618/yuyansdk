@@ -227,7 +227,8 @@ fun showFuzzyPinyinDialog(context: android.content.Context) {
         showToast("「$schemaId」不是拼音方案，不支持模糊音设置")
         return
     }
-    // 只对【内置方案】开放：内置方案随安装包发布（RimeWorkspace.BUILTIN_SCHEMAS）。
+    // 只对【内置方案】开放：内置方案随安装包发布，清单由
+    // assets/rime 动态扫出（RimeWorkspace.builtinSchemaIds()，不再写死）。
     // 用户自行部署的方案（万象拼音、雾凇等）不在其中，其模糊音应由用户自己在该方案的
     // custom.yaml 里管理 —— 这里直接提示并返回，避免替用户改写他自己的配置。
     if (!com.yuyan.inputmethod.util.RimeWorkspace.isBuiltinSchema(schemaId)) {
