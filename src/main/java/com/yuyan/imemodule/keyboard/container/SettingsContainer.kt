@@ -140,19 +140,37 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
     // 开关组当前下标（UI 侧记录：万象方案会把开关组重置，引擎读回全是 false）
     private val mSwitchGroupIndex = mutableMapOf<String, Int>()
 
-    /** 常见 Rime 开关的中文名（菜单里不再直接显示英文原名） */
+    /** Rime 标准开关的中文名。
+     *
+     *  注意：这只影响「括号里的提示文字」—— 开关列表本身是**动态的**，来自当前方案的
+     *  switcher 配置（含「小字集/大字集」这类选项名，也由方案自己的 options 提供），
+     *  所以换方案照样能用。这里只补 **rime 生态的通用开关名**，不写任何万象专属项；
+     *  表里没有的开关，菜单会把**原始键名**显示出来 —— 只显示「开/关」根本认不出是哪个。
+     */
     private val RIME_SWITCH_LABELS = mapOf(
+        // —— Rime 通用开关 ——
         "ascii_mode" to "中英",
         "ascii_punct" to "标点",
         "full_shape" to "全半角",
         "emoji" to "表情",
+        "simplification" to "简繁",
+        "extended_charset" to "大字集",
+        "zh_trad" to "繁体",
+        "zh_simp" to "简体",
+        "s2t" to "简→繁",
+        "s2s" to "繁→简",
+        "s2hk" to "港",
+        "s2tw" to "台",
+        "transcription" to "注音",
+        "prediction" to "预测",
         "chinese_english" to "翻译",
-        "context_reorder" to "上下文调频",
+        // —— 常见方案（含万象）里出现的 ——
         "abbrev" to "简码",
-        "super_tips" to "提示",
-        "charset_filter" to "字集",
         "char_priority" to "单字词组",
-        "english" to "英文输入"
+        "english" to "英文输入",
+        "context_reorder" to "上下文调频",
+        "super_tips" to "提示",
+        "charset_filter" to "字集"
     )
 
     fun showRimeSwitchesView() {
@@ -179,14 +197,16 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 val currentLabel = states.getOrElse(cur) {
                     if (cur != 0) "开" else "关"
                 }
-                val cn = RIME_SWITCH_LABELS[key] ?: ""
+                val cn = RIME_SWITCH_LABELS[key]
+                // 表里没有的开关就显示原始键名 —— 只显示「开/关」根本认不出是哪个开关，
+                // 换成非万象的方案（开关名不在表里）时尤其明显。
+                val label = when {
+                    cn != null -> "$currentLabel（$cn）"
+                    key.isNotEmpty() -> "$currentLabel（$key）"
+                    else -> currentLabel
+                }
                 funItems.add(
-                    SkbFunItem(
-                        if (cn.isEmpty()) currentLabel else "$currentLabel（$cn）",
-                        R.drawable.ic_menu_setting,
-                        SkbMenuMode.RimeSwitchToggle,
-                        key
-                    )
+                    SkbFunItem(label, R.drawable.ic_menu_setting, SkbMenuMode.RimeSwitchToggle, key)
                 )
             }
         if (funItems.isEmpty()) {
