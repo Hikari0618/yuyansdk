@@ -34,7 +34,12 @@ class AutoScaleTextView @JvmOverloads constructor(context: Context?, attributeSe
 
     var scaleMode = Mode.None
 
-    private lateinit var text: String
+    /** 当前文本。**刻意不用 lateinit**：
+     *  onMeasure（→ measureTextBounds）/ onDraw / getText 都可能在第一次 setText 之前被调用
+     *  （super 构造函数里就会调 setText —— 见下面 setText 的注释），
+     *  那时 lateinit 访问会抛 UninitializedPropertyAccessException 直接闪退。
+     *  空串就是「还没设文本」的合法状态，所以默认空串、读取方不必各自守卫。 */
+    private var text: String = ""
 
     private var needsMeasureText = true
     private val fontMetrics = Paint.FontMetrics()
@@ -48,7 +53,9 @@ class AutoScaleTextView @JvmOverloads constructor(context: Context?, attributeSe
 
     override fun setText(charSequence: CharSequence?, bufferType: BufferType) {
         // setText can be called in super constructor
-        if (!::text.isInitialized || charSequence == null || !text.contentEquals(charSequence)) {
+        // 首帧检测原来靠 !::text.isInitialized；text 现在是默认空串，
+        // 「null 或与当前不同」已覆盖首次调用（needsMeasureText 初值本就是 true），语义不变。
+        if (charSequence == null || !text.contentEquals(charSequence)) {
             needsMeasureText = true
             needsCalculateTransform = true
             text = charSequence?.toString() ?: ""

@@ -100,7 +100,9 @@ class SetupActivity : FragmentActivity() {
         super.onWindowFocusChanged(hasFocus)
         if(InputMethodUtil.isSelected()){
             finish()
-        } else if(InputMethodUtil.isEnabled()){
+        } else if(InputMethodUtil.isEnabled() && ::viewPager.isInitialized){
+            // 焦点回调理论上可能早于 onCreate 里的 viewPager 赋值；视图没就绪就别碰它
+            // （lateinit 未初始化访问会直接闪退）。finish() 不依赖视图，所以留在上面照常执行。
             viewPager.currentItem = SetupPage.entries.size - 1
         }
     }
