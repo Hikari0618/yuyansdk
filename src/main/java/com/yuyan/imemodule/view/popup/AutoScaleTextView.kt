@@ -34,12 +34,18 @@ class AutoScaleTextView @JvmOverloads constructor(context: Context?, attributeSe
 
     var scaleMode = Mode.None
 
-    /** 当前文本。**刻意不用 lateinit**：
-     *  onMeasure（→ measureTextBounds）/ onDraw / getText 都可能在第一次 setText 之前被调用
-     *  （super 构造函数里就会调 setText —— 见下面 setText 的注释），
-     *  那时 lateinit 访问会抛 UninitializedPropertyAccessException 直接闪退。
-     *  空串就是「还没设文本」的合法状态，所以默认空串、读取方不必各自守卫。 */
-    private var text: String = ""
+    /** 当前文本。**必须用 lateinit，绝不能给它加初始化器** —— 这是真机崩溃换来的结论：
+     *
+     *  TextView 的构造函数在「XML 写了 android:text」时会调用**被覆写的** setText()
+     *  （AOSP 源码里只有 TextView_text 分支会置 textIsSetFromXml、之后才调 setText），
+     *  而那一刻子类的字段初始化器**还没执行**：
+     *   · 若写成 `var text: String = ""` → setText 里执行 text.contentEquals(...) 时
+     *     底层字段还是 null → NPE → 构造函数抛异常 → inflate 直接崩
+     *     （实测：进数字键盘时 sdk_item_list_alpha_symbol_noraml 里的本类 inflate 失败）
+     *   · 即便没 NPE，super() 里设好的 XML 文本也会被随后执行的 `= ""` 初始化器覆盖掉
+     *  所以保持 lateinit（无初始化器），由 setText 的守卫保证首次赋值，
+     *  读取口（getText / measureTextBounds / onDraw）各自做 isInitialized 守卫。 */
+    private lateinit var text: String
 
     private var needsMeasureText = true
     private val fontMetrics = Paint.FontMetrics()
@@ -52,10 +58,9 @@ class AutoScaleTextView @JvmOverloads constructor(context: Context?, attributeSe
     private var textScaleY = 1.0f
 
     override fun setText(charSequence: CharSequence?, bufferType: BufferType) {
-        // setText can be called in super constructor
-        // 首帧检测原来靠 !::text.isInitialized；text 现在是默认空串，
-        // 「null 或与当前不同」已覆盖首次调用（needsMeasureText 初值本就是 true），语义不变。
-        if (charSequence == null || !text.contentEquals(charSequence)) {
+        // setText can be called in super constructor —— 所以第一件事就是判断 text 是否已初始化；
+        // 未初始化时【绝不能碰 text】（那一刻底层字段还是 null）。
+        if (!::text.isInitialized || charSequence == null || !text.contentEquals(charSequence)) {
             needsMeasureText = true
             needsCalculateTransform = true
             text = charSequence?.toString() ?: ""
@@ -65,7 +70,8 @@ class AutoScaleTextView @JvmOverloads constructor(context: Context?, attributeSe
     }
 
     override fun getText(): CharSequence {
-        return text
+        // 构造期（super 调 setText 之前）就可能被问到文本，lateinit 直接访问会崩
+        return if (::text.isInitialized) text else ""
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -90,6 +96,12 @@ class AutoScaleTextView @JvmOverloads constructor(context: Context?, attributeSe
     }
 
     private fun measureTextBounds(): Rect {
+        // 未设文本时按空文本量 —— onMeasure 与 onLayout→calculateTransform 两条路都会走到这里，
+        // 构造期就访问 lateinit 会崩。
+        if (!::text.isInitialized) {
+            textBounds.setEmpty()
+            return textBounds
+        }
         if (needsMeasureText) {
             val paint = paint
             paint.getFontMetrics(fontMetrics)
@@ -159,6 +171,8 @@ class AutoScaleTextView @JvmOverloads constructor(context: Context?, attributeSe
     }
 
     override fun onDraw(canvas: Canvas) {
+        // 没有文本就什么都不画（drawText 需要合法字符串）
+        if (!::text.isInitialized) return
         if (needsCalculateTransform) {
             calculateTransform(width, height)
             needsCalculateTransform = false
