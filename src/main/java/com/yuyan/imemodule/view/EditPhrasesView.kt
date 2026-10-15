@@ -108,8 +108,25 @@ class EditPhrasesView(context: Context) : LinearLayout(context){
         add(mEtPhrases, lParams(width = matchParent,height = wrapContent))
     }
 
+    /**
+     * 诊断用（只在 debug 包写 ime.log）：长内容编辑时到底是「maxHeight 没封顶」
+     * 还是「封顶了但文本不能滚」。一次就能分清，不用再猜。
+     */
+    private fun logEditState(tag: String) {
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[edit] $tag h=${height} measuredH=${measuredHeight} maxH=$maxHeight " +
+                "layoutH=${mEtPhrases.layout?.height ?: -1} len=${mEtPhrases.text?.length ?: -1} " +
+                "canScrollV=${mEtPhrases.canScrollVertically(1)} scrollY=${mEtPhrases.scrollY} " +
+                "barOn=${mEtPhrases.isVerticalScrollBarEnabled} " +
+                "focused=${mEtPhrases.isFocused} focusable=${mEtPhrases.isFocusableInTouchMode} " +
+                "screenH=${resources.displayMetrics.heightPixels}"
+        )
+    }
+
     fun handleAddPhrasesView() {
         mEtPhrases.requestFocus()
+        // 诊断：post 到下一帧，等测量/布局完成后再打（否则量到的都是 0）
+        mEtPhrases.post { logEditState("open") }
         mEtPhrases.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -141,6 +158,7 @@ class EditPhrasesView(context: Context) : LinearLayout(context){
         mEtPhrases.setSelection(content.length)
         mEtPhrasesQuickCode.setText(qwerty)
         mEtPhrasesQuickCode.setSelection(qwerty.length)
+        mEtPhrases.post { logEditState("phrase") }
     }
 
     /**
@@ -153,6 +171,7 @@ class EditPhrasesView(context: Context) : LinearLayout(context){
         mEtPhrasesQuickCode.setText("")
         mEtPhrases.setText(oldContent)
         mEtPhrases.setSelection(oldContent.length)
+        mEtPhrases.post { logEditState("clip") }
     }
 
     /** 回车保存：按当前数据源分别落到 phrase / clipboard 表 */
