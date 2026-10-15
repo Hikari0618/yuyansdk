@@ -285,6 +285,25 @@ class ImeService : InputMethodService() {
 
     override fun onEvaluateFullscreenMode(): Boolean = false //修复横屏之后输入框遮挡问题
 
+    /**
+     * 常用语编辑器（EditPhrasesView）在 InputView 里是 `addRule(ABOVE, mSkbRoot)` —— 挂在键盘
+     * **上方**，不在 mSkbRoot 的矩形内。而触摸区只圈 mSkbRoot，于是编辑器整块落在触摸区外：
+     * 点编辑器会直接穿透到下面的 App（用户实测「常用语编辑界面触摸穿透」）。
+     * 编辑器显示时把它并进触摸区即可。
+     */
+    private fun unionAddPhrasesRegion(region: android.graphics.Region) {
+        if (!::mInputView.isInitialized) return
+        if (!mInputView.isAddPhrases) return
+        val editor = mInputView.mAddPhrasesLayout
+        if (!editor.isAttachedToWindow) return
+        if (editor.width <= 0 || editor.height <= 0) return
+        val loc = IntArray(2)
+        editor.getLocationInWindow(loc)
+        region.union(
+            android.graphics.Rect(loc[0], loc[1], loc[0] + editor.width, loc[1] + editor.height)
+        )
+    }
+
 
     override fun onComputeInsets(outInsets: Insets) {
         // 注意：Insets/Region 都是「窗口内相对坐标」。窗口是 WRAP_CONTENT、顶=输入视图顶，
@@ -307,6 +326,7 @@ class ImeService : InputMethodService() {
                     val kbW = if (::mInputView.isInitialized) mInputView.mSkbRoot.width else 0
                     val kbH = if (::mInputView.isInitialized) mInputView.mSkbRoot.height else 0
                     touchableRegion.set(kbLoc[0], kbLoc[1], kbLoc[0] + kbW, kbLoc[1] + kbH)
+                    unionAddPhrasesRegion(touchableRegion)
                 } else if (!isInputViewShown) {
                     // 键盘已收起（requestHideSelf）：窗口还在，但不能继续占着触摸区，
                     // 否则收起后系统边缘返回手势会被输入法吃掉
@@ -334,6 +354,8 @@ class ImeService : InputMethodService() {
                     // mSkbRoot 内部，一起被圈住。
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.set(kbLoc[0], kbLoc[1], kbLoc[0] + kbW, kbLoc[1] + kbH)
+                    // 常用语编辑器挂在键盘上方，必须一起圈进来（否则点它穿透到下面的 App）
+                    unionAddPhrasesRegion(touchableRegion)
                     val dm = resources.displayMetrics
                     com.yuyan.inputmethod.util.ImeLog.d(
                         "[display] w=${dm.widthPixels} h=${dm.heightPixels} density=${dm.density} " +

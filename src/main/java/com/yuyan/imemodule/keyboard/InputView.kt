@@ -916,16 +916,33 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         }
     }
 
+    /**
+     * 打开窗口内编辑器（常用语 / 剪贴板共用同一个 EditPhrasesView，只是数据源不同）。
+     * 编辑器是 addRule(ABOVE, mSkbRoot) 加在键盘【上方】的，所以布局一变就要重算触摸区，
+     * 否则第一次点编辑器仍落在旧触摸区之外 → 穿透（见 ImeService.unionAddPhrasesRegion）。
+     */
+    private fun openInWindowEditor(setupContent: () -> Unit) {
+        isAddPhrases = true
+        KeyboardManager.instance.switchKeyboard(InputModeSwitcher.skbImeLayout)
+        initView(context)
+        service.updateInputViewShown()
+        setupContent()
+    }
+
+    /** 剪贴板条目的「编辑」：与常用语走完全相同的窗口内编辑器，只是数据源换成 clipboard 表 */
+    fun onClipEditClick(content: String) {
+        openInWindowEditor { mAddPhrasesLayout.setClipboardData(content) }
+    }
+
     fun onSettingsMenuClick(skbMenuMode: SkbMenuMode, extra: Phrase? = null) {
         if (skbMenuMode == SkbMenuMode.AddPhrases) {
-            isAddPhrases = true
-            KeyboardManager.instance.switchKeyboard(InputModeSwitcher.skbImeLayout)
-            initView(context)
-            if (extra != null) {
-                DataBaseKT.instance.phraseDao().deleteByContent(extra.content)
-                mAddPhrasesLayout.setExtraData(extra)
-            } else {
-                mAddPhrasesLayout.clearPhrasesContent()
+            openInWindowEditor {
+                if (extra != null) {
+                    DataBaseKT.instance.phraseDao().deleteByContent(extra.content)
+                    mAddPhrasesLayout.setExtraData(extra)
+                } else {
+                    mAddPhrasesLayout.clearPhrasesContent()
+                }
             }
         } else {
             onSettingsMenuClick(this, skbMenuMode)
@@ -1009,9 +1026,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         if (isAddPhrases) {
             mAddPhrasesLayout.sendKeyEvent(keyCode)
             if (keyCode == KeyEvent.KEYCODE_ENTER) {
+                // 先取数据源：剪贴板条目保存后回剪贴板列表，常用语回常用语列表
+                val wasClipboard = mAddPhrasesLayout.isClipboardMode
                 isAddPhrases = false
                 initView(context)
-                onSettingsMenuClick(SkbMenuMode.Phrases)
+                service.updateInputViewShown()   // 编辑器已移除，触摸区要跟着收回来
+                onSettingsMenuClick(if (wasClipboard) SkbMenuMode.ClipBoard else SkbMenuMode.Phrases)
             }
         } else {
             when (keyCode) {

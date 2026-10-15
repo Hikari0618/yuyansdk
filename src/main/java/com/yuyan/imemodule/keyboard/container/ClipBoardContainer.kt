@@ -25,7 +25,6 @@ import com.yuyan.imemodule.database.DataBaseKT
 import com.yuyan.imemodule.database.entry.Clipboard
 import com.yuyan.imemodule.database.entry.Phrase
 import com.yuyan.imemodule.service.DecodingInfo
-import com.yuyan.imemodule.ui.activity.ClipEditActivity
 import com.yuyan.imemodule.libs.recyclerview.SwipeMenu
 import com.yuyan.imemodule.libs.recyclerview.SwipeMenuBridge
 import com.yuyan.imemodule.libs.recyclerview.SwipeMenuItem
@@ -167,7 +166,7 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     /**
      * 容器是按 KeyboardType 缓存的，切走时只是 GONE（甚至被 removeView），回来时不会重建 ——
-     * 而剪贴板/短语数据可能在别处被改过（典型：长按条目进 ClipEditActivity 编辑页，保存后返回），
+     * 而剪贴板/短语数据可能在别处被改过（典型：长按条目进编辑界面改完返回），
      * DB 变了但缓存的视图不会自己重取，于是「改了没反应」。所以重新可见时重取一次数据。
      */
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
@@ -205,8 +204,8 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         // 不会像自绘 PopupWindow 那样把点击漏给底下的列表。
         val popup = android.widget.PopupMenu(mContext, anchor)
         popup.menu.add(android.view.Menu.NONE, 1, 0, "编辑").setOnMenuItemClickListener {
-            // 短语模式必须走短语自己的编辑路径：ClipEditActivity 读写的是 clipboard 表，
-            // 而短语在 phrase 表里，拿它编辑短语会 findByContent 查不到行、保存整段跳过（改了没反应）。
+            // 短语模式必须走短语自己的编辑路径（数据源是 phrase 表，不是 clipboard 表）：
+            // 拿剪贴板那条路径去编辑短语，会 findByContent 查不到行、保存整段跳过（改了没反应）。
             if (itemMode == SkbMenuMode.Phrases) editPhraseItem(item) else editItem(item)
             true
         }
@@ -240,14 +239,16 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         }
     }
 
-    /** 编辑：交给独立 Activity —— 输入法没法给自己窗口里的输入框打字 */
+    /**
+     * 编辑：与常用语走【同一个】窗口内编辑器（EditPhrasesView），数据源换成 clipboard 表。
+     *
+     * 原来这里起的是独立 Activity（ClipEditActivity），其注释理由是「输入法没法给自己窗口里的
+     * 输入框打字」—— 但那个限制已被 ImeEditText 解决（常用语编辑一直就是这么做的），
+     * 而且 Activity 方案还有副作用：编辑页返回后列表数据是旧的，得专门做一次重新读库。
+     * 统一成窗口内编辑后，两类条目体验一致，也不必再绕这一圈。
+     */
     private fun editItem(item: Clipboard) {
-        runCatching {
-            mContext.startActivity(Intent(mContext, ClipEditActivity::class.java).apply {
-                putExtra(ClipEditActivity.EXTRA_CONTENT, item.content)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-        }
+        runCatching { inputView.onClipEditClick(item.content) }
     }
 
     /** 分享：交给系统选择器 */
