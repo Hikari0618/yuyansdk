@@ -535,7 +535,16 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     /** 按当前内容与放大状态重算两行高度（showCandidates 与 setComposingExpanded 共用）：
      *  空行收成 0（窗口里不留「认领了触摸却没内容」的空带）；放大时待编辑行 +半行、
      *  候选行 -半行，总高度不变，候选不会被挤下去。 */
-    private fun applyRowHeights() {
+    private fun applyRowHeights(): Boolean {
+        // ★ 最前面必须挡一道：initialize() 之前的测量也会走到这里。
+        //   最典型的是「主题界面里的键盘预览」—— 它复用了 CandidatesBar，但预览路径
+        //   不会调 initialize()（那需要一个 CandidateViewListener，预览没有 Service）。
+        //   onSizeChanged 里每处访问都做了 ::x.isInitialized 判断，这里当初漏了，
+        //   于是 mComposingView / candidatesData 还是 lateinit 时被直接访问 →
+        //   UninitializedPropertyAccessException 闪退（实测栈：onMeasure → applyRowHeights）。
+        //   没准备好就返回 false，由调用方据此【不要】记下 lastPinnedH，
+        //   这样 initialize() 之后的那次测量才会重新套行高。
+        if (!::mComposingView.isInitialized || !::candidatesData.isInitialized) return false
         val grow = if (mComposingExpanded) instance.heightForcomposing / 2 else 0
         // 两行常显（主键盘）：高度恒为设计值，不再「有内容才占高度」。
         // 设计上 heightForcomposing + heightForCandidates == heightForCandidatesArea，
@@ -560,6 +569,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             LayoutParams.MATCH_PARENT,
             instance.heightForCandidates - grow
         )
+        return true
     }
 
     /** 按当前 rowMode 统一设置四块互斥内容（候选行/待编辑行/建议行/自定义行）的可见性。
@@ -767,8 +777,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 内容比栏高出一截，建议行文字被顶下去、下沿被裁（实测 bar=133 而 dataH=203）。
         // 检测到钉住的高度变了就重套一次行高，保证栏高与行高永远一致。
         if (pin > 0 && pin != lastPinnedH) {
-            lastPinnedH = pin
-            applyRowHeights()
+            // 只有真的套上了行高才记下 pin —— 未初始化时 applyRowHeights 会早退返回 false，
+            // 此时若就把 lastPinnedH 设掉，等 initialize() 之后 pin == lastPinnedH
+            // 就再也不会重套行高（主题界面预览那条路径正是这样，会一直量错）。
+            if (applyRowHeights()) lastPinnedH = pin
         }
         val widthMeasure = MeasureSpec.makeMeasureSpec(instance.skbWidth, MeasureSpec.EXACTLY)
         super.onMeasure(
