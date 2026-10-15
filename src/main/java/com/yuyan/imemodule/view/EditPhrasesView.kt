@@ -93,32 +93,19 @@ class EditPhrasesView(context: Context) : LinearLayout(context){
             gravity = Gravity.CENTER_VERTICAL
             textSize = 16f
             minLines = 3
-            // 内容超过编辑器高度上限（见 onMeasure）时靠自身滚动；不显示滚动条的话
-            // 用户会以为字被截断了
+            // 高度上限：内容过长时（典型：复制了一大段文字要改）封顶并【自身滚动】——
+            // 编辑器挂在键盘【上方】，不封顶就会顶满整屏、把键盘挤出屏幕。
+            // 用 TextView 自带的 maxHeight 而不是在 onMeasure 里限高：本 View 在布局里
+            // 若带 weight，AT_MOST 下 weight 会把编辑框撑满到上限，内容短也不再自适应收缩。
+            maxHeight = (resources.displayMetrics.heightPixels * MAX_HEIGHT_SCREEN_RATIO).toInt()
+            // 显示滚动条：不然用户会以为长内容被截断了
             isVerticalScrollBarEnabled = true
             setPadding(dp(10))
             setHint(R.string.add_phrases_input_hint)
         }
         add(mLlTipContainer, lParams(width = matchParent,height = wrapContent, weight = 0f))
-        add(mEtPhrases, lParams(width = matchParent,height = wrapContent, weight = 1f))
-    }
-
-    /**
-     * 编辑器高度上限：内容很长时（典型：复制了一大段文字要改）不要让编辑区顶满整屏 ——
-     * 编辑器挂在键盘【上方】，顶满就把键盘整个挤出屏幕/遮死了。
-     *
-     * 用 AT_MOST 而不是直接钉死高度：内容短时仍按内容高度（不浪费竖向空间），
-     * 超长的部分由 mEtPhrases 自己滚动（EditText 本身可滚动，见其 isVerticalScrollBarEnabled）。
-     *
-     * 说明：触摸区是按「mSkbRoot ∪ 编辑器实际测量到的矩形」算的（ImeService.unionAddPhrasesRegion），
-     * 所以这里把编辑器压矮之后触摸区会跟着收，不会留下死区。
-     */
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val maxHeightPx = (resources.displayMetrics.heightPixels * MAX_HEIGHT_SCREEN_RATIO).toInt()
-        super.onMeasure(
-            widthMeasureSpec,
-            MeasureSpec.makeMeasureSpec(maxHeightPx, MeasureSpec.AT_MOST)
-        )
+        // 不带 weight：让编辑框按【内容高度】走（短则矮），高度上限由上面的 maxHeight 封顶
+        add(mEtPhrases, lParams(width = matchParent,height = wrapContent))
     }
 
     fun handleAddPhrasesView() {
