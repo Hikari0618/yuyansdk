@@ -201,6 +201,10 @@ class Rime(fullCheck: Boolean) {
 
         @JvmStatic
         external fun selectRimeCandidate(index: Int): Boolean
+        // ⚠️ 必须带 @JvmStatic：companion 里的 external fun 若不加它，native 方法会挂在
+        // Companion 类上，JVM 去找 Java_..._Rime_00024Companion_xxx 而找不到 —— 运行时抛
+        // UnsatisfiedLinkError（实测踩过：长按「忘记该词」一点就崩）。
+        @JvmStatic
         external fun deleteRimeCandidate(index: Int): Boolean
 
         @JvmStatic
