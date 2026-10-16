@@ -14,6 +14,21 @@ object Kernel {
         nativeUpdateImeOption()
     }
 
+    /**
+     * 计时版 initImeSchema（给「中英切换卡顿」定位用）。
+     * 返回 (selectSchema 耗时, updateImeOption 耗时)：前者是 librime 换方案（要加载该方案的
+     * 词典，耗时与方案大小成正比），后者只是两次 setOption。分开量才能证明卡顿不在 app 侧。
+     * 必须放在 Kernel 里 —— RimeEngine / nativeUpdateImeOption 只在本类内可见。
+     */
+    fun initImeSchemaTimed(schema: String): Pair<Long, Long> {
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        RimeEngine.selectSchema(schema)
+        val t1 = android.os.SystemClock.elapsedRealtime()
+        nativeUpdateImeOption()
+        val t2 = android.os.SystemClock.elapsedRealtime()
+        return Pair(t1 - t0, t2 - t1)
+    }
+
     fun getCurrentRimeSchema(): String {
         return RimeEngine.getCurrentRimeSchema()
     }

@@ -847,25 +847,8 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
      * 删的是用户词库里的该词（librime delete_candidate），删完候选列表原地刷新。
      */
     private fun onCandidateLongClick(anchor: View?, position: Int) {
-        if (position < 0 || position >= DecodingInfo.candidates.size) return
-        val text = DecodingInfo.candidates[position].text
-        if (text.isEmpty() || anchor == null) return
-        val popup = PopupMenu(context, anchor)
-        popup.menu.add(0, 0, 0, text).isEnabled = false
-        popup.menu.add(0, 1, 1, context.getString(R.string.forget_this_word))
-            .setOnMenuItemClickListener {
-                val ok = com.yuyan.inputmethod.core.Rime.deleteCandidate(position)
-                com.yuyan.inputmethod.util.ImeLog.d("[forget] deleteCandidate($position) '$text' -> $ok")
-                if (ok) {
-                    mCandidatesAdapter.notifyChanged()
-                } else {
-                    android.widget.Toast.makeText(
-                        context, "删除失败（该词可能来自系统词库）", android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }
-                true
-            }
-        popup.show()
+        // 与下拉候选界面共用同一份菜单（CandidateForgetMenu.kt）
+        showCandidateForgetMenu(context, anchor, position) { mCandidatesAdapter.notifyChanged() }
     }
 }
 

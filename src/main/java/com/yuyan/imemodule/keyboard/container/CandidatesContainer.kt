@@ -19,6 +19,7 @@ import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.yuyan.imemodule.R
 import com.yuyan.imemodule.adapter.CandidatesAdapter
+import com.yuyan.imemodule.view.showCandidateForgetMenu
 import com.yuyan.imemodule.adapter.PrefixAdapter
 import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.data.theme.ThemeManager.activeTheme
@@ -193,6 +194,12 @@ class CandidatesContainer(context: Context, inputView: InputView) : BaseContaine
                     DevicesUtils.tryPlayKeyDown()
                     DevicesUtils.tryVibrate(this)
                     inputView.chooseAndUpdate(position)
+                }
+                // 长按候选 → 「忘记该词」（与候选栏共用 CandidateForgetMenu；之前下拉界面没有这个入口）
+                mCandidatesAdapter.setOnItemLongClickLitener { _: RecyclerView.Adapter<*>?, view: View?, position: Int ->
+                    showCandidateForgetMenu(context, view, position) {
+                        mCandidatesAdapter.notifyDataSetChanged()
+                    }
                 }
                 mRVSymbolsView.setAdapter(mCandidatesAdapter)
             } else {
