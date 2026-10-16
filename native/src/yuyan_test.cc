@@ -117,6 +117,9 @@ int main(int argc, char** argv) {
   bool page_down = false;
   int select = -1;
   int forget = -1;
+  int select2 = -1;
+  std::string setopt;
+  std::string setopt_on;
   bool print_schemas = false;
   std::string set_schemas;
 
@@ -129,7 +132,10 @@ int main(int argc, char** argv) {
     else if (!strcmp(argv[i], "--pagedown")) page_down = true;
     else if (!strcmp(argv[i], "--assoc") && i + 1 < argc) assoc = argv[++i];
     else if (!strcmp(argv[i], "--select") && i + 1 < argc) select = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--select2") && i + 1 < argc) select2 = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--forget") && i + 1 < argc) forget = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--setopt") && i + 1 < argc) setopt = argv[++i];
+    else if (!strcmp(argv[i], "--setopt-on") && i + 1 < argc) setopt_on = argv[++i];
     else if (!strcmp(argv[i], "--gen-reverse") && i + 1 < argc) gen_reverse = argv[++i];
     else if (!strcmp(argv[i], "--bench-assoc") && i + 1 < argc) bench_assoc = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--idle") && i + 1 < argc) idle_seconds = atoi(argv[++i]);
@@ -199,6 +205,11 @@ int main(int argc, char** argv) {
     CheckCommit();
     PrintContext();
   }
+  if (select2 >= 0) {
+    engine.SelectCandidate(select2);
+    CheckCommit();
+    PrintContext();
+  }
   if (forget >= 0) {
     // 复现「忘记该词」：模拟 app 的做法 —— 删词 → 取输入 → 清空 → 用按键路径重放。
     // 判据：重放后候选列表里那个词应该【当场消失】。
@@ -207,12 +218,25 @@ int main(int argc, char** argv) {
     std::string input = engine.GetInput();
     printf("[forget] input='%s'\n", input.c_str());
     if (!input.empty()) {
-      engine.ClearComposition();
-      int n_ok = 0;
-      for (char c : input)
-        if (engine.ProcessKey(static_cast<unsigned char>(c), 0)) n_ok++;
-      printf("[forget] replay ok=%d/%zu\n", n_ok, input.size());
+      // 用户实测的刷新法：退一格 + 把那个字符补回去（走 speller 的 PopInput → 发 update_notifier_ → 重建菜单）
+      engine.ProcessKey(engine.GetKeycodeByName("BackSpace"), 0);
+      engine.ProcessKey(static_cast<unsigned char>(input.back()), 0);
+      printf("[forget] 退格+补回 '%c'\n", input.back());
     }
+    PrintContext();
+  }
+  if (!setopt.empty()) {
+    // 把选项设成【当前值】——值不变、行为不变，但 Context::set_option 无条件发
+    // option_update_notifier_ → ConcreteEngine::OnOptionUpdate →（组合中）RefreshNonConfirmedComposition
+    // → update_notifier_ → Compose(ctx) 重建候选列表。这就是「删完让候选栏当场刷新」的开关。
+    bool cur = false;  // 测试里该选项本来就是 false；值不重要——set_option 无条件发通知
+    engine.SetOption(setopt, cur);
+    printf("[setopt] %s=%d (值不变，仅触发重建)\n", setopt.c_str(), cur ? 1 : 0);
+    PrintContext();
+  }
+  if (!setopt_on.empty()) {
+    engine.SetOption(setopt_on, true);
+    printf("[setopt-on] %s=true\n", setopt_on.c_str());
     PrintContext();
   }
   if (!assoc.empty()) {
