@@ -261,12 +261,18 @@ Java_com_yuyan_inputmethod_core_Rime_selectRimeCandidate(JNIEnv*, jclass,
                                                           : JNI_FALSE;
 }
 
-// 「忘记该词」：长按候选 -> 菜单里删掉它（从用户词库删除并刷新候选列表）
+// 「忘记该词」：长按候选 -> 菜单里删掉它（从用户词库删除；重建候选列表由 Kotlin 侧重放输入完成）
 JNIEXPORT jboolean JNICALL
 Java_com_yuyan_inputmethod_core_Rime_deleteRimeCandidate(JNIEnv*, jclass,
                                                          jint index) {
   return yuyan::Engine::Instance().DeleteCandidate(index) ? JNI_TRUE
                                                           : JNI_FALSE;
+}
+
+// 当前输入串（原始按键）：删词后 Kotlin 侧要拿它重放输入、让引擎重建候选列表
+JNIEXPORT jstring JNICALL
+Java_com_yuyan_inputmethod_core_Rime_getRimeInput(JNIEnv* env, jclass) {
+  return env->NewStringUTF(yuyan::Engine::Instance().GetInput().c_str());
 }
 
 JNIEXPORT jint JNICALL

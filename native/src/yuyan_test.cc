@@ -116,6 +116,7 @@ int main(int argc, char** argv) {
   int page = 0;
   bool page_down = false;
   int select = -1;
+  int forget = -1;
   bool print_schemas = false;
   std::string set_schemas;
 
@@ -128,6 +129,7 @@ int main(int argc, char** argv) {
     else if (!strcmp(argv[i], "--pagedown")) page_down = true;
     else if (!strcmp(argv[i], "--assoc") && i + 1 < argc) assoc = argv[++i];
     else if (!strcmp(argv[i], "--select") && i + 1 < argc) select = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--forget") && i + 1 < argc) forget = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--gen-reverse") && i + 1 < argc) gen_reverse = argv[++i];
     else if (!strcmp(argv[i], "--bench-assoc") && i + 1 < argc) bench_assoc = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--idle") && i + 1 < argc) idle_seconds = atoi(argv[++i]);
@@ -195,6 +197,22 @@ int main(int argc, char** argv) {
   if (select >= 0) {
     engine.SelectCandidate(select);
     CheckCommit();
+    PrintContext();
+  }
+  if (forget >= 0) {
+    // 复现「忘记该词」：模拟 app 的做法 —— 删词 → 取输入 → 清空 → 用按键路径重放。
+    // 判据：重放后候选列表里那个词应该【当场消失】。
+    bool ok = engine.DeleteCandidate(forget);
+    printf("[forget] delete index=%d -> %d\n", forget, ok ? 1 : 0);
+    std::string input = engine.GetInput();
+    printf("[forget] input='%s'\n", input.c_str());
+    if (!input.empty()) {
+      engine.ClearComposition();
+      int n_ok = 0;
+      for (char c : input)
+        if (engine.ProcessKey(static_cast<unsigned char>(c), 0)) n_ok++;
+      printf("[forget] replay ok=%d/%zu\n", n_ok, input.size());
+    }
     PrintContext();
   }
   if (!assoc.empty()) {

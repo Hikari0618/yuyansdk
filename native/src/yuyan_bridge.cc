@@ -670,28 +670,25 @@ bool Engine::SelectCandidate(int index) {
 //    再 fire 一个 delete_notifier_，菜单是【按键驱动】重建的（每次按键才重跑 speller/translator）。
 //    所以用户会看到「删了但候选栏里那个词还在，要把拼音删掉重新打才消失」。
 //
-// 这里替用户把「重新输入」做掉：取出当前输入 → 清空 → 逐字符重新喂给引擎，
-// 菜单就会按【已经更新过的用户词库】重建，被删的词当场消失。
-// 注意：本函数已持有 g_mutex，只能直接调 rime()->*，不能再调 ProcessKey/ClearComposition（会死锁）。
+// 「重建菜单」那一步【不在这里做】：实测在持锁状态下直接调 rime()->clear_composition /
+// rime()->process_key 都不生效（clear 后 get_input 仍是原值、按键也进不去）。
+// 改由 Kotlin 侧用 app 自己的按键路径（Rime.clearComposition + Rime.processKey）重放，
+// 见 Rime.deleteCandidate。
 bool Engine::DeleteCandidate(int index) {
   std::lock_guard<std::mutex> lock(g_mutex);
   EnsureSession();
   if (!session_id_) return false;
-  bool ok = rime()->delete_candidate(session_id_, static_cast<size_t>(index)) != 0;
-  if (ok) {
-    const char* raw = rime()->get_input(session_id_);
-    std::string saved = raw ? raw : "";  // 必须先拷成 std::string：clear 之后原指针可能失效
-    if (!saved.empty()) {
-      ResetPaging();
-      rime()->clear_composition(session_id_);
-      for (char c : saved) {
-        int code = GetKeycodeByName(std::string(1, c));
-        if (code > 0) rime()->process_key(session_id_, code, 0);
-      }
-      DebugLog("[forget] 已重放输入 \"%s\" 以重建候选列表\n", saved.c_str());
-    }
-  }
-  return ok;
+  return rime()->delete_candidate(session_id_, static_cast<size_t>(index)) != 0;
+}
+
+// 当前输入串（原始按键，如小鹤双拼的 "ifykqi"）。
+// 用于「忘记该词」后重放输入以重建候选列表。
+std::string Engine::GetInput() {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  EnsureSession();
+  if (!session_id_) return "";
+  const char* raw = rime()->get_input(session_id_);
+  return raw ? std::string(raw) : "";
 }
 
 int Engine::GetKeycodeByName(const std::string& name) {

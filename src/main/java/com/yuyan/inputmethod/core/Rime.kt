@@ -105,12 +105,28 @@ class Rime(fullCheck: Boolean) {
             }
         }
 
-        /** 「忘记该词」：从用户词库删掉该候选（同 selectCandidate，删完刷新上下文） */
+        /** 「忘记该词」：从用户词库删掉该候选，并重放输入让引擎重建候选列表 */
         @JvmStatic
         fun deleteCandidate(index: Int): Boolean {
-            return deleteRimeCandidate(index).also {
+            val ok = deleteRimeCandidate(index)
+            if (ok) {
+                // librime 的 delete_candidate 只删用户词库、【不会重建当前候选列表】
+                // （context.cc:DeleteCandidate 自带注释 "this doesn't mean anything is deleted
+                //  for sure"）→ 不重放的话候选栏里那个词还在，要「删了重新输入」才消失。
+                // 重放必须走 app 自己的按键路径（processKey）：实测在 native 持锁状态下直接调
+                // rime()->clear_composition / rime()->process_key 都不生效。
+                val input = getRimeInput()
+                if (input.isNotEmpty()) {
+                    clearComposition()                     // 内部会 ResetPaging
+                    var n = 0
+                    for (c in input) if (processKey(c.code, 0)) n++
+                    com.yuyan.inputmethod.util.ImeLog.d(
+                        "[forget] 重放 '$input' 成功 $n/${input.length} 键"
+                    )
+                }
                 updateContext()
             }
+            return ok
         }
 
         @JvmStatic
@@ -206,6 +222,9 @@ class Rime(fullCheck: Boolean) {
         // UnsatisfiedLinkError（实测踩过：长按「忘记该词」一点就崩）。
         @JvmStatic
         external fun deleteRimeCandidate(index: Int): Boolean
+        // ⚠️ 同样必须带 @JvmStatic（companion 里的 external fun 不带它会 UnsatisfiedLinkError）
+        @JvmStatic
+        external fun getRimeInput(): String
 
         @JvmStatic
         external fun getRimeKeycodeByName(name: String): Int

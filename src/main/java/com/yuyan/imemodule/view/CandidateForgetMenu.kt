@@ -35,11 +35,21 @@ internal fun showCandidateForgetMenu(
             com.yuyan.inputmethod.util.ImeLog.d("[forget] deleteCandidate($position) '$text' -> $ok")
             if (ok) {
                 // 删完必须【重新问引擎拿候选】，否则界面还是旧数据 ——
-                // 用户反馈：删完候选栏没变化，得把拼音删了重打才看到确实忘了。
                 // 正常流程（选词后）也是走 DecodingInfo.updateDecodingCandidate()；
                 // 同文则在 deleteCandidate 里带 emitResponse() 把新候选推给 UI。
                 DecodingInfo.updateDecodingCandidate()
                 onDeleted()
+                // librime 的 delete_candidate 【只删用户词库】，对【系统词库】里的词是无效的
+                // （它自己注释 "this doesn't mean anything is deleted for sure"，返回值 true
+                //  不代表真删掉了）。宿主机实测：系统词删完 + 完整重放输入，词依旧在。
+                // 所以复查一遍：还在就明确说清原因，别让用户以为「点了没反应」。
+                if (DecodingInfo.candidates.any { it.text == text }) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "「$text」来自系统词库，无法忘记（只能忘记你自己输入过的词）",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
             } else {
                 android.widget.Toast.makeText(
                     context, "删除失败（该词可能来自系统词库）", android.widget.Toast.LENGTH_SHORT
