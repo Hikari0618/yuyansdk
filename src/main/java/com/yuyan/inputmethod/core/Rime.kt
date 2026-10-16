@@ -105,6 +105,14 @@ class Rime(fullCheck: Boolean) {
             }
         }
 
+        /** 「忘记该词」：从用户词库删掉该候选（同 selectCandidate，删完刷新上下文） */
+        @JvmStatic
+        fun deleteCandidate(index: Int): Boolean {
+            return deleteRimeCandidate(index).also {
+                updateContext()
+            }
+        }
+
         @JvmStatic
         fun setOption(option: String, value: Boolean) {
             setRimeOption(option, value)
@@ -193,6 +201,7 @@ class Rime(fullCheck: Boolean) {
 
         @JvmStatic
         external fun selectRimeCandidate(index: Int): Boolean
+        external fun deleteRimeCandidate(index: Int): Boolean
 
         @JvmStatic
         external fun getRimeKeycodeByName(name: String): Int

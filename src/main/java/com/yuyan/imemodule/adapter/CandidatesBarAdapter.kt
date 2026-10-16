@@ -20,9 +20,14 @@ class CandidatesBarAdapter(context: Context?) :
     RecyclerView.Adapter<CandidatesBarAdapter.SymbolHolder>() {
     private val inflater: LayoutInflater
     private var mOnItemClickListener: OnRecyclerItemClickListener? = null
+    private var mOnItemLongClickListener: OnRecyclerItemClickListener? = null
     private var mActiveCandNo:Int = 0
     fun setOnItemClickLitener(mOnItemClickLitener: OnRecyclerItemClickListener?) {
         mOnItemClickListener = mOnItemClickLitener
+    }
+    /** 长按候选（「忘记该词」入口） */
+    fun setOnItemLongClickLitener(l: OnRecyclerItemClickListener?) {
+        mOnItemLongClickListener = l
     }
 
     init {
@@ -56,6 +61,14 @@ class CandidatesBarAdapter(context: Context?) :
         if (mOnItemClickListener != null) {
             holder.textView.setOnClickListener { view: View? ->
                 mOnItemClickListener!!.onItemClick(this@CandidatesBarAdapter, view, position)
+            }
+        }
+        if (mOnItemLongClickListener != null) {
+            // 长按 = 「忘记该词」入口（借鉴同文：长按候选弹菜单）。返回 true 表示已消费，
+            // 否则会继续冒泡、被当成普通触摸。
+            holder.textView.setOnLongClickListener { view: View? ->
+                mOnItemLongClickListener!!.onItemClick(this@CandidatesBarAdapter, view, position)
+                true
             }
         }
     }

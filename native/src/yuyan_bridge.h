@@ -101,6 +101,7 @@ class Engine {
 
   void SetOption(const std::string& name, bool value);
   bool SelectCandidate(int index);  // 全局索引（与候选栏累计列表一致）
+  bool DeleteCandidate(int index);  // 「忘记该词」：从用户词库删掉该候选（全局索引，同 Select）
   int GetKeycodeByName(const std::string& name);
 
   // 联想词：以 text 结尾字为词根查询词典，返回组词联想

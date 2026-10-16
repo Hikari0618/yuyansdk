@@ -113,6 +113,12 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 mCvListener.onClickChoice(position)
             }
             mRVCandidates.setAdapter(mCandidatesAdapter)
+            // 候选之间的淡分割线（英文方案下尤其需要：候选自带空格，和候选间距分不清）
+            mRVCandidates.addItemDecoration(CandidateDividerDecoration(context))
+            // 长按候选 → 「忘记该词」（借鉴同文）
+            mCandidatesAdapter.setOnItemLongClickLitener { _: RecyclerView.Adapter<*>?, view: View?, position: Int ->
+                onCandidateLongClick(view, position)
+            }
             mRVCandidates.addOnScrollListener(object : OnScrollListener() {
                 override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                     if (newState == RecyclerView.SCROLL_STATE_IDLE) {
@@ -832,6 +838,61 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 is TextView -> child.setTextColor(color)
                 is ViewGroup -> refreshTextColors(child, color)
             }
+        }
+    }
+
+    /**
+     * 长按候选 → 「忘记该词」（借鉴同文 BaseInputView.showCandidateActionMenu）：
+     * 弹一个菜单，第一行是要删的词（禁用 = 纯展示），第二行「忘记该词」执行删除。
+     * 删的是用户词库里的该词（librime delete_candidate），删完候选列表原地刷新。
+     */
+    private fun onCandidateLongClick(anchor: View?, position: Int) {
+        if (position < 0 || position >= DecodingInfo.candidates.size) return
+        val text = DecodingInfo.candidates[position].text
+        if (text.isEmpty() || anchor == null) return
+        val popup = PopupMenu(context, anchor)
+        popup.menu.add(0, 0, 0, text).isEnabled = false
+        popup.menu.add(0, 1, 1, context.getString(R.string.forget_this_word))
+            .setOnMenuItemClickListener {
+                val ok = com.yuyan.inputmethod.core.Rime.deleteCandidate(position)
+                com.yuyan.inputmethod.util.ImeLog.d("[forget] deleteCandidate($position) '$text' -> $ok")
+                if (ok) {
+                    mCandidatesAdapter.notifyChanged()
+                } else {
+                    android.widget.Toast.makeText(
+                        context, "删除失败（该词可能来自系统词库）", android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+                true
+            }
+        popup.show()
+    }
+}
+
+/**
+ * 候选之间的淡分割线（借鉴同文：分隔线用 RecyclerView.ItemDecoration 画，
+ * 而不是给每个 item 加边框）。
+ *
+ * 为什么需要：英文方案的候选本身就是「带空格的词组」，而候选与候选之间的间距又差不多，
+ * 光看间距分不清「一个候选内部的空格」和「两个候选之间的边界」。一条淡竖线就一眼能分。
+ * 颜色取主题文字色的低透明度，跟着深浅色主题走（同文也是用主题的 candidateSeparatorColor）。
+ */
+private class CandidateDividerDecoration(context: Context) : RecyclerView.ItemDecoration() {
+    private val paint = android.graphics.Paint().apply {
+        strokeWidth = context.resources.displayMetrics.density * 1f
+    }
+    private val vInset = (context.resources.displayMetrics.density * 8).toInt()
+
+    override fun onDraw(c: android.graphics.Canvas, parent: RecyclerView, state: RecyclerView.State) {
+        val color = ThemeManager.activeTheme.keyTextColor
+        paint.color = android.graphics.Color.argb(
+            60, android.graphics.Color.red(color),
+            android.graphics.Color.green(color), android.graphics.Color.blue(color)
+        )
+        for (i in 0 until parent.childCount - 1) {
+            val v = parent.getChildAt(i)
+            val x = v.right.toFloat()
+            c.drawLine(x, (v.top + vInset).toFloat(), x, (v.bottom - vInset).toFloat(), paint)
         }
     }
 }

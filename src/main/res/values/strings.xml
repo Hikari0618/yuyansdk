@@ -25,6 +25,8 @@
     <string name="changeKeyboard">切换键盘</string>
     <string name="changeEnglishKeyboard">切换英语键盘</string>
     <string name="skb_item_rime_switches">输入选项</string>
+    <string name="forget_this_word">忘记该词</string>
+    <string name="english_schema_default">默认</string>
     <string name="chinese_input_setting">中文输入</string>
     <string name="search_english_cell">英文单词补全</string>
     <string name="setting_jian_fan">繁体输入</string>

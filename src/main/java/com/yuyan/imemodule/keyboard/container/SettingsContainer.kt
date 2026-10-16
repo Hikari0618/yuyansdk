@@ -290,16 +290,18 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
     fun showEnglishSchemaSelectView() {
         mMenuMode = SkbMenuMode.SwitchEnglishKeyboard
         val funItems: MutableList<SkbFunItem> = LinkedList()
-        // 内置 english 排第一个 = 「恢复默认」
+        // 第一位【写死】= 自带的 english 方案，名字就叫「默认」（用户明确要求）
         funItems.add(
             SkbFunItem(
-                CustomConstant.SCHEMA_EN,
+                mContext.getString(R.string.english_schema_default),
                 R.drawable.selece_input_mode_py26,
                 SkbMenuMode.SwitchEnglishKeyboard,
                 CustomConstant.SCHEMA_EN
             )
         )
-        com.yuyan.inputmethod.util.RimeWorkspace.allSchemas()
+        // 其余和「切换键盘」一样问引擎：用用户自己部署的方案（customSchemas 已排除内置、
+        // 并按 default.yaml 的 schema_list 过滤），不写死 —— 用户丢什么方案进来就能选什么
+        com.yuyan.inputmethod.util.RimeWorkspace.customSchemas()
             .filter { it.first != CustomConstant.SCHEMA_EN }
             .forEach { (schemaId, schemaName) ->
                 funItems.add(

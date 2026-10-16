@@ -331,11 +331,23 @@ object InputModeSwitcher {
      */
     fun saveInputMode(newInputMode: Int) {
         mInputMode = newInputMode // 设置新的输入法模式为当前的输入法模式
+        // 中英切换会切 Rime 方案，而不同方案的加载/部署成本不同（实测换成万象英语后切换会卡一下）。
+        // 这里打点计时，用数据说话（debug 包写 ime.log）。
         if (isEnglish) {
             // 英语模式用哪个方案是可配置的（键盘菜单 → 切换英语键盘），默认仍是自带的 english
-            Kernel.initImeSchema(getInstance().internal.englishSchemaId.getValue())
+            val id = getInstance().internal.englishSchemaId.getValue()
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            Kernel.initImeSchema(id)
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[switch] 中->英 initImeSchema($id) 耗时 ${android.os.SystemClock.elapsedRealtime() - t0}ms"
+            )
         } else {
-            Kernel.initImeSchema(getInstance().internal.pinyinModeRime.getValue())
+            val id = getInstance().internal.pinyinModeRime.getValue()
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            Kernel.initImeSchema(id)
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[switch] 英->中 initImeSchema($id) 耗时 ${android.os.SystemClock.elapsedRealtime() - t0}ms"
+            )
         }
         if (isChinese || isEnglish) {
             mRecentLauageInputMode = mInputMode

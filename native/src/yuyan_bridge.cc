@@ -663,6 +663,16 @@ bool Engine::SelectCandidate(int index) {
   return rime()->select_candidate(session_id_, static_cast<size_t>(index)) != 0;
 }
 
+// 「忘记该词」：librime 的 delete_candidate（rime_api.h）会从用户词库删掉该候选并刷新列表。
+// 与 SelectCandidate 的区别：这里【不 ResetPaging()】—— 删词后组合串还在、候选列表原地刷新，
+// 重置分页会把用户当前看的这一页弄乱（同文删完也是直接刷新列表）。
+bool Engine::DeleteCandidate(int index) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  EnsureSession();
+  if (!session_id_) return false;
+  return rime()->delete_candidate(session_id_, static_cast<size_t>(index)) != 0;
+}
+
 int Engine::GetKeycodeByName(const std::string& name) {
   return RimeGetKeycodeByName(name.c_str());
 }

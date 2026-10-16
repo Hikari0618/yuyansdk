@@ -98,8 +98,18 @@ class EditPhrasesView(context: Context) : LinearLayout(context){
             // 用 TextView 自带的 maxHeight 而不是在 onMeasure 里限高：本 View 在布局里
             // 若带 weight，AT_MOST 下 weight 会把编辑框撑满到上限，内容短也不再自适应收缩。
             maxHeight = (resources.displayMetrics.heightPixels * MAX_HEIGHT_SCREEN_RATIO).toInt()
-            // 显示滚动条：不然用户会以为长内容被截断了
+            // 滚动条：光 isVerticalScrollBarEnabled=true 是不够的 —— IME 窗口继承的主题里 thumb
+            // 可能是透明/极细的，实测日志 barOn=true 但屏幕上根本看不见（能滚，只是没有指示）。
+            // 所以不依赖主题，直接给一个明确的 thumb + 不淡出，内容超限时一眼能看出可滚。
             isVerticalScrollBarEnabled = true
+            isScrollbarFadingEnabled = false
+            scrollBarSize = dp(3)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                verticalScrollbarThumbDrawable = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(0x66808080)          // 半透明灰：看得见但不抢眼
+                    cornerRadius = dp(2).toFloat()
+                }
+            }
             setPadding(dp(10))
             setHint(R.string.add_phrases_input_hint)
         }

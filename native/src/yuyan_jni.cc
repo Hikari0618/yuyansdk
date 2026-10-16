@@ -261,6 +261,14 @@ Java_com_yuyan_inputmethod_core_Rime_selectRimeCandidate(JNIEnv*, jclass,
                                                           : JNI_FALSE;
 }
 
+// 「忘记该词」：长按候选 -> 菜单里删掉它（从用户词库删除并刷新候选列表）
+JNIEXPORT jboolean JNICALL
+Java_com_yuyan_inputmethod_core_Rime_deleteRimeCandidate(JNIEnv*, jclass,
+                                                         jint index) {
+  return yuyan::Engine::Instance().DeleteCandidate(index) ? JNI_TRUE
+                                                          : JNI_FALSE;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_yuyan_inputmethod_core_Rime_getRimeKeycodeByName(JNIEnv* env, jclass,
                                                           jstring name) {
