@@ -663,14 +663,35 @@ bool Engine::SelectCandidate(int index) {
   return rime()->select_candidate(session_id_, static_cast<size_t>(index)) != 0;
 }
 
-// 「忘记该词」：librime 的 delete_candidate（rime_api.h）会从用户词库删掉该候选并刷新列表。
-// 与 SelectCandidate 的区别：这里【不 ResetPaging()】—— 删词后组合串还在、候选列表原地刷新，
-// 重置分页会把用户当前看的这一页弄乱（同文删完也是直接刷新列表）。
+// 「忘记该词」：librime 的 delete_candidate（rime_api.h）会从用户词库删掉该候选。
+//
+// ⚠️ 它【不会重建当前候选列表】—— librime 自己的 context.cc:DeleteCandidate 里就写着
+//    "CAVEAT: this doesn't mean anything is deleted for sure"，它只把 seg.selected_index 指过去
+//    再 fire 一个 delete_notifier_，菜单是【按键驱动】重建的（每次按键才重跑 speller/translator）。
+//    所以用户会看到「删了但候选栏里那个词还在，要把拼音删掉重新打才消失」。
+//
+// 这里替用户把「重新输入」做掉：取出当前输入 → 清空 → 逐字符重新喂给引擎，
+// 菜单就会按【已经更新过的用户词库】重建，被删的词当场消失。
+// 注意：本函数已持有 g_mutex，只能直接调 rime()->*，不能再调 ProcessKey/ClearComposition（会死锁）。
 bool Engine::DeleteCandidate(int index) {
   std::lock_guard<std::mutex> lock(g_mutex);
   EnsureSession();
   if (!session_id_) return false;
-  return rime()->delete_candidate(session_id_, static_cast<size_t>(index)) != 0;
+  bool ok = rime()->delete_candidate(session_id_, static_cast<size_t>(index)) != 0;
+  if (ok) {
+    const char* raw = rime()->get_input(session_id_);
+    std::string saved = raw ? raw : "";  // 必须先拷成 std::string：clear 之后原指针可能失效
+    if (!saved.empty()) {
+      ResetPaging();
+      rime()->clear_composition(session_id_);
+      for (char c : saved) {
+        int code = GetKeycodeByName(std::string(1, c));
+        if (code > 0) rime()->process_key(session_id_, code, 0);
+      }
+      DebugLog("[forget] 已重放输入 \"%s\" 以重建候选列表\n", saved.c_str());
+    }
+  }
+  return ok;
 }
 
 int Engine::GetKeycodeByName(const std::string& name) {
