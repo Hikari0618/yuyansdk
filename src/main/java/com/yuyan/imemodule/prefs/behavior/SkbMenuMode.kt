@@ -4,6 +4,7 @@ import com.yuyan.imemodule.view.preference.ManagedPreference
 
 enum class SkbMenuMode {
     SwitchKeyboard,
+    SwitchEnglishKeyboard,
     KeyboardHeight,
     DarkTheme,
     Feedback,

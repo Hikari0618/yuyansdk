@@ -105,21 +105,23 @@ abstract class DataBaseKT : RoomDatabase() {
                     SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 1),
                     SkbFun(name = SkbMenuMode.Emojicon.name, isKeep = 0, position = 0),
                     SkbFun(name = SkbMenuMode.SwitchKeyboard.name, isKeep = 0, position = 1),
-                    SkbFun(name = SkbMenuMode.KeyboardHeight.name, isKeep = 0, position = 2),
-                    SkbFun(name = SkbMenuMode.ClipBoard.name, isKeep = 0, position = 3),
-                    SkbFun(name = SkbMenuMode.Phrases.name, isKeep = 0, position = 4),
-                    SkbFun(name = SkbMenuMode.DarkTheme.name, isKeep = 0, position = 5),
-                    SkbFun(name = SkbMenuMode.Feedback.name, isKeep = 0, position = 6),
-                    SkbFun(name = SkbMenuMode.OneHanded.name, isKeep = 0, position = 7),
-                    SkbFun(name = SkbMenuMode.NumberRow.name, isKeep = 0, position = 8),
-                    SkbFun(name = SkbMenuMode.JianFan.name, isKeep = 0, position = 9),
-                    SkbFun(name = SkbMenuMode.Mnemonic.name, isKeep = 0, position = 10),
-                    SkbFun(name = SkbMenuMode.FloatKeyboard.name, isKeep = 0, position = 11),
-                    SkbFun(name = SkbMenuMode.FlowerTypeface.name, isKeep = 0, position = 12),
-                    SkbFun(name = SkbMenuMode.Custom.name, isKeep = 0, position = 13),
-                    SkbFun(name = SkbMenuMode.Settings.name, isKeep = 0, position = 14),
-                    SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 0, position = 15),
-                    SkbFun(name = SkbMenuMode.RimeSwitches.name, isKeep = 0, position = 16),
+                    // 「切换英语键盘」紧跟「切换键盘」之后
+                    SkbFun(name = SkbMenuMode.SwitchEnglishKeyboard.name, isKeep = 0, position = 2),
+                    SkbFun(name = SkbMenuMode.KeyboardHeight.name, isKeep = 0, position = 3),
+                    SkbFun(name = SkbMenuMode.ClipBoard.name, isKeep = 0, position = 4),
+                    SkbFun(name = SkbMenuMode.Phrases.name, isKeep = 0, position = 5),
+                    SkbFun(name = SkbMenuMode.DarkTheme.name, isKeep = 0, position = 6),
+                    SkbFun(name = SkbMenuMode.Feedback.name, isKeep = 0, position = 7),
+                    SkbFun(name = SkbMenuMode.OneHanded.name, isKeep = 0, position = 8),
+                    SkbFun(name = SkbMenuMode.NumberRow.name, isKeep = 0, position = 9),
+                    SkbFun(name = SkbMenuMode.JianFan.name, isKeep = 0, position = 10),
+                    SkbFun(name = SkbMenuMode.Mnemonic.name, isKeep = 0, position = 11),
+                    SkbFun(name = SkbMenuMode.FloatKeyboard.name, isKeep = 0, position = 12),
+                    SkbFun(name = SkbMenuMode.FlowerTypeface.name, isKeep = 0, position = 13),
+                    SkbFun(name = SkbMenuMode.Custom.name, isKeep = 0, position = 14),
+                    SkbFun(name = SkbMenuMode.Settings.name, isKeep = 0, position = 15),
+                    SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 0, position = 16),
+                    SkbFun(name = SkbMenuMode.RimeSwitches.name, isKeep = 0, position = 17),
                 )
                 instance.skbFunDao().insertAll(skbFuns)
             }
@@ -130,11 +132,23 @@ abstract class DataBaseKT : RoomDatabase() {
          *  不补这一条，键盘菜单里就永远看不到 schema 的开关列表（同文那套动态选项）。 */
         private fun ensureNewMenuItems() {
             val menu = instance.skbFunDao().getAllMenu()
-            if (menu.any { it.name == SkbMenuMode.RimeSwitches.name }) return
-            val nextPosition = (menu.maxOfOrNull { it.position } ?: -1) + 1
-            instance.skbFunDao().insert(
-                SkbFun(name = SkbMenuMode.RimeSwitches.name, isKeep = 0, position = nextPosition)
-            )
+            if (menu.none { it.name == SkbMenuMode.RimeSwitches.name }) {
+                val nextPosition = (menu.maxOfOrNull { it.position } ?: -1) + 1
+                instance.skbFunDao().insert(
+                    SkbFun(name = SkbMenuMode.RimeSwitches.name, isKeep = 0, position = nextPosition)
+                )
+            }
+            // 「切换英语键盘」要排在「切换键盘」正后面：把后面那些项的 position 各 +1 腾出位置。
+            // （getAllMenu 按 position ASC 排序，所以插在 SwitchKeyboard.position + 1 即可）
+            if (menu.none { it.name == SkbMenuMode.SwitchEnglishKeyboard.name }) {
+                val insertAt = (menu.firstOrNull { it.name == SkbMenuMode.SwitchKeyboard.name }?.position ?: 1) + 1
+                menu.filter { it.position >= insertAt }.forEach { item ->
+                    instance.skbFunDao().update(item.copy(position = item.position + 1))
+                }
+                instance.skbFunDao().insert(
+                    SkbFun(name = SkbMenuMode.SwitchEnglishKeyboard.name, isKeep = 0, position = insertAt)
+                )
+            }
         }
     }
 }

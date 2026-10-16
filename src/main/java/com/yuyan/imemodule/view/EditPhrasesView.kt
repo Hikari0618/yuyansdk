@@ -114,7 +114,7 @@ class EditPhrasesView(context: Context) : LinearLayout(context){
      */
     private fun logEditState(tag: String) {
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[edit] $tag h=${height} measuredH=${measuredHeight} maxH=$maxHeight " +
+            "[edit] $tag h=${height} measuredH=${measuredHeight} maxH=${mEtPhrases.maxHeight} " +
                 "layoutH=${mEtPhrases.layout?.height ?: -1} len=${mEtPhrases.text?.length ?: -1} " +
                 "canScrollV=${mEtPhrases.canScrollVertically(1)} scrollY=${mEtPhrases.scrollY} " +
                 "barOn=${mEtPhrases.isVerticalScrollBarEnabled} " +

@@ -332,7 +332,8 @@ object InputModeSwitcher {
     fun saveInputMode(newInputMode: Int) {
         mInputMode = newInputMode // 设置新的输入法模式为当前的输入法模式
         if (isEnglish) {
-            Kernel.initImeSchema(CustomConstant.SCHEMA_EN)
+            // 英语模式用哪个方案是可配置的（键盘菜单 → 切换英语键盘），默认仍是自带的 english
+            Kernel.initImeSchema(getInstance().internal.englishSchemaId.getValue())
         } else {
             Kernel.initImeSchema(getInstance().internal.pinyinModeRime.getValue())
         }

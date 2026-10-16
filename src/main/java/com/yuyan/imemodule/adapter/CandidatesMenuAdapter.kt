@@ -21,6 +21,7 @@ import com.yuyan.imemodule.prefs.behavior.SymbolMode
 import com.yuyan.imemodule.singleton.EnvironmentSingleton
 import com.yuyan.imemodule.keyboard.KeyboardManager
 import com.yuyan.imemodule.keyboard.container.ClipBoardContainer
+import com.yuyan.imemodule.keyboard.container.SettingsContainer
 import com.yuyan.imemodule.keyboard.container.SymbolContainer
 import com.yuyan.imemodule.manager.InputModeSwitcher
 import com.yuyan.imemodule.singleton.EnvironmentSingleton.Companion.instance
@@ -95,6 +96,16 @@ class CandidatesMenuAdapter(context: Context?) : RecyclerView.Adapter<Candidates
             SkbMenuMode.OneHanded -> AppPrefs.getInstance().keyboardSetting.oneHandedModSwitch.getValue()
             SkbMenuMode.FlowerTypeface -> CustomConstant.flowerTypeface != FlowerTypefaceMode.Disabled
             SkbMenuMode.FloatKeyboard -> EnvironmentSingleton.instance.keyboardModeFloat
+            // 面板类菜单项：图标变绿 = 该面板正开着（与剪贴板/表情一致）
+            SkbMenuMode.SwitchKeyboard -> (KeyboardManager.instance.currentContainer as? SettingsContainer)?.getMenuMode() == SkbMenuMode.SwitchKeyboard
+            SkbMenuMode.RimeSwitches -> (KeyboardManager.instance.currentContainer as? SettingsContainer)?.getMenuMode() == SkbMenuMode.RimeSwitches
+            // 「切换英语键盘」有两种用法：菜单里的那一项（无 schemaId）看面板是否打开；
+            // 面板里的方案项（带 schemaId）则看它是不是当前选中的英语方案
+            SkbMenuMode.SwitchEnglishKeyboard -> if (data.schemaId.isEmpty()) {
+                (KeyboardManager.instance.currentContainer as? SettingsContainer)?.getMenuMode() == SkbMenuMode.SwitchEnglishKeyboard
+            } else {
+                AppPrefs.getInstance().internal.englishSchemaId.getValue() == data.schemaId
+            }
             SkbMenuMode.ClipBoard -> (KeyboardManager.instance.currentContainer as? ClipBoardContainer)?.getMenuMode() == SkbMenuMode.ClipBoard
             SkbMenuMode.Phrases -> (KeyboardManager.instance.currentContainer as? ClipBoardContainer)?.getMenuMode() == SkbMenuMode.Phrases
             SkbMenuMode.Emojicon -> (KeyboardManager.instance.currentContainer as? SymbolContainer)?.getMenuMode() == SymbolMode.Emojicon

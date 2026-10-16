@@ -8,6 +8,9 @@ import com.yuyan.imemodule.prefs.behavior.SkbMenuMode
 val menuSkbFunsPreset: Map<SkbMenuMode, SkbFunItem> = hashMapOf(
     SkbMenuMode.Emojicon to SkbFunItem(Launcher.instance.context.getString(R.string.emoji_setting), R.drawable.ic_menu_emoji, SkbMenuMode.Emojicon),
     SkbMenuMode.SwitchKeyboard to SkbFunItem(Launcher.instance.context.getString(R.string.changeKeyboard), R.drawable.ic_menu_keyboard, SkbMenuMode.SwitchKeyboard),
+    // 「切换英语键盘」：选一个方案作为「英语模式」的方案 —— 主键盘的中英切换键
+    // 原本固定切到自带的 english 方案，设置后改为切到这里选中的方案（如 wanxiang_english）
+    SkbMenuMode.SwitchEnglishKeyboard to SkbFunItem(Launcher.instance.context.getString(R.string.changeEnglishKeyboard), R.drawable.ic_menu_keyboard, SkbMenuMode.SwitchEnglishKeyboard),
     SkbMenuMode.KeyboardHeight to SkbFunItem(Launcher.instance.context.getString(R.string.setting_ime_keyboard_height), R.drawable.ic_menu_height, SkbMenuMode.KeyboardHeight),
     SkbMenuMode.ClipBoard to SkbFunItem(Launcher.instance.context.getString(R.string.clipboard), R.drawable.ic_menu_clipboard, SkbMenuMode.ClipBoard),
     SkbMenuMode.Phrases to SkbFunItem(Launcher.instance.context.getString(R.string.phrases), R.drawable.ic_menu_phrases, SkbMenuMode.Phrases),
@@ -30,5 +33,5 @@ val menuSkbFunsPreset: Map<SkbMenuMode, SkbFunItem> = hashMapOf(
     SkbMenuMode.RimeSync to SkbFunItem(Launcher.instance.context.getString(R.string.rime_sync), R.drawable.ic_menu_clipboard, SkbMenuMode.RimeSync),
     SkbMenuMode.RimeDeploy to SkbFunItem(Launcher.instance.context.getString(R.string.rime_deploy), R.drawable.ic_menu_setting, SkbMenuMode.RimeDeploy),
     SkbMenuMode.FuzzyPinyin to SkbFunItem(Launcher.instance.context.getString(R.string.fuzzy_pinyin), R.drawable.ic_menu_setting, SkbMenuMode.FuzzyPinyin),
-    SkbMenuMode.RimeSwitches to SkbFunItem("输入选项", R.drawable.ic_menu_setting, SkbMenuMode.RimeSwitches),
+    SkbMenuMode.RimeSwitches to SkbFunItem(Launcher.instance.context.getString(R.string.skb_item_rime_switches), R.drawable.ic_menu_setting, SkbMenuMode.RimeSwitches),
     )

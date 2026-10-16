@@ -208,13 +208,13 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
             mIvKeyboardMove.setOnTouchListener { _, event -> onMoveKeyboardEvent(event) }
         } else {
             val fullDisplayEnable = appPrefs.internal.fullDisplayKeyboardEnable.getValue()
+            // 全屏键盘条只在【竖屏】才建（横屏没有它）；占位条高度统一交给
+            // refreshBottomHolderHeight() 算，避免这里和 windowInsets 监听各写一份条件再分歧
             if (fullDisplayEnable && !env.isLandscape) {
                 mFullDisplayKeyboardBar = FullDisplayKeyboardBar(context, this)
                 mLlKeyboardBottomHolder.addView(mFullDisplayKeyboardBar)
-                mLlKeyboardBottomHolder.minimumHeight = env.heightForFullDisplayBar + env.systemNavbarWindowsBottom
-            } else {
-                mLlKeyboardBottomHolder.minimumHeight = env.systemNavbarWindowsBottom
             }
+            refreshBottomHolderHeight()
             bottomPadding = 0
             rightPadding = 0
             mBottomPaddingKey = appPrefs.internal.keyboardBottomPadding
@@ -1105,17 +1105,34 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
             val env = EnvironmentSingleton.instance
             env.systemNavbarWindowsBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            val fullDisplayEnable = appPrefs.internal.fullDisplayKeyboardEnable.getValue()
-            mLlKeyboardBottomHolder.minimumHeight = when {
-                // 悬浮模式也要给「移动条高度」：这里原来给 0，而 initView 的悬浮分支给的是
-                // heightForKeyboardMove —— 两处不一致，insets 一变（打字/布局过程中会反复变）
-                // holder 就在 38↔0 之间翻，键盘根高度跟着 891↔786 跳、按键区被挤，
-                // 键位网格按 720 绘制、容器只有 653 → 最下面一行被裁（用户实测）。
-                env.keyboardModeFloat -> env.heightForKeyboardMove
-                fullDisplayEnable -> env.heightForFullDisplayBar + env.systemNavbarWindowsBottom
-                else -> env.systemNavbarWindowsBottom
-            }
+            // 高度统一走 refreshBottomHolderHeight()（唯一入口）。这里原来自己写了一份条件、
+            // 且漏了横屏判断：横屏非悬浮时双击选字 → 文本选择 → IME 窗口重布局 → 本回调触发，
+            // 占位条就从 40 变成 182（= heightForFullDisplayBar 142 + navBottom 40，
+            // 而横屏根本没有全屏键盘条），键盘根高度凭空多 142px 且一直留着，
+            // 直到重开键盘/去「键盘高度」里重置（那两条路都会走 initView）才恢复。
+            refreshBottomHolderHeight()
             insets
+        }
+    }
+
+    /**
+     * 底部占位条 mLlKeyboardBottomHolder 的高度 —— 唯一入口。
+     *
+     * 这个高度直接加在键盘根高度上（根 = 按键容器 + 占位条），所以条件必须只有一份：
+     * 之前 initView 与 windowInsets 监听各写一份，insets 那份漏了横屏判断，结果横屏非悬浮时
+     * 双击选字 → 文本选择 → IME 窗口重布局 → insets 回调，占位条从 40 跳到 182
+     * （= heightForFullDisplayBar 142 + navBottom 40，而横屏根本没建全屏键盘条），
+     * 键盘凭空高 142px 且一直留着，只有重开键盘 / 去「键盘高度」里重置才恢复。
+     */
+    private fun refreshBottomHolderHeight() {
+        val env = EnvironmentSingleton.instance
+        mLlKeyboardBottomHolder.minimumHeight = when {
+            // 悬浮模式：占位条里放「移动键盘」的拖拽条（initView 悬浮分支给同一个值）
+            env.keyboardModeFloat -> env.heightForKeyboardMove
+            // 非悬浮 + 全面屏键盘优化：只有【竖屏】才真的建了 FullDisplayKeyboardBar
+            appPrefs.internal.fullDisplayKeyboardEnable.getValue() && !env.isLandscape ->
+                env.heightForFullDisplayBar + env.systemNavbarWindowsBottom
+            else -> env.systemNavbarWindowsBottom
         }
     }
 

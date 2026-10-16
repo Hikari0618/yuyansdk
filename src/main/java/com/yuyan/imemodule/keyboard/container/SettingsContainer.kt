@@ -36,6 +36,14 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
     private var mTheme: Theme? = null
     private var adapter:MenuAdapter? = null
     val funItems: MutableList<SkbFunItem> = LinkedList()   //键盘菜单对象
+
+    /**
+     * 当前正在展示哪个菜单面板。
+     * 用途一：菜单图标「变绿」的判据（两个 adapter 的 isSettingsMenuSelect 里比对）；
+     * 用途二：同一个菜单项再点一次时回到主键盘（与剪贴板/表情那套 toggle 行为一致）。
+     */
+    private var mMenuMode: SkbMenuMode? = null
+    fun getMenuMode(): SkbMenuMode? = mMenuMode
     init {
         initView(context)
     }
@@ -68,6 +76,7 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
      * 弹出键盘设置界面
      */
     fun showSettingsView() {
+        mMenuMode = SkbMenuMode.SettingsMenu
         funItems.clear()
         for(item in DataBaseKT.instance.skbFunDao().getAllMenu()){
             val skbMenuMode = menuSkbFunsPreset[SkbMenuMode.decode(item.name)]
@@ -153,6 +162,7 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
     // 既冗余又与方案不一致；换个方案还会因为键名不在表里而退化。
 
     fun showRimeSwitchesView() {
+        mMenuMode = SkbMenuMode.RimeSwitches
         val funItems: MutableList<SkbFunItem> = LinkedList()
         // 读方案 switcher：native 调用单独包一层，异常直接落 ime.log
         val rawSwitches = try {
@@ -270,7 +280,56 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
         mRVMenuLayout!!.setAdapter(adapter)
     }
 
+    /**
+     * 「切换英语键盘」：选一个方案作为「英语模式」的方案。
+     *
+     * 主键盘的中英切换键原本固定切到自带的 english 方案，设置后改为切到这里选中的方案
+     * （例如万象的 wanxiang_english）。列表来自引擎的 available
+     * （RimeWorkspace.allSchemas），用户丢什么方案进来就能选什么，不写死。
+     */
+    fun showEnglishSchemaSelectView() {
+        mMenuMode = SkbMenuMode.SwitchEnglishKeyboard
+        val funItems: MutableList<SkbFunItem> = LinkedList()
+        // 内置 english 排第一个 = 「恢复默认」
+        funItems.add(
+            SkbFunItem(
+                CustomConstant.SCHEMA_EN,
+                R.drawable.selece_input_mode_py26,
+                SkbMenuMode.SwitchEnglishKeyboard,
+                CustomConstant.SCHEMA_EN
+            )
+        )
+        com.yuyan.inputmethod.util.RimeWorkspace.allSchemas()
+            .filter { it.first != CustomConstant.SCHEMA_EN }
+            .forEach { (schemaId, schemaName) ->
+                funItems.add(
+                    SkbFunItem(
+                        schemaName,
+                        R.drawable.selece_input_mode_py26,
+                        SkbMenuMode.SwitchEnglishKeyboard,
+                        schemaId
+                    )
+                )
+            }
+        val adapter = MenuAdapter(context, funItems)
+        adapter.setOnItemClickLitener { _: RecyclerView.Adapter<*>?, _: View?, position: Int ->
+            onKeyboardMenuClick(funItems[position])
+        }
+        mRVMenuLayout!!.setAdapter(adapter)
+    }
+
     private fun onKeyboardMenuClick(data: SkbFunItem) {
+        // 「切换英语键盘」：记下选中的方案并回主键盘（不动中文输入模式）
+        if (data.skbMenuMode == SkbMenuMode.SwitchEnglishKeyboard) {
+            AppPrefs.getInstance().internal.englishSchemaId.setValue(data.schemaId)
+            // 此刻正在英语模式就立刻生效，否则下次按中英切换键时自然生效
+            if (InputModeSwitcher.isEnglish) {
+                com.yuyan.inputmethod.core.Kernel.initImeSchema(data.schemaId)
+            }
+            com.yuyan.imemodule.keyboard.KeyboardManager.instance.switchKeyboard()
+            inputView.updateCandidateBar()
+            return
+        }
         val value = when (data.skbMenuMode) {
             SkbMenuMode.RimeSwitchToggle -> {
                 // 动态选项：翻转 Rime 开关并刷新列表（data.schemaId 存 switch 名）

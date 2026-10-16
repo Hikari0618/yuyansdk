@@ -23,6 +23,9 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
 
     inner class Internal : ManagedPreferenceInternal(sharedPreferences) {
         val pinyinModeRime = string("input_method_pinyin_mode_rime", CustomConstant.SCHEMA_ZH_T9) //拼音输入模式记录，记录引擎
+        // 「英语模式」用哪个方案：中英切换键原本固定切到自带的 english 方案，
+        // 这里可被「菜单 → 切换英语键盘」改成用户选的方案（如万象的 wanxiang_english）
+        val englishSchemaId = string("input_method_english_schema_rime", CustomConstant.SCHEMA_EN)
         val inputDefaultMode = int("input_default_method_mode", InputModeSwitcher.MODE_T9_CHINESE)   //默认输入法类型
         val inputMethodPinyinMode = int("input_method_pinyin_mode", InputModeSwitcher.MODE_T9_CHINESE)  // 保存中文输入法类型
         val dataDictVersion = int("rime_dict_data_version", 0)  //缓存rime词库版本号,用于校验是否覆盖词库文件

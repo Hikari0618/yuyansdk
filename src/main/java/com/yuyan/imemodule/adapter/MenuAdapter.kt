@@ -18,6 +18,8 @@ import com.yuyan.imemodule.data.theme.Theme
 import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.database.DataBaseKT
 import com.yuyan.imemodule.entity.SkbFunItem
+import com.yuyan.imemodule.keyboard.KeyboardManager
+import com.yuyan.imemodule.keyboard.container.SettingsContainer
 import com.yuyan.imemodule.manager.InputModeSwitcher
 import com.yuyan.imemodule.prefs.AppPrefs
 import com.yuyan.imemodule.prefs.behavior.SkbMenuMode
@@ -119,6 +121,16 @@ class MenuAdapter (context: Context?, val data: MutableList<SkbFunItem>) : Recyc
             SkbMenuMode.OneHanded -> AppPrefs.getInstance().keyboardSetting.oneHandedModSwitch.getValue()
             SkbMenuMode.FlowerTypeface -> CustomConstant.flowerTypeface != FlowerTypefaceMode.Disabled
             SkbMenuMode.FloatKeyboard -> EnvironmentSingleton.instance.keyboardModeFloat
+            // 面板类菜单项：图标变绿 = 该面板正开着（与剪贴板/表情一致）
+            SkbMenuMode.SwitchKeyboard -> (KeyboardManager.instance.currentContainer as? SettingsContainer)?.getMenuMode() == SkbMenuMode.SwitchKeyboard
+            SkbMenuMode.RimeSwitches -> (KeyboardManager.instance.currentContainer as? SettingsContainer)?.getMenuMode() == SkbMenuMode.RimeSwitches
+            // 「切换英语键盘」：菜单项（无 schemaId）看面板是否打开；
+            // 面板里的方案项（带 schemaId）看它是不是当前选中的英语方案
+            SkbMenuMode.SwitchEnglishKeyboard -> if (data.schemaId.isEmpty()) {
+                (KeyboardManager.instance.currentContainer as? SettingsContainer)?.getMenuMode() == SkbMenuMode.SwitchEnglishKeyboard
+            } else {
+                AppPrefs.getInstance().internal.englishSchemaId.getValue() == data.schemaId
+            }
             // Keyboard Menu
             SkbMenuMode.PinyinT9 -> rimeValue == CustomConstant.SCHEMA_ZH_T9
             SkbMenuMode.Pinyin26Jian -> rimeValue == CustomConstant.SCHEMA_ZH_QWERTY

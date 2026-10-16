@@ -30,8 +30,26 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             }
         }
         SkbMenuMode.SwitchKeyboard -> {
-            KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
-            (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showSkbSelelctModeView()
+            val current = KeyboardManager.instance.currentContainer as? SettingsContainer
+            if (current?.getMenuMode() == SkbMenuMode.SwitchKeyboard) {
+                // 再点一次：回主键盘（与剪贴板/表情那套 toggle 行为一致）
+                KeyboardManager.instance.switchKeyboard()
+            } else {
+                KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
+                (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showSkbSelelctModeView()
+            }
+            inputView.updateCandidateBar()
+        }
+        SkbMenuMode.SwitchEnglishKeyboard -> {
+            val current = KeyboardManager.instance.currentContainer as? SettingsContainer
+            if (current?.getMenuMode() == SkbMenuMode.SwitchEnglishKeyboard) {
+                // 再点一次：回主键盘
+                KeyboardManager.instance.switchKeyboard()
+            } else {
+                KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
+                (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showEnglishSchemaSelectView()
+            }
+            inputView.updateCandidateBar()
         }
         SkbMenuMode.KeyboardHeight -> {
             KeyboardManager.instance.switchKeyboard()
@@ -169,8 +187,16 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             // 动态选项（同文机制）：从当前方案的 switcher 配置自动读取，
             // 部署好方案后选项自动出现，无需硬编码
             try {
-                KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
-                (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showRimeSwitchesView()
+                val current = KeyboardManager.instance.currentContainer as? SettingsContainer
+                if (current?.getMenuMode() == SkbMenuMode.RimeSwitches) {
+                    // 再点一次：回主键盘（与剪贴板/表情那套 toggle 一致）——
+                    // 之前这里只会重复 showRimeSwitchesView，导致图标不变绿、也回不去
+                    KeyboardManager.instance.switchKeyboard()
+                } else {
+                    KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.SETTINGS)
+                    (KeyboardManager.instance.currentContainer as? SettingsContainer)?.showRimeSwitchesView()
+                }
+                inputView.updateCandidateBar()
             } catch (ex: Throwable) {
                 // 真机点「输入选项」闪退：把异常落到 ime.log，并且不让输入法整个挂掉
                 com.yuyan.inputmethod.util.ImeLog.d("[switches] 输入选项异常: " + android.util.Log.getStackTraceString(ex))

@@ -23,6 +23,8 @@
     <string name="keyboard_font_bold">键盘字体加粗</string>
     <string name="keyboard_font_size">键盘字体大小</string>
     <string name="changeKeyboard">切换键盘</string>
+    <string name="changeEnglishKeyboard">切换英语键盘</string>
+    <string name="skb_item_rime_switches">输入选项</string>
     <string name="chinese_input_setting">中文输入</string>
     <string name="search_english_cell">英文单词补全</string>
     <string name="setting_jian_fan">繁体输入</string>
