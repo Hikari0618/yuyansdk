@@ -34,6 +34,11 @@ internal fun showCandidateForgetMenu(
             val ok = com.yuyan.inputmethod.core.Rime.deleteCandidate(position)
             com.yuyan.inputmethod.util.ImeLog.d("[forget] deleteCandidate($position) '$text' -> $ok")
             if (ok) {
+                // 删完必须【重新问引擎拿候选】，否则界面还是旧数据 ——
+                // 用户反馈：删完候选栏没变化，得把拼音删了重打才看到确实忘了。
+                // 正常流程（选词后）也是走 DecodingInfo.updateDecodingCandidate()；
+                // 同文则在 deleteCandidate 里带 emitResponse() 把新候选推给 UI。
+                DecodingInfo.updateDecodingCandidate()
                 onDeleted()
             } else {
                 android.widget.Toast.makeText(

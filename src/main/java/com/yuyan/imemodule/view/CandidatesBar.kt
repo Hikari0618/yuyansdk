@@ -847,8 +847,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
      * 删的是用户词库里的该词（librime delete_candidate），删完候选列表原地刷新。
      */
     private fun onCandidateLongClick(anchor: View?, position: Int) {
-        // 与下拉候选界面共用同一份菜单（CandidateForgetMenu.kt）
-        showCandidateForgetMenu(context, anchor, position) { mCandidatesAdapter.notifyChanged() }
+        // 与下拉候选界面共用同一份菜单（CandidateForgetMenu.kt）。
+        // 删完用 scheduleShowCandidates() 重画 —— 它读的是刚被刷新过的 DecodingInfo；
+        // 只 notifyChanged() 只是拿【旧数据】重新绑定，界面不会跟着变（用户反馈过）。
+        showCandidateForgetMenu(context, anchor, position) { scheduleShowCandidates() }
     }
 }
 
