@@ -34,10 +34,12 @@ internal fun showCandidateForgetMenu(
             val ok = com.yuyan.inputmethod.core.Rime.deleteCandidate(position)
             com.yuyan.inputmethod.util.ImeLog.d("[forget] deleteCandidate($position) '$text' -> $ok")
             if (ok) {
-                // 删完必须【重新问引擎拿候选】，否则界面还是旧数据 ——
-                // 正常流程（选词后）也是走 DecodingInfo.updateDecodingCandidate()；
-                // 同文则在 deleteCandidate 里带 emitResponse() 把新候选推给 UI。
-                DecodingInfo.updateDecodingCandidate()
+                // 删完必须【重新取候选 + 重画】，否则界面还是旧数据。
+                // 关键：必须走 app 自己的刷新入口 RimeEngine.updateCandidatesOrCommitText() ——
+                // 它会 Rime.getRimeContext() 重新取候选并写回 showCandidates（还会打 [ctx] 日志）。
+                // 之前只调 DecodingInfo.updateDecodingCandidate() 是不够的：那条路读的是
+                // RimeEngine 里【上一次按键时缓存】的 showCandidates ✗（实测：日志里连 [ctx] 都没有）。
+                com.yuyan.inputmethod.RimeEngine.updateCandidatesOrCommitText()
                 onDeleted()
                 // librime 的 delete_candidate 【只删用户词库】，对【系统词库】里的词是无效的
                 // （它自己注释 "this doesn't mean anything is deleted for sure"，返回值 true

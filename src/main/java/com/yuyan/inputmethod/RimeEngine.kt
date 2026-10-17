@@ -185,7 +185,7 @@ object RimeEngine {
         updateCandidatesOrCommitText()
     }
 
-    private fun updateCandidatesOrCommitText(): String? {
+    internal fun updateCandidatesOrCommitText(): String? {
         val rimeCommit = Rime.getRimeCommit()
         if (rimeCommit != null) {
             ImeLog.d("commit='${rimeCommit.commitText}'")
