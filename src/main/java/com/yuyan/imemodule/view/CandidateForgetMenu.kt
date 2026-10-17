@@ -34,12 +34,16 @@ internal fun showCandidateForgetMenu(
             val ok = com.yuyan.inputmethod.core.Rime.deleteCandidate(position)
             com.yuyan.inputmethod.util.ImeLog.d("[forget] deleteCandidate($position) '$text' -> $ok")
             if (ok) {
-                // 删完必须【重新取候选 + 重画】，否则界面还是旧数据。
-                // 关键：必须走 app 自己的刷新入口 RimeEngine.updateCandidatesOrCommitText() ——
-                // 它会 Rime.getRimeContext() 重新取候选并写回 showCandidates（还会打 [ctx] 日志）。
-                // 之前只调 DecodingInfo.updateDecodingCandidate() 是不够的：那条路读的是
-                // RimeEngine 里【上一次按键时缓存】的 showCandidates ✗（实测：日志里连 [ctx] 都没有）。
-                com.yuyan.inputmethod.RimeEngine.updateCandidatesOrCommitText()
+                // 删完【走 app 自己的「光标重定位」流程】—— 这是「点一下待编辑框」会走的那条路，
+                // 也是 app 里唯一能把「引擎重算 + 界面重新拉候选」两步都做完的现成入口：
+                //   ① Rime.setCaretPos(...) → librime 的 Context::set_caret_pos 【无条件】发
+                //      update_notifier_ → ConcreteEngine::OnContextUpdate → Compose() ★重建候选★
+                //      （不比较位置是否变化，所以设成当前位置也能触发 ✓）
+                //   ② RimeEngine.refreshCandidatesAfterCaretMove() → app 重新拉候选写回 showCandidates
+                //      （代码注释原话：showCandidates 是按键时缓存的，必须按新位置重新拉一次）
+                val caret = com.yuyan.inputmethod.core.Rime.getRimeInput().length
+                com.yuyan.inputmethod.core.Rime.setCaretPos(caret)
+                com.yuyan.inputmethod.RimeEngine.refreshCandidatesAfterCaretMove()
                 onDeleted()
                 // librime 的 delete_candidate 【只删用户词库】，对【系统词库】里的词是无效的
                 // （它自己注释 "this doesn't mean anything is deleted for sure"，返回值 true

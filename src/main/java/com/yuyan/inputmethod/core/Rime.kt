@@ -112,20 +112,9 @@ class Rime(fullCheck: Boolean) {
             if (ok) {
                 // librime 的 delete_candidate 只删用户词库、【不会重建当前候选列表】
                 // （context.cc:DeleteCandidate 自带注释 "this doesn't mean anything is deleted
-                //  for sure"）→ 不触发重建的话，候选栏里那个词还在。
-                //
-                // 实测有效的触发方式（也就是用户手动做的「点一下退格再输回字母」）：
-                //   退格 → 走 speller 的 PopInput → 发 update_notifier_
-                //        → ConcreteEngine::OnContextUpdate → Compose() ★重建候选列表★
-                // 注意【不能用 clearComposition()】：它不走 speller、不发 update_notifier_，
-                // 引擎不会重算（宿主机实测：clear 之后输入没变、候选也没变）。
-                // 退一格再把那个字符补回去 → 输入内容前后完全一致，只是借这一步让引擎重算。
-                val input = getRimeInput()
-                if (input.isNotEmpty()) {
-                    processKey(getRimeKeycodeByName("BackSpace"), 0)
-                    processKey(input.last().code, 0)
-                    com.yuyan.inputmethod.util.ImeLog.d("[forget] 退格+补回 '${input.last()}' 触发重建")
-                }
+                //  for sure"）。「让引擎重建 + 界面重新拉候选」由调用方
+                // （CandidateForgetMenu）用 Rime.setCaretPos + RimeEngine.refreshCandidatesAfterCaretMove()
+                // 完成 —— 那正是「点一下待编辑框」会走的路，两步都齐。
                 updateContext()
             }
             return ok
