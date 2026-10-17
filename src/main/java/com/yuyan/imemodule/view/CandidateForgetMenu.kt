@@ -43,8 +43,12 @@ internal fun showCandidateForgetMenu(
                 //      （代码注释原话：showCandidates 是按键时缓存的，必须按新位置重新拉一次）
                 val caret = com.yuyan.inputmethod.core.Rime.getRimeInput().length
                 com.yuyan.inputmethod.core.Rime.setCaretPos(caret)
-                com.yuyan.inputmethod.RimeEngine.refreshCandidatesAfterCaretMove()
-                onDeleted()
+                com.yuyan.inputmethod.RimeEngine.refreshCandidatesAfterCaretMove()   // ③ 更新 RimeEngine.showCandidates
+                // ⑤ 关键：refreshCandidatesAfterCaretMove() 只更新 RimeEngine.showCandidates，
+                //    而 UI 读的是 DecodingInfo.candidatesLiveData —— 两者之间必须靠这一步拷贝，
+                //    否则界面拿到的还是旧候选（这就是之前"引擎重算了但界面不变"的真正原因）。
+                DecodingInfo.updateDecodingCandidate()
+                onDeleted()                                                          // ⑥ 重画
                 // librime 的 delete_candidate 【只删用户词库】，对【系统词库】里的词是无效的
                 // （它自己注释 "this doesn't mean anything is deleted for sure"，返回值 true
                 //  不代表真删掉了）。宿主机实测：系统词删完 + 完整重放输入，词依旧在。
