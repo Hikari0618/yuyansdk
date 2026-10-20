@@ -112,6 +112,9 @@ object RimeDeployUtils {
             // 在同一个 patch 里打架，最终生效哪个取决于引擎处理键的顺序，实测把用户写的
             // wanxiang_english 顶掉了；而且那份清单写死了 12 个方案 id（含 wanxiang_pro），
             // 用户换成雾凇等别的方案就识别不出来。
+            // ★ 先修好 custom 文件，再让 librime 识别 / 写回方案清单 ★
+            // 顺序反了的话，识别到的是「补丁前」的状态（用户实测：首次部署认不出万象英语）。
+            repairMiswrittenFuzzyCustoms()
             // 先清掉旧版本写进去的 `schema_list/+` 段（见 cleanupLegacySchemaListPlus 注释）
             val cleaned = RimeWorkspace.cleanupLegacySchemaListPlus()
             if (cleaned) log("已清理旧版写入的 schema_list/+ 段")
@@ -178,8 +181,7 @@ object RimeDeployUtils {
             log("build/ 产物 ${buildFiles.size} 个:")
             buildFiles.forEach { log("  - ${it.name} (${it.length()} bytes)") }
 
-            // 3.5 自愈：修回被误判成万象方案而写坏的模糊音 custom.yaml（必须在引擎重启前）
-            repairMiswrittenFuzzyCustoms()
+            // 3.5 自愈已在前面「先修好 custom 文件，再让 librime 识别方案清单」处提前执行
 
             // 4. 停止引擎并以完整检查模式重启，触发方案编译
             log("重启引擎（full_check=true，开始编译方案）…")

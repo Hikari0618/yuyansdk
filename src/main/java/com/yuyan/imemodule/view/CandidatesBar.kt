@@ -444,19 +444,32 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 已上屏的整句前缀一起返回，退格删的是编辑框里的字、组合串却不变 ——
         // 表现为「待编辑区字母不减少、继续打字还在变多」（用户实测）。
         val raw = if (DecodingInfo.isEngineFinish) "" else DecodingInfo.composingStrForDisplay
-        // 组合串变了（又按了键）→ 不要直接作废光标：击键后 librime 会把 composition.cursor_pos
-        // 跟着挪好（在光标处插入字符 / 退格删掉光标前一个字符），直接问引擎拿新位置即可。
-        // 只有引擎那边确实拿不到光标时才作废。
+        // 组合串变了（又按了键）→ 光标要跟着走，而不是作废（否则一按键光标就消失）。
+        // 位置由下面的「新旧串差异」推算 —— 不用引擎的 cursor_pos（万象下不可靠）。
         if (mCaretPos >= 0 && raw != mCaretBaseText) {
-            val engineCaret = com.yuyan.inputmethod.core.Rime.composition?.cursorPos ?: -1
-            com.yuyan.inputmethod.util.ImeLog.d(
-                "[caret] key raw='$raw' base='$mCaretBaseText' engineCursor=$engineCaret oldCaret=$mCaretPos"
-            )
-            if (engineCaret >= 0 && raw.isNotEmpty()) {
-                mCaretPos = engineCaret
-                mCaretBaseText = raw
-            } else {
+            // 不要用引擎的 composition.cursor_pos —— 万象下实测不可靠：
+            //   · setCaretPos(10) 之后读回来是 14
+            //   · 退格后能给到超出文本长度的值（文本 9 个字母却返回 12）
+            // 改用「新旧串的差异」自己推，只处理两种最常见的情况：
+            //   在光标处插了一个字母 → 光标 +1
+            //   删掉光标前一个字母   → 光标 -1
+            if (raw.isEmpty()) {
                 mCaretPos = -1
+            } else {
+                val oldLetters = mCaretBaseText.filter { it != ' ' && it != '\'' }
+                val newLetters = raw.filter { it != ' ' && it != '\'' }
+                var common = 0
+                val max = minOf(oldLetters.length, newLetters.length)
+                while (common < max && oldLetters[common] == newLetters[common]) common++
+                mCaretPos = when {
+                    newLetters.length == oldLetters.length + 1 && common == mCaretPos -> mCaretPos + 1
+                    newLetters.length == oldLetters.length - 1 && common == mCaretPos - 1 -> mCaretPos - 1
+                    else -> mCaretPos.coerceIn(0, newLetters.length)
+                }
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[caret] key old='$mCaretBaseText' new='$raw' common=$common caret=$mCaretPos"
+                )
+                mCaretBaseText = raw
             }
         }
         // 上屏了（组合清空）→ 待编辑区恢复原大小
