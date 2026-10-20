@@ -35,7 +35,11 @@ object ClipboardHelper : OnPrimaryClipChangedListener {
         val prefs = AppPrefs.getInstance().clipboard
         if (!prefs.clipboardListening.getValue()) return
         val item = Launcher.instance.context.clipboardManager.primaryClip?.getItemAt(0) ?: return
-        val data = item.text?.toString()?.take(20000) ?: return
+        // 单条上限：同文（Trime）入库时【不做任何截断】（DatabaseBean.fromClipData 存全文），
+        // 只在列表/建议条【显示时】截断。这里同样改成"基本不限"——1,000,000 字只是防御
+        // 异常超大内容（比如误复制几十 MB）撑爆数据库，正常文本永远碰不到。
+        // 旧值 20000 会让长文（小说章节、代码片段、日志）静默丢掉后半截，属于隐性数据丢失。
+        val data = item.text?.toString()?.take(1_000_000) ?: return
         if (data.isBlank()) return
         // 过滤规则：命中任一正则 → 不记录
         if (compileRules(prefs.clipboardOutputRules.getValue()).any { it.containsMatchIn(data) }) return

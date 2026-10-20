@@ -95,7 +95,9 @@ class ClipBoardAdapter(context: Context, datas: MutableList<Clipboard>) :
         // 看起来像「空白没被渲染出来」。实际内容没有被改动：存储（ClipboardHelper）与
         // 上屏/复制用的都是原始 content，只有这一处显示错。
         // 顺带把连续换行折叠成一个空格、去掉首尾空白，避免多行内容在预览里出现空行。
-        holder.textView.text = data.content.replace(Regex("[\\r\\n]+"), " ").trim()
+        // 列表只显示 3 行 + 省略号，所以【预览只取前 2000 字】——先截断再做正则替换，
+        // 避免对十万字级的正文跑正则（入库已不再截断，见 ClipboardHelper）。
+        holder.textView.text = data.content.take(2000).replace(Regex("[\\r\\n]+"), " ").trim()
         holder.ivTopTips.visibility = if(data.isKeep == 1)View.VISIBLE else View.GONE
     }
 
