@@ -94,9 +94,13 @@ object RimeWorkspace {
         val all = allSchemas()
         val availableIds = all.map { it.first }.toSet()
         val names = all.toMap()
-        val enabled = com.yuyan.inputmethod.core.Rime.enabledSchemaIds()
-        val pool = enabled.ifEmpty { activeSchemaIds().toList() }
-        return pool.filter { it in availableIds && it !in builtin }
+        // 不再拿 default.yaml 的 schema_list / enabled 做前置过滤：
+        // 万象包的 default.yaml 里 wanxiang_english 等方案是【注释掉】的，
+        // 而首次部署前 enabledSchemaIds() 还是空的 → 两边都取不到它，
+        // 表现为「第一次部署认不出万象英语」（部署过一次后才冒出来）。
+        // 这里改为：凡是引擎里【已部署可用】的方案都列出来（排除 App 内置的）。
+        return all.map { it.first }
+            .filter { it in availableIds && it !in builtin }
             .map { it to (names[it] ?: it) }
     }
 

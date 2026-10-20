@@ -449,6 +449,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 只有引擎那边确实拿不到光标时才作废。
         if (mCaretPos >= 0 && raw != mCaretBaseText) {
             val engineCaret = com.yuyan.inputmethod.core.Rime.composition?.cursorPos ?: -1
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[caret] key raw='$raw' base='$mCaretBaseText' engineCursor=$engineCaret oldCaret=$mCaretPos"
+            )
             if (engineCaret >= 0 && raw.isNotEmpty()) {
                 mCaretPos = engineCaret
                 mCaretBaseText = raw
@@ -490,8 +493,14 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         off = off.coerceIn(0, raw.length)
         // 显示串里的空格/撇号只是分隔符，引擎里的真实下标要去掉它们
         val caret = raw.substring(0, off).count { it != ' ' && it != '\'' }
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[caret] tap off=$off raw='$raw' -> caret=$caret"
+        )
         if (com.yuyan.inputmethod.core.Rime.setCaretPos(caret)) {
             mCaretPos = caret
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[caret] setCaretPos($caret) ok, engineCursorNow=${com.yuyan.inputmethod.core.Rime.composition?.cursorPos}"
+            )
             // 点击定位后把待编辑区放大，方便继续精确修改（上屏后自动恢复）
             setComposingExpanded(true)
             // 引擎的候选菜单随 caret 重算，但 RimeEngine.showCandidates 是按键时缓存的，
