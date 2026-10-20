@@ -377,7 +377,11 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             )
         })
         row.addView(TextView(context).apply {
-            text = content
+            // ★ 只把前 200 字交给 TextView ★
+            // isSingleLine + maxWidth 220dp 一行只显示十几个字，但 TextView 仍会对【传入的整段文本】
+            // 做 bidi / shaping。250KB 的长文本会把键盘进程主线程卡死几十秒 —— 表现为输入法唤不
+            // 起来、系统侧滑手势也跟着失灵。完整内容保存在 content 里，点击上屏用的还是 content。
+            text = if (content.length > 200) content.take(200) else content
             isSingleLine = true
             ellipsize = android.text.TextUtils.TruncateAt.END
             maxWidth = dp(220)

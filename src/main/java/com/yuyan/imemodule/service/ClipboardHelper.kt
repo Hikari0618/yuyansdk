@@ -41,18 +41,22 @@ object ClipboardHelper : OnPrimaryClipChangedListener {
         // 旧值 20000 会让长文（小说章节、代码片段、日志）静默丢掉后半截，属于隐性数据丢失。
         val data = item.text?.toString()?.take(1_000_000) ?: return
         if (data.isBlank()) return
-        // 过滤规则：命中任一正则 → 不记录
-        if (compileRules(prefs.clipboardOutputRules.getValue()).any { it.containsMatchIn(data) }) return
-        // 去重规则：删掉匹配内容后为空（纯空白、纯符号等无意义内容）→ 不记录
-        val compareRules = compileRules(prefs.clipboardCompareRules.getValue())
-        if (compareRules.isNotEmpty() &&
-            compareRules.fold(data) { acc, rule -> rule.replace(acc, "") }.isEmpty()
-        ) return
 
-        // 落库放 IO 线程。本方法由系统在主线程回调，而下面这些操作（findByContent / insert /
-        // getCount / deleteOldest 带 ORDER BY 子查询）都是同步磁盘 I/O，历史上限默认 1000、
-        // 可设到 100000 —— 全放主线程时每次复制都可能卡顿甚至 ANR。
+        // ★ 规则过滤也要在 IO 线程做 ★
+        // 本方法是系统在【主线程】回调的。默认两条规则为空时几乎零成本，但用户一旦在设置里
+        // 写了 clipboardOutputRules / clipboardCompareRules，就要对整段文本跑正则（compareRules
+        // 还会做 replace 折叠）—— 25 万字的长文本足以把键盘进程主线程卡死几十秒，
+        // 表现为输入法唤不起来、系统手势也失灵。所以和落库一起放到 ioScope。
         ioScope.launch {
+            // 过滤规则：命中任一正则 → 不记录
+            if (compileRules(prefs.clipboardOutputRules.getValue()).any { it.containsMatchIn(data) }) return@launch
+            // 去重规则：删掉匹配内容后为空（纯空白、纯符号等无意义内容）→ 不记录
+            val compareRules = compileRules(prefs.clipboardCompareRules.getValue())
+            if (compareRules.isNotEmpty() &&
+                compareRules.fold(data) { acc, rule -> rule.replace(acc, "") }.isEmpty()
+            ) return@launch
+
+            // 落库同样在 IO 线程（findByContent / insert / getCount / deleteOldest 都是同步磁盘 I/O）
             val dao = DataBaseKT.instance.clipboardDao()
             val exist = dao.findByContent(data)
             if (exist != null) {

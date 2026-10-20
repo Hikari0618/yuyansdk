@@ -161,7 +161,11 @@ object DecodingInfo {
             com.yuyan.inputmethod.util.ImeLog.d("[seg] 内容为空，返回")
             return false
         }
-        val wordCount = com.yuyan.imemodule.utils.WordTokenizer.tokenize(content).size
+        // 分词只切前 20000 字：ICU BreakIterator 在主线程上是 O(n)，25 万字要卡好几秒
+        // （配合剪贴板已不再截断入库，长文本很容易走到这里）。分词页正文仍显示完整 content，
+        // 超出部分只是不参与切词。
+        val tokenizeSrc = if (content.length > 20000) content.take(20000) else content
+        val wordCount = com.yuyan.imemodule.utils.WordTokenizer.tokenize(tokenizeSrc).size
         com.yuyan.inputmethod.util.ImeLog.d("[seg] 切词结果 words=$wordCount")
         if (wordCount == 0) {
             com.yuyan.inputmethod.util.ImeLog.d("[seg] 切不出词，返回")
