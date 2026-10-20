@@ -444,8 +444,18 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 已上屏的整句前缀一起返回，退格删的是编辑框里的字、组合串却不变 ——
         // 表现为「待编辑区字母不减少、继续打字还在变多」（用户实测）。
         val raw = if (DecodingInfo.isEngineFinish) "" else DecodingInfo.composingStrForDisplay
-        // 组合串变了（又按了键）→ 之前点出来的光标标记作废
-        if (mCaretPos >= 0 && raw != mCaretBaseText) mCaretPos = -1
+        // 组合串变了（又按了键）→ 不要直接作废光标：击键后 librime 会把 composition.cursor_pos
+        // 跟着挪好（在光标处插入字符 / 退格删掉光标前一个字符），直接问引擎拿新位置即可。
+        // 只有引擎那边确实拿不到光标时才作废。
+        if (mCaretPos >= 0 && raw != mCaretBaseText) {
+            val engineCaret = com.yuyan.inputmethod.core.Rime.composition?.cursorPos ?: -1
+            if (engineCaret >= 0 && raw.isNotEmpty()) {
+                mCaretPos = engineCaret
+                mCaretBaseText = raw
+            } else {
+                mCaretPos = -1
+            }
+        }
         // 上屏了（组合清空）→ 待编辑区恢复原大小
         if (raw.isEmpty()) setComposingExpanded(false)
         if (mCaretPos < 0 || raw.isEmpty()) {
