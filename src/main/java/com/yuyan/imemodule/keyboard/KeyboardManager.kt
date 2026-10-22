@@ -35,6 +35,9 @@ class KeyboardManager {
     fun setData(keyboardRootView: InputViewParent, inputView: InputView) {
         com.yuyan.inputmethod.util.ImeLog.d("[perf] KeyboardManager.setData：键盘被整体重建")
         keyboards.clear() // TODO 清空缓存界面，发现调用 PinyinService.onCreateInputView时，原输入界面全部会失效。
+        // 容器缓存清了，但键位缓存（mSoftKeyboardMap）也依赖 env 尺寸；这里一并作废，
+        // 否则新容器会复用按旧 skbWidth/skbHeight 算好的 SoftKeyboard（内容超宽 / 被裁）。
+        com.yuyan.imemodule.utils.KeyboardLoaderUtil.instance.clearKeyboardMap()
         mKeyboardRootView = keyboardRootView
         mInputView = inputView
         // 按键区容器（InputViewParent）是 wrap 的 RelativeLayout，但实测会出现

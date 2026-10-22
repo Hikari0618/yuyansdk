@@ -243,6 +243,13 @@ class ImeService : InputMethodService() {
         env.initData(baseContext)
         val changed = env.geometrySignature != sigBefore
         val t1 = android.os.SystemClock.elapsedRealtime()
+        if (changed) {
+            // 几何变了 → 键位矩形（按旧 skbWidth/skbHeight 算死）必须作废。
+            // 注意：不能只在 isSoftKeyboard 分支里清 —— 系统安全键盘接管时 isSoftKeyboard 是 false，
+            // 但我们的键位缓存仍是旧的；回来时 KeyboardManager.setData 只清容器缓存、不清键位缓存，
+            // 新容器复用旧 SoftKeyboard → 内容按旧宽度画、被裁（用户实测）。
+            KeyboardLoaderUtil.instance.clearKeyboardMap()
+        }
         if (isSoftKeyboard && ::mInputView.isInitialized) {
             // 键盘没显示时（系统安全键盘接管 / 已收起）：只记账，绝不当场重建。
             // 此时视图未 attach / 测量为 0，initView 会拿 0 宽高建布局 —— 落地就是
@@ -274,6 +281,13 @@ class ImeService : InputMethodService() {
             )
         } else if (isHardwareKeyboard && ::mCandidateView.isInitialized) {
             mCandidateView.initView()
+        } else if (changed) {
+            // 既不是软键盘也不是硬键盘（典型：系统安全键盘接管中）：只记账，
+            // 等本输入法重新接管并显示时再整体重建。
+            pendingGeometryRebuild = true
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[perf] relayout(applyTheme=$applyTheme) 非软键盘态 changed=true → 延后重建"
+            )
         }
     }
 
