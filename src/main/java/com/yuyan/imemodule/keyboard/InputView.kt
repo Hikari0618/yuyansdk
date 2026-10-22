@@ -76,6 +76,16 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     var isAddPhrases = false
     private val mChoiceNotifier = ChoiceNotifier()
     var mSkbRoot: RelativeLayout
+    /**
+     * 最近一次 initView 采用的悬浮模式 —— 布局是照这个模式建出来的。
+     *
+     * 拖动（onMoveKeyboardEvent）和窗口高度（ImeService.applyInputViewHeight）都必须以它为准。
+     * 之前这两处各自读 env.keyboardModeFloat：env 一旦在会话中途被重算成另一种模式，
+     * 就会出现「布局是悬浮、拖动走非悬浮」—— 两套 padding 同时生效，
+     * 症状：贴右下角、拖动时键盘变大而不是移动、内容被裁切、菜单键消失、无法恢复。
+     */
+    var isFloatLayout: Boolean = false
+        private set
     var mSkbCandidatesBarView: CandidatesBar
     private var mHoderLayoutLeft: LinearLayout
     private var mHoderLayoutRight: LinearLayout
@@ -162,7 +172,8 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         mLlKeyboardBottomHolder.removeAllViews()
         mLlKeyboardBottomHolder.layoutParams.width = env.skbWidth
         mInputKeyboardContainer.layoutParams.width = env.inputAreaWidth
-        if (env.keyboardModeFloat) {
+        isFloatLayout = env.floatModeNow
+        if (isFloatLayout) {
             val isLand = env.isLandscape
             val internal = appPrefs.internal
             mBottomPaddingKey = if (isLand) internal.keyboardBottomPaddingLandscapeFloat else internal.keyboardBottomPaddingFloat
@@ -386,7 +397,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                     // 拖动时不会崩，最坏只是暂时夹到 0。
                     rightPaddingValue = (rightPaddingValue - dx.toInt()).coerceIn(0, maxOf(0, this.width - mSkbRootWidth))
                     initialTouchX = event.rawX
-                    if (env.keyboardModeFloat) rightPadding = rightPaddingValue else mSkbRoot.rightPadding = rightPaddingValue
+                    if (isFloatLayout) rightPadding = rightPaddingValue else mSkbRoot.rightPadding = rightPaddingValue
                 }
                 if (dy.absoluteValue > 10) {
                     // 上限用 this.height：窗口高度已在 applyInputViewHeight 里设成
@@ -399,7 +410,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                         "[move] dy=$dy pad=$bottomPaddingValue thisH=$height rootH=$mSkbRootHeight"
                     )
                     initialTouchY = event.rawY
-                    if (env.keyboardModeFloat) bottomPadding = bottomPaddingValue else mSkbRoot.bottomPadding = bottomPaddingValue
+                    if (isFloatLayout) bottomPadding = bottomPaddingValue else mSkbRoot.bottomPadding = bottomPaddingValue
                 }
                 return true
             }

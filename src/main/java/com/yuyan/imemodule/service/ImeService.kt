@@ -41,6 +41,8 @@ class ImeService : InputMethodService() {
     private var isHardwareKeyboard = false
     private var isSoftKeyboard = false
     private lateinit var mInputView: InputView
+    /** 已经应用过主题（initView 里的皮肤缩放）的几何签名；同几何不再重复 initView。 */
+    private var themeAppliedSig = Int.MIN_VALUE
     private lateinit var mCandidateView: CandidateView
     private val onThemeChangeListener = OnThemeChangeListener { _: Theme? ->
         if (isHardwareKeyboard) { if (::mCandidateView.isInitialized) mCandidateView.updateTheme() }
@@ -163,33 +165,32 @@ class ImeService : InputMethodService() {
         val env = EnvironmentSingleton.instance
         val cfg = resources.configuration
         val land = cfg.screenWidthDp > cfg.screenHeightDp
-        val floatPref = if (land) {
-            getInstance().internal.keyboardModeFloatLandscape.getValue()
-        } else {
-            getInstance().internal.keyboardModeFloat.getValue()
+        val floatNow = env.floatModeNow
+        val iv: InputView? = when {
+            ::mInputView.isInitialized -> mInputView
+            fallbackView is InputView -> fallbackView
+            else -> null
         }
-        val mismatch = env.isLandscape != land || env.keyboardModeFloat != floatPref ||
+        // 「布局实际用的模式」与「当前方向该用的模式」不一致才算需要自愈 —— 只比对 env
+        // 自己的 isLandscape 会漏掉「布局已经按另一种模式建好」的情况。
+        val layoutFloat = iv?.isFloatLayout ?: env.floatModeNow
+        val mismatch = env.isLandscape != land || layoutFloat != floatNow ||
             env.skbHeight <= 0 || env.skbWidth <= 0
         if (!mismatch) return
         val oldLand = env.isLandscape
         val oldH = env.skbHeight
         env.initData(this)
         KeyboardLoaderUtil.instance.reapplySkbCoreSize()
-        val iv: InputView? = when {
-            ::mInputView.isInitialized -> mInputView
-            fallbackView is InputView -> fallbackView
-            else -> null
-        }
         if (iv != null) {
-            // 一次性把「底部移动条 / 按键包裹层 / 主题缩放」都按新几何对齐（initView 内部先
-            // removeAllViews 再重建移动条，重复调用是幂等的）。必须在这里做，而不是等 120ms 后
-            // 那次 applyTheme 的 initView —— 那一下的移动条重建就是可见的“跳一下”。
-            iv.initView(iv.context)
+            // 只做轻量重排：调用方（setInputView）紧接着会按新鲜 env 调 applyInputViewHeight，
+            // 这里不再重复调用，避免窗口属性被改两次（那就是「闪一下」）。
+            // 也**不要**在这里调 initView：那时视图还没 attach/测量，initView 里的 clamp、
+            // 移动条重建都以未测量状态执行，会把悬浮布局建错（贴右下角/无移动条）。
             KeyboardManager.instance.relayoutCurrentKeyboard()
-            applyInputViewHeight(iv)
+            iv.refreshKeyboardWrapperHeight()
         }
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[env-fix] 几何自愈 land=$land float=$floatPref " +
+            "[env-fix] 几何自愈 land=$land float=$floatNow " +
                 "skbW=${env.skbWidth} skbH=${env.skbHeight} area=${env.heightForCandidatesArea} " +
                 "(旧 land=$oldLand skbH=$oldH)"
         )
@@ -247,20 +248,19 @@ class ImeService : InputMethodService() {
             if (changed) {
                 // 已缓存的键盘按新几何重算按键矩形（SoftKey 存的是相对比例，不重新解析皮肤）
                 KeyboardLoaderUtil.instance.reapplySkbCoreSize()
-                val t2 = android.os.SystemClock.elapsedRealtime()
                 KeyboardManager.instance.relayoutCurrentKeyboard()
-                val t3 = android.os.SystemClock.elapsedRealtime()
-                if (applyTheme) mInputView.initView(baseContext)
-                val t4 = android.os.SystemClock.elapsedRealtime()
-                com.yuyan.inputmethod.util.ImeLog.d(
-                    "[perf] relayout(applyTheme=$applyTheme) initData=${t1 - t0} reapply=${t2 - t1} " +
-                        "relayout=${t3 - t2} initView=${t4 - t3} total=${t4 - t0}"
-                )
-            } else {
-                com.yuyan.inputmethod.util.ImeLog.d(
-                    "[perf] relayout(applyTheme=$applyTheme) 几何未变，跳过重建 total=${t1 - t0}"
-                )
             }
+            // 主题缩放（皮肤位图按新 skbWidth/inputAreaHeight 重采样）每套几何只做一次：
+            // 第一次（立即）那次几何已变，第二次（120ms 后）应用主题；之后同几何不再重复 initView ——
+            // 重复重建移动条就是旋转时可见的“跳一下”。
+            if (applyTheme && env.geometrySignature != themeAppliedSig) {
+                mInputView.initView(baseContext)
+                themeAppliedSig = env.geometrySignature
+            }
+            com.yuyan.inputmethod.util.ImeLog.d(
+                "[perf] relayout(applyTheme=$applyTheme) changed=$changed " +
+                    "initData=${t1 - t0} total=${android.os.SystemClock.elapsedRealtime() - t0}"
+            )
         } else if (isHardwareKeyboard && ::mCandidateView.isInitialized) {
             mCandidateView.initView()
         }
@@ -319,7 +319,11 @@ class ImeService : InputMethodService() {
      *  普通模式让窗口只占键盘高度——窗口盖满整屏会把系统侧滑返回手势整个吃掉，
      *  表现为「从边缘滑了完全没反应，换其他输入法就正常」。 */
     private fun applyInputViewHeight(view: View) {
-        val floatMode = EnvironmentSingleton.instance.keyboardModeFloat
+        // 以「布局实际采用的模式」为准（见 InputView.isFloatLayout）：env 中途被重算成另一种
+        // 模式时，窗口高度仍要和已建好的布局一致，否则悬浮布局套 WRAP_CONTENT 窗口 →
+        // 贴右下角 / 拖动变成改大小 / 内容被裁切。
+        val floatMode = (view as? InputView)?.isFloatLayout
+            ?: EnvironmentSingleton.instance.floatModeNow
         val addPhrases = (view as? InputView)?.isAddPhrases == true
         val needFullScreen = floatMode || addPhrases
         val target = if (needFullScreen) ViewGroup.LayoutParams.MATCH_PARENT

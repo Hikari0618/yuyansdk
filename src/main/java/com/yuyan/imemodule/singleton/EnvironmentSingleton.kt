@@ -63,15 +63,35 @@ class EnvironmentSingleton private constructor() {
     var geometrySignature: Int = 0
         private set
 
+    /**
+     * 「当前真实方向」的悬浮模式：直接按 resources.configuration 判断，**不依赖 isLandscape 是否已刷新**。
+     *
+     * 悬浮模式是分横竖屏存两套偏好（keyboardModeFloat / keyboardModeFloatLandscape）的。
+     * 用 `keyboardModeFloat`（内部按 isLandscape 选偏好）去读，一旦 env 落后一步就会读错那一套：
+     * 布局按「非悬浮」建、拖动却走「悬浮」分支，两套 padding 同时生效 ——
+     * 症状就是「贴右下角 / 拖动时键盘变大而不是移动 / 被裁切 / 关不掉」。
+     */
+    val floatModeNow: Boolean
+        get() {
+            val ctx = imeContext ?: Launcher.instance.context
+            val cfg = ctx.resources.configuration
+            val land = cfg.screenWidthDp > cfg.screenHeightDp
+            return if (land) AppPrefs.getInstance().internal.keyboardModeFloatLandscape.getValue()
+            else AppPrefs.getInstance().internal.keyboardModeFloat.getValue()
+        }
+
     fun initData(context: Context = imeContext ?: Launcher.instance.context) {
         val resources = context.resources
         val dm = resources.displayMetrics
         mScreenWidth = dm.widthPixels
         mScreenHeight = dm.heightPixels
         isLandscape = mScreenHeight <= mScreenWidth
+        // 悬浮模式：按「当前 resources.configuration」读，而不是按可能落后的 isLandscape
+        // （见 floatModeNow 注释：读错那一套偏好会导致布局/拖动两套 padding 混用）
+        val floatNow = floatModeNow
         var screenWidthVertical = mScreenWidth
         var screenHeightVertical = mScreenHeight
-        if(keyboardModeFloat){
+        if(floatNow){
             screenWidthVertical = (min(dm.widthPixels, dm.heightPixels) * 3f / 4).toInt()
             screenHeightVertical = (max(dm.widthPixels, dm.heightPixels) * 3f / 4).toInt()
         }
@@ -82,7 +102,7 @@ class EnvironmentSingleton private constructor() {
         inputAreaWidth = skbWidth
         var candidatesHeightRatio = AppPrefs.getInstance().internal.candidatesHeightRatio.getValue()
         // 按键 + 后续高度，值是相对于竖屏宽度，横屏高度。
-        if(isLandscape && !keyboardModeFloat){
+        if(isLandscape && !floatNow){
             inputAreaWidth = mScreenWidth
             skbWidth = (skbWidth * 0.7).toInt()
             keyboardHeightRatio = AppPrefs.getInstance().internal.keyboardHeightRatioLandscape.getValue()
@@ -110,14 +130,14 @@ class EnvironmentSingleton private constructor() {
         // 没变就不用再走一次 initView/重布局（重复重建正是横竖屏切换时可见的“闪一下”）。
         geometrySignature = (
             (if (isLandscape) 1 else 0) * 7 +
-                (if (keyboardModeFloat) 1 else 0) * 13 +
+                (if (floatNow) 1 else 0) * 13 +
                 skbWidth / 3 + skbHeight / 3 + heightForCandidatesArea / 3
             )
         // 环境埋点：initData 被不同 context 以不同方向反复调用时，会算出两套尺寸，
         // 表现为按键区高度来回跳（悬浮键盘打字时下缘被裁）。这里把来源和结果都打出来。
         com.yuyan.inputmethod.util.ImeLog.d(
             "[env] ctx=${context.javaClass.simpleName} w=${dm.widthPixels} h=${dm.heightPixels}" +
-                " land=$isLandscape float=$keyboardModeFloat" +
+                " land=$isLandscape float=$floatNow" +
                 " skbH=$skbHeight area=$heightForCandidatesArea moveH=$heightForKeyboardMove" +
                 " navBottom=$systemNavbarWindowsBottom" +
                 " caller=${Throwable().stackTrace.getOrNull(2)?.toString()?.substringAfter("(")?.substringBefore(")")}"
@@ -139,9 +159,13 @@ class EnvironmentSingleton private constructor() {
         }
 
     var keyboardModeFloat:Boolean  // 悬浮键盘模式
-        get() = if (isLandscape)AppPrefs.getInstance().internal.keyboardModeFloatLandscape.getValue() else AppPrefs.getInstance().internal.keyboardModeFloat.getValue()
+        get() = floatModeNow
         set(isFloatMode) {
-            if(isLandscape) AppPrefs.getInstance().internal.keyboardModeFloatLandscape.setValue(isFloatMode)
+            // 写入也按「当前真实方向」选偏好（见 floatModeNow 注释），避免环境刷新不及时写错那一套
+            val ctx = imeContext ?: Launcher.instance.context
+            val cfg = ctx.resources.configuration
+            val land = cfg.screenWidthDp > cfg.screenHeightDp
+            if (land) AppPrefs.getInstance().internal.keyboardModeFloatLandscape.setValue(isFloatMode)
             else AppPrefs.getInstance().internal.keyboardModeFloat.setValue(isFloatMode)
         }
 
