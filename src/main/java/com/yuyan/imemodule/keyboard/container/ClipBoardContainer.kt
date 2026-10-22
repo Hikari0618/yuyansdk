@@ -38,6 +38,8 @@ import com.yuyan.imemodule.keyboard.InputView
 import com.yuyan.imemodule.keyboard.KeyboardManager
 import com.yuyan.imemodule.manager.layout.CustomGridLayoutManager
 import com.yuyan.imemodule.singleton.EnvironmentSingleton.Companion.instance
+import com.yuyan.imemodule.view.ImeMenuItem
+import com.yuyan.imemodule.view.showImeItemMenu
 import splitties.dimensions.dp
 import splitties.views.textResource
 import kotlin.math.ceil
@@ -199,30 +201,24 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
 
     /** 长按剪贴板条目的菜单：编辑 / 分享 / 分词 / 收藏（置顶、删除仍走左滑） */
     private fun showItemMenu(anchor: View, item: Clipboard) {
-        // 用系统 PopupMenu（同文也是这么做的）：自动贴着长按的条目出现，
-        // 下方空间不够会自动翻到上方，不会跑到屏幕外；dismiss/触摸也由系统管，
-        // 不会像自绘 PopupWindow 那样把点击漏给底下的列表。
-        val popup = android.widget.PopupMenu(mContext, anchor)
-        popup.menu.add(android.view.Menu.NONE, 1, 0, "编辑").setOnMenuItemClickListener {
-            // 短语模式必须走短语自己的编辑路径（数据源是 phrase 表，不是 clipboard 表）：
-            // 拿剪贴板那条路径去编辑短语，会 findByContent 查不到行、保存整段跳过（改了没反应）。
-            if (itemMode == SkbMenuMode.Phrases) editPhraseItem(item) else editItem(item)
-            true
-        }
-        popup.menu.add(android.view.Menu.NONE, 2, 1, "分享").setOnMenuItemClickListener {
-            shareItem(item); true
-        }
-        popup.menu.add(android.view.Menu.NONE, 3, 2, "分词").setOnMenuItemClickListener {
-            segmentItem(item); true
-        }
+        // 必须用非聚焦弹窗（ImeItemMenu.kt）：android.widget.PopupMenu 的弹窗是 focusable 的，
+        // 在输入法里弹出会抢走宿主应用的窗口焦点；宿主（Google 搜索首页的搜索框就是典型）
+        // 一收到失焦就收起键盘 —— 表现是「长按后键盘消失、菜单闪一下即不见」。
+        val items = mutableListOf(
+            ImeMenuItem("编辑") {
+                // 短语模式必须走短语自己的编辑路径（数据源是 phrase 表，不是 clipboard 表）：
+                // 拿剪贴板那条路径去编辑短语，会 findByContent 查不到行、保存整段跳过（改了没反应）。
+                if (itemMode == SkbMenuMode.Phrases) editPhraseItem(item) else editItem(item)
+            },
+            ImeMenuItem("分享") { shareItem(item) },
+            ImeMenuItem("分词") { segmentItem(item) },
+        )
         // 「收藏」只对剪贴板条目有意义：短语模式下这条本来就是短语，再收藏只是重复/置顶，
         // 语义上说不通，故该模式下不显示这一项。
         if (itemMode != SkbMenuMode.Phrases) {
-            popup.menu.add(android.view.Menu.NONE, 4, 3, "收藏").setOnMenuItemClickListener {
-                collectItem(item); true
-            }
+            items.add(ImeMenuItem("收藏") { collectItem(item) })
         }
-        popup.show()
+        showImeItemMenu(anchor, items)
     }
 
     /**

@@ -48,7 +48,17 @@ class EnvironmentSingleton private constructor() {
         initData()
     }
 
-    fun initData(context: Context = Launcher.instance.context) {
+    /**
+     * 输入法服务上下文：由 ImeService 在 onCreate 时写入。
+     *
+     * IME 侧所有 initData() 都优先用它 —— 服务收到的配置变化是即时的，而应用上下文在
+     * 「进程在后台时被转动」等场景下可能还停在旧方向，于是会用竖屏 metrics 算出一套尺寸，
+     * 却被横屏悬浮窗口使用（症状：回到横屏悬浮模式后键盘内容巨大，仍是竖屏非悬浮的尺寸）。
+     */
+    @Volatile
+    var imeContext: android.content.Context? = null
+
+    fun initData(context: Context = imeContext ?: Launcher.instance.context) {
         val resources = context.resources
         val dm = resources.displayMetrics
         mScreenWidth = dm.widthPixels

@@ -82,6 +82,8 @@ class ImeService : InputMethodService() {
     }
     override fun onCreate() {
         super.onCreate()
+        // IME 侧 initData() 统一用服务上下文算几何（见 EnvironmentSingleton.imeContext 注释）
+        EnvironmentSingleton.instance.imeContext = this
         addOnChangedListener(onThemeChangeListener)
         clipboardUpdateContent.registerOnChangeListener(clipboardUpdateContentListener)
         getInstance().internal.clipboardUpdateTime.registerOnChangeListener(clipboardUpdateTimeListener)
@@ -146,8 +148,48 @@ class ImeService : InputMethodService() {
         super.onStartInput(editorInfo, restarting)
     }
 
+    /**
+     * 显示键盘前把几何对齐到「当前真实配置」。
+     *
+     * 横竖屏来回切之后 env 可能停在旧方向：IME 侧有若干 initData() 调用点，时机/上下文不同
+     * 就会用旧 metrics 算出一套尺寸，而键盘容器高度是按 env.skbHeight 钉死的（BaseContainer
+     * / InputViewParent.onMeasure 都是 EXACTLY）—— 于是回到横屏悬浮模式时按键区仍是竖屏
+     * 非悬浮的尺寸，肉眼就是「键盘内容巨大无比」。
+     *
+     * 这里每次显示前用服务当前 configuration 核一遍，不一致就按当前方向重算、让缓存容器重新
+     * 布局；日志 [env-fix] 便于下次复现时确认是否命中。
+     */
+    private fun ensureGeometrySynced() {
+        val env = EnvironmentSingleton.instance
+        val cfg = resources.configuration
+        val land = cfg.screenWidthDp > cfg.screenHeightDp
+        val floatPref = if (land) {
+            getInstance().internal.keyboardModeFloatLandscape.getValue()
+        } else {
+            getInstance().internal.keyboardModeFloat.getValue()
+        }
+        val mismatch = env.isLandscape != land || env.keyboardModeFloat != floatPref ||
+            env.skbHeight <= 0 || env.skbWidth <= 0
+        if (!mismatch) return
+        val oldLand = env.isLandscape
+        val oldH = env.skbHeight
+        env.initData(this)
+        KeyboardLoaderUtil.instance.reapplySkbCoreSize()
+        if (::mInputView.isInitialized) {
+            KeyboardManager.instance.relayoutCurrentKeyboard()
+            mInputView.refreshKeyboardWrapperHeight()
+            applyInputViewHeight(mInputView)
+        }
+        com.yuyan.inputmethod.util.ImeLog.d(
+            "[env-fix] 几何自愈 land=$land float=$floatPref " +
+                "skbW=${env.skbWidth} skbH=${env.skbHeight} area=${env.heightForCandidatesArea} " +
+                "(旧 land=$oldLand skbH=$oldH)"
+        )
+    }
+
     override fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
         ensureRimeSchemaReady()
+        ensureGeometrySynced()
         if (isSoftKeyboard && ::mInputView.isInitialized)mInputView.onStartInputView(editorInfo, restarting)
         super.onStartInputView(editorInfo, restarting)
     }
@@ -407,6 +449,9 @@ class ImeService : InputMethodService() {
     }
 
     override fun onWindowHidden() {
+        // 输入法窗口隐藏时收起长按菜单（非聚焦弹窗挂在 IME 窗口上，窗口没了要主动收，
+        // 否则下次唤起键盘时可能残留/闪一下）
+        com.yuyan.imemodule.view.dismissImeItemMenu()
         if (isSoftKeyboard && ::mInputView.isInitialized) mInputView.onWindowHidden()
         super.onWindowHidden()
     }

@@ -2,7 +2,6 @@ package com.yuyan.imemodule.view
 
 import android.content.Context
 import android.view.View
-import android.widget.PopupMenu
 import com.yuyan.imemodule.R
 import com.yuyan.imemodule.service.DecodingInfo
 
@@ -27,10 +26,12 @@ internal fun showCandidateForgetMenu(
     if (position < 0 || position >= DecodingInfo.candidates.size) return
     val text = DecodingInfo.candidates[position].text
     if (text.isEmpty()) return
-    val popup = PopupMenu(context, anchor)
-    popup.menu.add(0, 0, 0, text).isEnabled = false
-    popup.menu.add(0, 1, 1, context.getString(R.string.forget_this_word))
-        .setOnMenuItemClickListener {
+    // 非聚焦弹窗（ImeItemMenu.kt）：focusable 的系统 PopupMenu 会抢走宿主焦点，
+    // 宿主一失焦就收键盘（Google 搜索框实测「长按后键盘消失、菜单闪一下」）。
+    showImeItemMenu(
+        anchor,
+        title = text,
+        items = listOf(ImeMenuItem(context.getString(R.string.forget_this_word)) {
             val ok = com.yuyan.inputmethod.core.Rime.deleteCandidate(position)
             com.yuyan.inputmethod.util.ImeLog.d("[forget] deleteCandidate($position) '$text' -> $ok")
             if (ok) {
@@ -65,7 +66,6 @@ internal fun showCandidateForgetMenu(
                     context, "删除失败（该词可能来自系统词库）", android.widget.Toast.LENGTH_SHORT
                 ).show()
             }
-            true
-        }
-    popup.show()
+        })
+    )
 }
