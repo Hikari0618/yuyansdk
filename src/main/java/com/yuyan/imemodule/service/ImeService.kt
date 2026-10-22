@@ -244,6 +244,17 @@ class ImeService : InputMethodService() {
         val changed = env.geometrySignature != sigBefore
         val t1 = android.os.SystemClock.elapsedRealtime()
         if (isSoftKeyboard && ::mInputView.isInitialized) {
+            // 键盘没显示时（系统安全键盘接管 / 已收起）：只记账，绝不当场重建。
+            // 此时视图未 attach / 测量为 0，initView 会拿 0 宽高建布局 —— 落地就是
+            // 「卡片宽度对、内容按旧宽度画 → 右侧被裁」「内边距错乱」这类状态。
+            // 等下次显示（onStartInputView，视图已 attach）再统一重建。
+            if (!isInputViewShown) {
+                if (changed) pendingGeometryRebuild = true
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[perf] relayout(applyTheme=$applyTheme) 键盘未显示 changed=$changed → 延后重建"
+                )
+                return
+            }
             // 几何真的变了才重算/重建：旋转时 setInputView 里已经自愈过一遍时，这里是空转，
             // 重复走一遍会让底部移动条重建 —— 表现为键盘“闪一下”。
             if (changed) {
@@ -318,6 +329,11 @@ class ImeService : InputMethodService() {
     /** IME 窗口高度：只有浮键盘（可拖到屏幕任意位置）和加词面板需要整屏窗口。
      *  普通模式让窗口只占键盘高度——窗口盖满整屏会把系统侧滑返回手势整个吃掉，
      *  表现为「从边缘滑了完全没反应，换其他输入法就正常」。 */
+    /** 标记「下次显示时需要整体重建」（视图当前未 attach 时用）。 */
+    fun requestGeometryRebuild() {
+        pendingGeometryRebuild = true
+    }
+
     /**
      * 几何变化后的统一收尾：窗口高度按当前模式定一次，并让 App 重新取 insets。
      * 非悬浮 → 输入框贴在键盘顶边（随高度变化）；悬浮 → contentTop = 屏幕底，输入框不动。

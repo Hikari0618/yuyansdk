@@ -264,6 +264,8 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                             " container=${KeyboardManager.instance.currentContainer?.javaClass?.simpleName}" +
                             " contH=${KeyboardManager.instance.currentContainer?.height}" +
                             " contLp=${KeyboardManager.instance.currentContainer?.layoutParams?.height}" +
+                            " skbW=${EnvironmentSingleton.instance.skbWidth} rootW=${mSkbRoot.width}" +
+                            " keysW=${mInputKeyboardContainer.findViewById<View>(R.id.skb_input_keyboard_view)?.width}" +
                             " skbH=${EnvironmentSingleton.instance.skbHeight}" +
                             " areaH=${EnvironmentSingleton.instance.heightForCandidatesArea}"
                     )
@@ -322,6 +324,14 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
      * 表现就是底部一行（空格/回车）或右侧一列被裁掉，只有「重置键盘高度」才会恢复。
      */
     fun rebuildForGeometryChange() {
+        // 未 attach 时重建没有意义：initView 里所有 clamp/测量都拿不到有效宽高，
+        // 会把布局建坏（贴角 / 无移动条 / 内容按旧宽度画）。交给 service 的 pending 机制，
+        // 等键盘真正显示（onStartInputView）时再来。
+        if (!isAttachedToWindow) {
+            com.yuyan.inputmethod.util.ImeLog.d("[geom] 视图未 attach，跳过重建，等显示时再重建")
+            service.requestGeometryRebuild()
+            return
+        }
         EnvironmentSingleton.instance.initData(context)
         KeyboardLoaderUtil.instance.clearKeyboardMap()
         KeyboardManager.instance.clearKeyboard()   // → initView：重建布局/移动条/内边距（isFloatLayout 随之刷新）
