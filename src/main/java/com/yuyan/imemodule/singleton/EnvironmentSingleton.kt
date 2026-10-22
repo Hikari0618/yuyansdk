@@ -58,6 +58,11 @@ class EnvironmentSingleton private constructor() {
     @Volatile
     var imeContext: android.content.Context? = null
 
+    /** 最近一次 initData 的几何指纹（方向/悬浮/尺寸），见 initData 末尾。
+     *  调用方比较前后值，就能知道「这次重算有没有真的改变几何」，没变则跳过重建。 */
+    var geometrySignature: Int = 0
+        private set
+
     fun initData(context: Context = imeContext ?: Launcher.instance.context) {
         val resources = context.resources
         val dm = resources.displayMetrics
@@ -101,6 +106,13 @@ class EnvironmentSingleton private constructor() {
         keyXMargin = (prefs.keyXMargin.getValue() / 1000f * skbWidth).toInt()
         keyYMargin = (prefs.keyYMargin.getValue() / 1000f * skbHeight).toInt()
         inputAreaHeight = skbHeight + heightForCandidatesArea
+        // 几何签名：方向/悬浮模式/尺寸的指纹。调用方拿它判断「这次 initData 到底有没有变」，
+        // 没变就不用再走一次 initView/重布局（重复重建正是横竖屏切换时可见的“闪一下”）。
+        geometrySignature = (
+            (if (isLandscape) 1 else 0) * 7 +
+                (if (keyboardModeFloat) 1 else 0) * 13 +
+                skbWidth / 3 + skbHeight / 3 + heightForCandidatesArea / 3
+            )
         // 环境埋点：initData 被不同 context 以不同方向反复调用时，会算出两套尺寸，
         // 表现为按键区高度来回跳（悬浮键盘打字时下缘被裁）。这里把来源和结果都打出来。
         com.yuyan.inputmethod.util.ImeLog.d(

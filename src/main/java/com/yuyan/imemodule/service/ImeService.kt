@@ -156,10 +156,10 @@ class ImeService : InputMethodService() {
      * / InputViewParent.onMeasure 都是 EXACTLY）—— 于是回到横屏悬浮模式时按键区仍是竖屏
      * 非悬浮的尺寸，肉眼就是「键盘内容巨大无比」。
      *
-     * 这里每次显示前用服务当前 configuration 核一遍，不一致就按当前方向重算、让缓存容器重新
-     * 布局；日志 [env-fix] 便于下次复现时确认是否命中。
+     * 关键：必须在【窗口按 env 设高度之前】调用（setInputView 里）。否则会先按旧 env 把窗口
+     * 设成 WRAP_CONTENT、紧接着自愈又改成 MATCH_PARENT —— 两次窗口属性变化就是「闪一下」。
      */
-    private fun ensureGeometrySynced() {
+    private fun ensureGeometrySynced(fallbackView: View? = null) {
         val env = EnvironmentSingleton.instance
         val cfg = resources.configuration
         val land = cfg.screenWidthDp > cfg.screenHeightDp
@@ -175,10 +175,18 @@ class ImeService : InputMethodService() {
         val oldH = env.skbHeight
         env.initData(this)
         KeyboardLoaderUtil.instance.reapplySkbCoreSize()
-        if (::mInputView.isInitialized) {
+        val iv: InputView? = when {
+            ::mInputView.isInitialized -> mInputView
+            fallbackView is InputView -> fallbackView
+            else -> null
+        }
+        if (iv != null) {
+            // 一次性把「底部移动条 / 按键包裹层 / 主题缩放」都按新几何对齐（initView 内部先
+            // removeAllViews 再重建移动条，重复调用是幂等的）。必须在这里做，而不是等 120ms 后
+            // 那次 applyTheme 的 initView —— 那一下的移动条重建就是可见的“跳一下”。
+            iv.initView(iv.context)
             KeyboardManager.instance.relayoutCurrentKeyboard()
-            mInputView.refreshKeyboardWrapperHeight()
-            applyInputViewHeight(mInputView)
+            applyInputViewHeight(iv)
         }
         com.yuyan.inputmethod.util.ImeLog.d(
             "[env-fix] 几何自愈 land=$land float=$floatPref " +
@@ -228,20 +236,31 @@ class ImeService : InputMethodService() {
     /** 横竖屏切换后的重新布局：纯几何计算 + 重新测量，不重建视图 */
     private fun relayoutForRotation(applyTheme: Boolean = false) {
         val t0 = android.os.SystemClock.elapsedRealtime()
-        EnvironmentSingleton.instance.initData(baseContext)
+        val env = EnvironmentSingleton.instance
+        val sigBefore = env.geometrySignature
+        env.initData(baseContext)
+        val changed = env.geometrySignature != sigBefore
         val t1 = android.os.SystemClock.elapsedRealtime()
         if (isSoftKeyboard && ::mInputView.isInitialized) {
-            // 已缓存的键盘按新几何重算按键矩形（SoftKey 存的是相对比例，不重新解析皮肤）
-            KeyboardLoaderUtil.instance.reapplySkbCoreSize()
-            val t2 = android.os.SystemClock.elapsedRealtime()
-            KeyboardManager.instance.relayoutCurrentKeyboard()
-            val t3 = android.os.SystemClock.elapsedRealtime()
-            if (applyTheme) mInputView.initView(baseContext)
-            val t4 = android.os.SystemClock.elapsedRealtime()
-            com.yuyan.inputmethod.util.ImeLog.d(
-                "[perf] relayout(applyTheme=$applyTheme) initData=${t1 - t0} reapply=${t2 - t1} " +
-                    "relayout=${t3 - t2} initView=${t4 - t3} total=${t4 - t0}"
-            )
+            // 几何真的变了才重算/重建：旋转时 setInputView 里已经自愈过一遍时，这里是空转，
+            // 重复走一遍会让底部移动条重建 —— 表现为键盘“闪一下”。
+            if (changed) {
+                // 已缓存的键盘按新几何重算按键矩形（SoftKey 存的是相对比例，不重新解析皮肤）
+                KeyboardLoaderUtil.instance.reapplySkbCoreSize()
+                val t2 = android.os.SystemClock.elapsedRealtime()
+                KeyboardManager.instance.relayoutCurrentKeyboard()
+                val t3 = android.os.SystemClock.elapsedRealtime()
+                if (applyTheme) mInputView.initView(baseContext)
+                val t4 = android.os.SystemClock.elapsedRealtime()
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[perf] relayout(applyTheme=$applyTheme) initData=${t1 - t0} reapply=${t2 - t1} " +
+                        "relayout=${t3 - t2} initView=${t4 - t3} total=${t4 - t0}"
+                )
+            } else {
+                com.yuyan.inputmethod.util.ImeLog.d(
+                    "[perf] relayout(applyTheme=$applyTheme) 几何未变，跳过重建 total=${t1 - t0}"
+                )
+            }
         } else if (isHardwareKeyboard && ::mCandidateView.isInitialized) {
             mCandidateView.initView()
         }
@@ -274,6 +293,10 @@ class ImeService : InputMethodService() {
         // 关闭键盘时旋转不崩，正是因为不走 showWindow/updateInputViewShown 这条链路。
         // 交给框架前先把 view 从原父容器摘下来。
         (view.parent as? ViewGroup)?.removeView(view)
+        // 先把几何对齐到当前方向，再让下面 applyInputViewHeight 决定窗口高度：
+        // 否则会先按旧 env 设 WRAP_CONTENT、紧接着自愈再改 MATCH_PARENT，
+        // 窗口属性连改两次 —— 这就是「键盘闪一下」的来源。
+        ensureGeometrySynced(view)
         super.setInputView(view)
         applyInputViewHeight(view)
     }
