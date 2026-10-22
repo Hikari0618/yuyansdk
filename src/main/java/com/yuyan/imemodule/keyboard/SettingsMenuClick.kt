@@ -117,12 +117,11 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
             KeyboardManager.instance.switchKeyboard()
         }
         SkbMenuMode.FloatKeyboard -> {
-            val keyboardModeFloat = EnvironmentSingleton.instance.keyboardModeFloat
-            EnvironmentSingleton.instance.keyboardModeFloat = !keyboardModeFloat
-            EnvironmentSingleton.instance.initData()
-            KeyboardLoaderUtil.instance.clearKeyboardMap()
-            KeyboardManager.instance.clearKeyboard()
-            KeyboardManager.instance.switchKeyboard()
+            // 模式变了：必须整体重建（键位/内边距/移动条/窗口高度/insets 全换一套），
+            // 只改 env 再 switchKeyboard 会留下「布局是旧模式、窗口是新模式」的半新半旧状态
+            // （用户实测：切悬浮后键位按非悬浮宽度画 → 右侧被裁；切回普通后底部被裁）。
+            EnvironmentSingleton.instance.keyboardModeFloat = !EnvironmentSingleton.instance.keyboardModeFloat
+            inputView.rebuildForGeometryChange()
         }
         SkbMenuMode.ClipBoard, SkbMenuMode.Phrases -> {
             val currentContainer = KeyboardManager.instance.currentContainer as? ClipBoardContainer

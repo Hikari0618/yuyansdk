@@ -101,7 +101,8 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
             // 重置把 skbHeight 改回 640，但包裹层还停在调整后的值，根总高不变，
             // 表现为「点重置后键盘下界被往上抬」（用户实测），
             // 要点一下上把手（那条路径有刷新）才会突然跳回正确位置。
-            inputView.refreshKeyboardWrapperHeight()
+            // 高度变了：包裹层 + 窗口高度 + App insets 一起跟着走（非悬浮时输入框要贴着键盘顶边上移）
+            inputView.onKeyboardHeightChanged()
             // 重置等同「确定」：也要把影子覆盖层摘掉并清引用，否则点重置后覆盖层仍挂在容器里，
             // 再进「调整键盘高度」又会叠一层（幂等失效）。
             removeView(rootView)
@@ -156,7 +157,8 @@ open class BaseContainer(@JvmField var mContext: Context, @JvmField protected va
                     // 包裹层高度必须跟着 skbHeight 一起更新，否则键盘根总高不变：
                     // 表现为上界钉住不动、只有按键区下沿跟着变
                     //（用户实测「拖上面的把手时是键盘下界在变」）。
-                    inputView.refreshKeyboardWrapperHeight()
+                    // 同上：拖动高度时窗口/insets 必须同步，否则输入框不随实际高度移动
+                    inputView.onKeyboardHeightChanged()
                     // 覆盖层已在 setKeyboardHeight() 里铺满容器（四边对齐），
                     // 这里不再按 skbHeight 重设高度 —— 容器实测高度是 skbHeight+候选区，
                     // 按 skbHeight 设会让下面的把手跑到键盘外（「重置后下面的键消失」）。

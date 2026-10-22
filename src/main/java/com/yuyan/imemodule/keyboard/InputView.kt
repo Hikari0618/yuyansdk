@@ -314,6 +314,29 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
      * 同时同步按键区容器（keyboardRootView = skb_input_keyboard_view）的 layoutParams.height：
      * KeyboardManager.setData 只在 init 调一次，之后尺寸变化不再同步（详见函数内注释）。
      */
+    /**
+     * 几何 / 悬浮模式变化后的统一重建入口（旋转、切悬浮、改键盘高度、清除数据后首次唤起都走这里）。
+     *
+     * 为什么必须「重建」而不是只改尺寸：键位矩形是创建时按 skbWidth/skbHeight 算好的
+     * （SoftKey.setSkbCoreSize），只改窗口/容器尺寸就是「内容按旧尺寸画、窗口按新尺寸裁」——
+     * 表现就是底部一行（空格/回车）或右侧一列被裁掉，只有「重置键盘高度」才会恢复。
+     */
+    fun rebuildForGeometryChange() {
+        EnvironmentSingleton.instance.initData(context)
+        KeyboardLoaderUtil.instance.clearKeyboardMap()
+        KeyboardManager.instance.clearKeyboard()   // → initView：重建布局/移动条/内边距（isFloatLayout 随之刷新）
+        KeyboardManager.instance.switchKeyboard()
+        refreshKeyboardWrapperHeight()
+        service.onGeometryApplied()
+    }
+
+    /** 键盘高度变化（拖动/重置）后的收尾：包裹层、窗口高度、App 的 insets 都要跟着走，
+     *  否则非悬浮时输入框不随实际高度上移、悬浮时又被错误顶起。 */
+    fun onKeyboardHeightChanged() {
+        refreshKeyboardWrapperHeight()
+        service.onGeometryApplied()
+    }
+
     fun refreshKeyboardWrapperHeight() {
         val env = EnvironmentSingleton.instance
         mInputKeyboardContainer.layoutParams?.let {

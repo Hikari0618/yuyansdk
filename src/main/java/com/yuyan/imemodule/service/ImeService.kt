@@ -43,6 +43,8 @@ class ImeService : InputMethodService() {
     private lateinit var mInputView: InputView
     /** 已经应用过主题（initView 里的皮肤缩放）的几何签名；同几何不再重复 initView。 */
     private var themeAppliedSig = Int.MIN_VALUE
+    /** 显示前发现几何/模式不一致：等视图 attach 后再重建（不要在 setInputView 里直接 initView）。 */
+    private var pendingGeometryRebuild = false
     private lateinit var mCandidateView: CandidateView
     private val onThemeChangeListener = OnThemeChangeListener { _: Theme? ->
         if (isHardwareKeyboard) { if (::mCandidateView.isInitialized) mCandidateView.updateTheme() }
@@ -179,16 +181,10 @@ class ImeService : InputMethodService() {
         if (!mismatch) return
         val oldLand = env.isLandscape
         val oldH = env.skbHeight
+        // 只重算几何；真正的重建（键位/内边距/移动条）等视图 attach 后在 onStartInputView 里做 ——
+        // 在 setInputView（未 attach/未测量）里 initView 会把悬浮布局建坏（贴角/无移动条）。
         env.initData(this)
-        KeyboardLoaderUtil.instance.reapplySkbCoreSize()
-        if (iv != null) {
-            // 只做轻量重排：调用方（setInputView）紧接着会按新鲜 env 调 applyInputViewHeight，
-            // 这里不再重复调用，避免窗口属性被改两次（那就是「闪一下」）。
-            // 也**不要**在这里调 initView：那时视图还没 attach/测量，initView 里的 clamp、
-            // 移动条重建都以未测量状态执行，会把悬浮布局建错（贴右下角/无移动条）。
-            KeyboardManager.instance.relayoutCurrentKeyboard()
-            iv.refreshKeyboardWrapperHeight()
-        }
+        pendingGeometryRebuild = true
         com.yuyan.inputmethod.util.ImeLog.d(
             "[env-fix] 几何自愈 land=$land float=$floatNow " +
                 "skbW=${env.skbWidth} skbH=${env.skbHeight} area=${env.heightForCandidatesArea} " +
@@ -199,6 +195,11 @@ class ImeService : InputMethodService() {
     override fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
         ensureRimeSchemaReady()
         ensureGeometrySynced()
+        // 视图此时已 attach：把 setInputView 里发现的几何/模式不一致一次性重建掉
+        if (pendingGeometryRebuild) {
+            pendingGeometryRebuild = false
+            if (::mInputView.isInitialized) mInputView.rebuildForGeometryChange()
+        }
         if (isSoftKeyboard && ::mInputView.isInitialized)mInputView.onStartInputView(editorInfo, restarting)
         super.onStartInputView(editorInfo, restarting)
     }
@@ -246,14 +247,13 @@ class ImeService : InputMethodService() {
             // 几何真的变了才重算/重建：旋转时 setInputView 里已经自愈过一遍时，这里是空转，
             // 重复走一遍会让底部移动条重建 —— 表现为键盘“闪一下”。
             if (changed) {
-                // 已缓存的键盘按新几何重算按键矩形（SoftKey 存的是相对比例，不重新解析皮肤）
-                KeyboardLoaderUtil.instance.reapplySkbCoreSize()
-                KeyboardManager.instance.relayoutCurrentKeyboard()
-            }
-            // 主题缩放（皮肤位图按新 skbWidth/inputAreaHeight 重采样）每套几何只做一次：
-            // 第一次（立即）那次几何已变，第二次（120ms 后）应用主题；之后同几何不再重复 initView ——
-            // 重复重建移动条就是旋转时可见的“跳一下”。
-            if (applyTheme && env.geometrySignature != themeAppliedSig) {
+                // 几何变了：整体重建（键位矩形/内边距/移动条/窗口高度/insets 一次性换掉）。
+                // 只重算键位而不重建布局，会出现「内容按旧尺寸画、窗口按新尺寸裁」——
+                // 也就是底部一行/右侧一列被裁掉、只有「重置键盘高度」才恢复的那种状态。
+                mInputView.rebuildForGeometryChange()
+                themeAppliedSig = env.geometrySignature
+            } else if (applyTheme && env.geometrySignature != themeAppliedSig) {
+                // 120ms 后的兜底：几何没变，但这套几何还没做过主题缩放
                 mInputView.initView(baseContext)
                 themeAppliedSig = env.geometrySignature
             }
@@ -318,12 +318,26 @@ class ImeService : InputMethodService() {
     /** IME 窗口高度：只有浮键盘（可拖到屏幕任意位置）和加词面板需要整屏窗口。
      *  普通模式让窗口只占键盘高度——窗口盖满整屏会把系统侧滑返回手势整个吃掉，
      *  表现为「从边缘滑了完全没反应，换其他输入法就正常」。 */
+    /**
+     * 几何变化后的统一收尾：窗口高度按当前模式定一次，并让 App 重新取 insets。
+     * 非悬浮 → 输入框贴在键盘顶边（随高度变化）；悬浮 → contentTop = 屏幕底，输入框不动。
+     * 之前切悬浮/改高度都没调 updateInputViewShown，App 一直用旧的 insets，
+     * 表现就是「切到悬浮了输入框还被顶起」「拖高度时输入框不跟着走」。
+     */
+    fun onGeometryApplied() {
+        if (!::mInputView.isInitialized) return
+        applyInputViewHeight(mInputView)
+        if (isInputViewShown) updateInputViewShown()
+    }
+
     private fun applyInputViewHeight(view: View) {
-        // 以「布局实际采用的模式」为准（见 InputView.isFloatLayout）：env 中途被重算成另一种
-        // 模式时，窗口高度仍要和已建好的布局一致，否则悬浮布局套 WRAP_CONTENT 窗口 →
-        // 贴右下角 / 拖动变成改大小 / 内容被裁切。
-        val floatMode = (view as? InputView)?.isFloatLayout
-            ?: EnvironmentSingleton.instance.floatModeNow
+        // 模式以「布局实际采用的值」为准（见 InputView.isFloatLayout）；但若已判定需要重建
+        // （pendingGeometryRebuild），窗口要按目标模式先定好，重建后自然一致。
+        val floatMode = if (pendingGeometryRebuild) {
+            EnvironmentSingleton.instance.floatModeNow
+        } else {
+            (view as? InputView)?.isFloatLayout ?: EnvironmentSingleton.instance.floatModeNow
+        }
         val addPhrases = (view as? InputView)?.isAddPhrases == true
         val needFullScreen = floatMode || addPhrases
         val target = if (needFullScreen) ViewGroup.LayoutParams.MATCH_PARENT
