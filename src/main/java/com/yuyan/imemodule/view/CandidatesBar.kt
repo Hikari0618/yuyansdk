@@ -6,6 +6,7 @@ import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -58,6 +59,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private var mComposingExpanded = false  // 待编辑区是否已放大（点击定位后放大，上屏恢复）
     private lateinit var mRVCandidates: RecyclerView    //候选词列表
     private lateinit var mIvMenuSetting: ImageView
+    /** 悬浮模式下允许把左上角菜单键当拖动把手（底部小横条贴到屏幕最下会被系统手势条抢占，
+     *  用户无法再拖回来）。返回 true 表示已消费本次触摸；为 null 时不拦截（单击照常）。 */
+    var onMenuKeyTouch: ((View, MotionEvent) -> Boolean)? = null
     private lateinit var mLlContainer: LinearLayout
     private lateinit var mFlowerType: TextView
     private lateinit var mCandidatesAdapter: CandidatesBarAdapter
@@ -183,6 +187,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                 isClickable = true
                 isEnabled = true
                 setOnClickListener { mCvListener.onClickMenu(SkbMenuMode.SettingsMenu) }
+                setOnTouchListener { v, e -> onMenuKeyTouch?.invoke(v, e) ?: false }
             }
             mLlContainer = LinearLayout(context).apply {
                 gravity = Gravity.CENTER_VERTICAL

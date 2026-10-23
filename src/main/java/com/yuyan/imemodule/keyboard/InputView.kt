@@ -173,6 +173,10 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         mLlKeyboardBottomHolder.layoutParams.width = env.skbWidth
         mInputKeyboardContainer.layoutParams.width = env.inputAreaWidth
         isFloatLayout = env.floatModeNow
+        // 悬浮模式下左上角菜单键也当拖动把手：底部小横条贴到屏幕最下时会被系统手势条抢占
+        // （用户拖不上来）。单击行为不受影响（见 CandidatesBar 的触摸处理）。
+        mSkbCandidatesBarView.onMenuKeyTouch =
+            if (isFloatLayout) { _, e -> onFloatHandleTouch(e) } else null
         if (isFloatLayout) {
             val isLand = env.isLandscape
             val internal = appPrefs.internal
@@ -401,6 +405,55 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
     private var rootLayoutLogged = false
     private var mSkbRootHeight = 0
     private var mSkbRootWidth = 0
+
+    // 菜单键拖动：超过阈值才“接管”，否则把事件留给点击（返回 false = 不消费）
+    private var mHandleDownX = 0f
+    private var mHandleDownY = 0f
+    private var mHandleDragging = false
+
+    /**
+     * 悬浮模式下把左上角菜单键当作第二个拖动把手。
+     *
+     * 为什么需要：键盘被拖到屏幕最下方时，底部那条小横条正好落在系统手势导航条上，
+     * 触摸被系统抢占 → 只能看到键盘却拖不回来（用户实测）。菜单键在左上角，永远可及。
+     *
+     * 规则：DOWN 只记录起点并交给原点击流程（不消费）；位移超过 8dp 才接管并开始拖动；
+     * 一旦接管，本次手势的 UP 也吞掉，避免拖完又触发一次点击。
+     */
+    private fun onFloatHandleTouch(event: MotionEvent): Boolean {
+        if (!isFloatLayout) return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                mHandleDownX = event.rawX
+                mHandleDownY = event.rawY
+                mHandleDragging = false
+                onMoveKeyboardEvent(event)   // 记录初始位移基准
+                return false                 // 不消费：单击仍然有效
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (!mHandleDragging) {
+                    val slop = (8 * resources.displayMetrics.density)
+                    if ((event.rawX - mHandleDownX).absoluteValue > slop ||
+                        (event.rawY - mHandleDownY).absoluteValue > slop) {
+                        mHandleDragging = true
+                        com.yuyan.inputmethod.util.ImeLog.d("[move] 菜单键接管拖动")
+                    }
+                }
+                if (mHandleDragging) {
+                    onMoveKeyboardEvent(event)
+                    return true
+                }
+                return false
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                val wasDragging = mHandleDragging
+                if (wasDragging) onMoveKeyboardEvent(event)
+                mHandleDragging = false
+                return wasDragging
+            }
+        }
+        return false
+    }
 
     private fun onMoveKeyboardEvent(event: MotionEvent?): Boolean {
         // 【基准一致性】本方法与 BaseContainer.onMoveKeyboardEvent 写的是同一组位移 prefs，
