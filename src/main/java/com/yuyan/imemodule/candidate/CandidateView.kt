@@ -125,7 +125,7 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
                 // 透传条件同样加上「组合串为空」，理由见下面的回车分支：
                 // 「没有候选」不等于「不在输入」，组合非空时不应把空格透传给应用
                 // （否则组合串被丢掉、空格被塞进输入框，而不是把待编辑内容上屏）。
-                val composing = DecodingInfo.composingStrForCommit
+                val composing = DecodingInfo.composingStrForRawCommit
                 if ((DecodingInfo.isAssociate && !mSkbCandidatesBarView.isActiveCand()) ||
                     (DecodingInfo.isCandidatesEmpty && composing.isEmpty())) {
                     sendKeyEvent(keyCode)
@@ -151,7 +151,7 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
             KeyEvent.KEYCODE_ENTER -> {
                 // 同 InputView：待编辑栏还有内容时回车先上屏组合串，
                 // 不能用 isCandidatesEmpty 判断（组合非空但候选暂空会误判成空闲、回车被透传）。
-                val composing = DecodingInfo.composingStrForCommit
+                val composing = DecodingInfo.composingStrForRawCommit
                 if (DecodingInfo.isAssociate || composing.isEmpty()) sendKeyEvent(keyCode)
                 else commitDecInfoText(composing)
                 resetToIdleState()
@@ -218,9 +218,14 @@ class CandidateView(context: Context, private val service: ImeService) : Lifecyc
 
     fun chooseAndUpdate(candId: Int = mSkbCandidatesBarView.getActiveCandNo()) {
         val choice = DecodingInfo.chooseDecodingCandidate(candId)
-        if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) {
+        // 同 InputView：候选为空 ≠ 输入结束（剩余输入拼不出音节时引擎仍在组合）。
+        // 这种时候上屏会丢掉「词后面那段残余字母」，而且引擎组合没清，下一键又冒出来。
+        val engineComposing = DecodingInfo.composingStrForCommit.isNotEmpty()
+        if (DecodingInfo.isAssociate || (DecodingInfo.isCandidatesEmpty && !engineComposing)) {
             commitDecInfoText(choice)
             resetToIdleState()
+        } else {
+            updateCandidate()
         }
     }
 

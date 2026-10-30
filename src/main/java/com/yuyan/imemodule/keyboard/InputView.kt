@@ -712,7 +712,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 // 组合非空但候选暂空时（URL 输入框、未成词、万象命令等）若把空格透传，
                 // 组合串会被 resetToIdleState 丢掉、空格被塞进输入框，而不是把待编辑内容上屏。
                 // 判据与上面的回车分支一致。
-                val composing = DecodingInfo.composingStrForCommit
+                val composing = DecodingInfo.composingStrForRawCommit
                 if (DecodingInfo.isAssociate || (DecodingInfo.isCandidatesEmpty && composing.isEmpty())) {
                     if (keyCode == KeyEvent.KEYCODE_SPACE) {
                         // 空格用「文本提交」而不是键值事件：
@@ -737,7 +737,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 // 不能用 isCandidatesEmpty 判断：组合非空但候选暂空时（万象命令、未成词、
                 // URL 输入框等）会被误判成「没在输入」，于是把回车直接透传给应用 ——
                 // 网址栏里就变成触发搜索，而不是上屏待编辑内容（同文 Trime 会先上屏）。
-                val composing = DecodingInfo.composingStrForCommit
+                val composing = DecodingInfo.composingStrForRawCommit
                 if (DecodingInfo.isAssociate || composing.isEmpty()) sendKeyEvent(keyCode)
                 else commitDecInfoText(composing)
                 resetToIdleState()
@@ -947,21 +947,28 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         val candidate = DecodingInfo.getCandidate(candId)
         if (candidate?.comment == "📋") {
             commitDecInfoText(candidate.text)
-        } else {
-            val choice = DecodingInfo.chooseDecodingCandidate(candId)
-            if (DecodingInfo.isCandidatesEmpty || DecodingInfo.isAssociate) {
-                KeyboardManager.instance.switchKeyboard()
-                (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
-                commitDecInfoText(choice)
-            } else {
-                if (!DecodingInfo.isCandidatesEmpty) {
-                    (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
-                    if (InputModeSwitcher.isEnglish) setComposingText(DecodingInfo.composingStrForCommit)
-                } else {
-                    resetToIdleState()
-                }
-            }
+            return
         }
+        val choice = DecodingInfo.chooseDecodingCandidate(candId)
+        // ★「候选为空」不等于「输入结束」：选了词、但剩下的输入拼不出音节时，Rime 不会
+        //   commit，只把选中的词并进 preedit —— 此时候选列表为空、引擎组合还在。
+        //   按「候选空 = 结束」直接上屏的话，文字进了编辑框、引擎组合却留着，
+        //   下一键又把旧组合带回待编辑区（用户实测 bofhqiqwww 选「播放器」：
+        //   直接上屏，再打字待编辑区又冒出「播放器qwww」）。
+        val engineComposing = DecodingInfo.composingStrForCommit.isNotEmpty()
+        if (DecodingInfo.isAssociate || (DecodingInfo.isCandidatesEmpty && !engineComposing)) {
+            KeyboardManager.instance.switchKeyboard()
+            (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
+            commitDecInfoText(choice)
+            // 兜底：上屏后引擎若还留着预编辑（组合），必须清掉 ——
+            // 否则下一键会在旧组合后面接着长，待编辑区把已上屏的内容又显示一遍。
+            if (com.yuyan.inputmethod.core.Rime.compositionText.isNotEmpty()) resetToIdleState()
+            return
+        }
+        // 仍在组合（可能候选暂空，只剩残余字母）：只刷新界面，不上屏、不复位引擎
+        (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
+        if (InputModeSwitcher.isEnglish) setComposingText(DecodingInfo.composingStrForCommit)
+        updateCandidateBar()
     }
 
     private fun updateCandidate() {

@@ -95,6 +95,24 @@ object DecodingInfo {
                 .ifEmpty { getCandidate(0)?.text ?: "" }
         }
 
+    /**
+     * 「原样上屏」用的组合串：preedit 里已选定的中文 + 还没消化的残余字母。
+     *
+     * [composingStrForCommit] 会把所有非 ASCII 字符滤掉（它是给英文组合区 / 纯字母上屏用的）。
+     * 但「选过词、后面的输入又拼不出音节」时，preedit 是「播放器qwww」这种形态，
+     * 用 composingStrForCommit 上屏就只剩 qwww，已选的中文被丢掉 —— 用户实测。
+     */
+    val composingStrForRawCommit: String
+        get() {
+            val text = Rime.compositionText
+                // 去掉 U+2038 之类的提示/光标符，保留 ASCII 与 CJK（≥ 0x2E80）
+                .filter { it.code <= 0xFF || it.code >= 0x2E80 }
+                .replace("'", "")
+                .replace(" ", "")
+            if (text.isNotEmpty()) return text
+            return composingStrForCommit
+        }
+
     val nextPageCandidates: Int   // 获取下一页的候选词
         get() {
             val cands = Kernel.nextPageCandidates

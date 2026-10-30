@@ -113,6 +113,12 @@ object RimeEngine {
 
     fun predictAssociationWords(text: String) {
         pinyins = emptyArray()
+        // ★ 联想和组合是互斥的两个状态。用户移动光标（点别处/方向键）时，引擎里可能
+        //   还留着上一次的组合串（preedit）。只把界面切到联想、不清引擎的话，下一键
+        //   processKey 会在旧组合后面接着长 —— 用户实测：待编辑区消失、出现预测词，
+        //   再打字母，旧的「播放器qwww」又整个冒回来，而不是从空开始。
+        Rime.clearComposition()
+        keyRecordStack.clear()
         if (text.isNotEmpty()) {
             showCandidates = buildList {
                 val words = Rime.getAssociateList(text)
