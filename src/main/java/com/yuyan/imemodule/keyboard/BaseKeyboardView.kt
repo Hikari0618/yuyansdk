@@ -41,6 +41,8 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     protected var mLongPressKey = false
     // 长按连发的第几次（只对退格做加速，其它可重复键保持匀速）
     private var mRepeatCount = 0
+    // 连发起点（uptimeMillis）：加速按「按住时长」分档，每 3 秒升一档
+    private var mRepeatStartAt = 0L
     private var mAbortKey = false
     private var mHandler: Handler? = null
     protected var mDrawPending = false
@@ -57,6 +59,7 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 override fun handleMessage(msg: Message) {
                     when (msg.what) {
                         MSG_REPEAT -> {
+                            if (mRepeatStartAt == 0L) mRepeatStartAt = android.os.SystemClock.uptimeMillis()
                             if (repeatKey()) {
                                 val delay = nextRepeatDelay()
                                 mRepeatCount++
@@ -180,6 +183,7 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 relDistanceX = 0f
                 relDistanceY = 0f
                 mRepeatCount = 0
+                mRepeatStartAt = 0L
                 if(mCurrentKey != null){
                     // mHandler 在 onAttachedToWindow 里创建；触摸若发生在 attach 之前（或已 detach），
                     // 原来的 mHandler!! 会直接 NPE。整段判空，handler 缺失时跳过重复/长按计时。
@@ -296,30 +300,37 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     /**
      * 长按退格的加速曲线（同文/主流输入法的手感：先慢后快，最后一次删一截）。
      *
-     * 旧逻辑是固定 50ms 一个字符，删长文要按到手酸；这里按「已连发次数」分档：
-     *   · 间隔 50 → 40 → 30 → 22 → 15ms
-     *   · 每次删除 1 → 2 → 3 → 5 个字
+     * 旧逻辑是固定 50ms 一个字符，删长文要按到手酸。同文（osfans/trime）是恒速 30ms、
+     * 每次一个字符，没有递进；这里按「按住时长」每 3 秒升一档，节奏更缓：
+     *   · 0–3s   50ms / 1 字（约 20 字/秒，与原来手感一致）
+     *   · 3–6s   40ms / 1 字（约 25 字/秒）
+     *   · 6–9s   30ms / 2 字（约 66 字/秒）
+     *   · 9s 以上 25ms / 3 字（约 120 字/秒）
      * 其它可重复键（方向键等）保持固定 50ms，不会被带快。
      */
+    private fun repeatLevel(): Int {
+        if (mRepeatStartAt == 0L) return 0
+        val elapsed = android.os.SystemClock.uptimeMillis() - mRepeatStartAt
+        return (elapsed / 3000L).toInt().coerceAtMost(3)
+    }
+
     private fun nextRepeatDelay(): Long {
         if (mCurrentKey?.code != KeyEvent.KEYCODE_DEL) return REPEAT_INTERVAL
-        return when {
-            mRepeatCount < 8 -> 50L
-            mRepeatCount < 20 -> 40L
-            mRepeatCount < 32 -> 30L
-            mRepeatCount < 44 -> 22L
-            else -> 15L
+        return when (repeatLevel()) {
+            0 -> 50L
+            1 -> 40L
+            2 -> 30L
+            else -> 25L
         }
     }
 
     /** 本次 tick 删几个字（只对退格生效）。 */
     private fun deleteStep(): Int {
         if (mCurrentKey?.code != KeyEvent.KEYCODE_DEL) return 1
-        return when {
-            mRepeatCount < 20 -> 1
-            mRepeatCount < 32 -> 2
-            mRepeatCount < 44 -> 3
-            else -> 5
+        return when (repeatLevel()) {
+            0, 1 -> 1
+            2 -> 2
+            else -> 3
         }
     }
 
