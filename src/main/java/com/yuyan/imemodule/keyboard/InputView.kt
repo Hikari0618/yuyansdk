@@ -976,6 +976,35 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
         updateCandidateBar()
     }
 
+    /**
+     * 长按连删：一次 tick 删 [count] 个字符。
+     *
+     * 不能像原来那样「一个 tick 里连发 N 次 KEYCODE_DEL」：
+     * 每次 DEL 前都会 getTextBeforeCursor(1) 记进「恢复队列」，但按键是异步送达的，
+     * 同一个 tick 里的 N 次读取读到的都是删除前的同一个字符 —— 队列里全是重复的字，
+     * 真正被删掉的其它字一个也没记下。「长按退格 + 左滑恢复」于是错位：
+     * 有的字重复、有的字丢失（用户实测：整段《黄焖鸡》恢复成「黄焖鸡鸡…hiccknn rraieed」）。
+     *
+     * 改法：一个 tick 只读一次（一次读够 count 个字），整段作为【一条】记入恢复队列，
+     * 再照旧发 count 次按键删除 —— 删除链路不变，只是记录不再重复/漏记。
+     */
+    fun deleteByRepeat(count: Int) {
+        if (count <= 0) return
+        val engineComposing = com.yuyan.inputmethod.core.Rime.compositionText.isNotEmpty()
+        if (engineComposing && !DecodingInfo.isAssociate) {
+            // 组合里没有「编辑框文本」的概念，逐个退引擎
+            repeat(count) { DecodingInfo.deleteAction() }
+            updateCandidate()
+            return
+        }
+        val before = service.getTextBeforeCursor(count)
+        // 实际删多少就记多少：读到 3 个就只删 3 个，保证「恢复队列」和真实删除量一致
+        // （异步通道下 getTextBeforeCursor 可能比 count 短）。
+        val n = if (before.isNotEmpty()) before.length else count
+        if (before.isNotEmpty()) textBeforeCursors.push(before)
+        repeat(n) { sendKeyEvent(KeyEvent.KEYCODE_DEL) }
+    }
+
     private fun updateCandidate() {
         DecodingInfo.updateDecodingCandidate()
         if (!DecodingInfo.isCandidatesEmpty) {

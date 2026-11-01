@@ -324,7 +324,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     }
 
     private fun sendDelete() {
-        repeat(deleteStep()) { mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL)) }
+        // 交给 InputView 统一处理：一个 tick 只读一次编辑框文本（记入恢复队列），再连发按键。
+        // 逐个发 responseKeyEvent 会让每次 DEL 各自读一次「光标前一个字符」，异步下读到同一个字，
+        // 恢复队列里就全是重复项、真正删掉的字反而没记下。
+        mService?.deleteByRepeat(deleteStep())
     }
 
     private fun repeatKey(): Boolean {
