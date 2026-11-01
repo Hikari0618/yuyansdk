@@ -39,6 +39,8 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     private var mCurrentKey: SoftKey? = null
     private var mGestureDetector: GestureDetector? = null
     protected var mLongPressKey = false
+    // 长按连发的第几次（只对退格做加速，其它可重复键保持匀速）
+    private var mRepeatCount = 0
     private var mAbortKey = false
     private var mHandler: Handler? = null
     protected var mDrawPending = false
@@ -56,8 +58,10 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                     when (msg.what) {
                         MSG_REPEAT -> {
                             if (repeatKey()) {
+                                val delay = nextRepeatDelay()
+                                mRepeatCount++
                                 val repeat = Message.obtain(this, MSG_REPEAT)
-                                sendMessageDelayed(repeat, REPEAT_INTERVAL)
+                                sendMessageDelayed(repeat, delay)
                             }
                         }
 
@@ -175,6 +179,7 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                 // （用户实测：触发过一次恢复后，松开再长按只会删一个字）。
                 relDistanceX = 0f
                 relDistanceY = 0f
+                mRepeatCount = 0
                 if(mCurrentKey != null){
                     // mHandler 在 onAttachedToWindow 里创建；触摸若发生在 attach 之前（或已 detach），
                     // 原来的 mHandler!! 会直接 NPE。整段判空，handler 缺失时跳过重复/长按计时。
@@ -288,6 +293,40 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
         return result
     }
 
+    /**
+     * 长按退格的加速曲线（同文/主流输入法的手感：先慢后快，最后一次删一截）。
+     *
+     * 旧逻辑是固定 50ms 一个字符，删长文要按到手酸；这里按「已连发次数」分档：
+     *   · 间隔 50 → 40 → 30 → 22 → 15ms
+     *   · 每次删除 1 → 2 → 3 → 5 个字
+     * 其它可重复键（方向键等）保持固定 50ms，不会被带快。
+     */
+    private fun nextRepeatDelay(): Long {
+        if (mCurrentKey?.code != KeyEvent.KEYCODE_DEL) return REPEAT_INTERVAL
+        return when {
+            mRepeatCount < 8 -> 50L
+            mRepeatCount < 20 -> 40L
+            mRepeatCount < 32 -> 30L
+            mRepeatCount < 44 -> 22L
+            else -> 15L
+        }
+    }
+
+    /** 本次 tick 删几个字（只对退格生效）。 */
+    private fun deleteStep(): Int {
+        if (mCurrentKey?.code != KeyEvent.KEYCODE_DEL) return 1
+        return when {
+            mRepeatCount < 20 -> 1
+            mRepeatCount < 32 -> 2
+            mRepeatCount < 44 -> 3
+            else -> 5
+        }
+    }
+
+    private fun sendDelete() {
+        repeat(deleteStep()) { mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL)) }
+    }
+
     private fun repeatKey(): Boolean {
         if (mCurrentKey != null && mCurrentKey!!.repeatable()) {
             if(mCurrentKey!!.code == KeyEvent.KEYCODE_DEL && mLongPressKey) {
@@ -298,16 +337,16 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
                     // 那只是本次滑动事件的增量（几像素），长按时手指自然抖动就会翻到
                     // 「上滑/左滑」一侧，于是在没滑动的情况下也不断恢复
                     // （用户实测：长按一会儿文字又回来了）。改用相对按下点的累计位移 + 阈值。
-                    val delGestureThreshold = 30f
+                    val delGestureThreshold = 70f
                     if (relDistanceX.absoluteValue >= relDistanceY.absoluteValue ) {
                         if (relDistanceX > -delGestureThreshold) {
-                            mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL))
+                            sendDelete()
                         } else {
                             mService?.responseLongKeyEvent(Pair(PopupMenuMode.Revertl,  ""))
                         }
                     } else {
                         if (relDistanceY > delGestureThreshold) {
-                            mService?.responseKeyEvent(SoftKey(KeyEvent.KEYCODE_DEL))
+                            sendDelete()
                         } else if (relDistanceY < -delGestureThreshold) {
                             mService?.responseLongKeyEvent(Pair(PopupMenuMode.Revertl,  ""))
                         }
@@ -330,6 +369,7 @@ open class BaseKeyboardView(mContext: Context?) : View(mContext) {
     }
 
     private fun removeMessages() {
+        mRepeatCount = 0
         if (mHandler != null) {
             mHandler!!.removeMessages(MSG_REPEAT)
             mHandler!!.removeMessages(MSG_LONGPRESS)

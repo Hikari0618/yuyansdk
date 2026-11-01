@@ -818,7 +818,12 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 // 不能用 isCandidatesEmpty 判断：组合非空但没有候选词时（万象命令、
                 // 未成词、上屏瞬间）会误判成"没在输入"，于是删了编辑框的字、待编辑区
                 // 却不变，继续打字还在变多（用户实测）。
-                if (DecodingInfo.isEngineFinish || DecodingInfo.isAssociate) {
+                // 也不能只看 isEngineFinish（= 按键栈是否为空）：栈里残留过期的按键记录时，
+                // 它会在引擎早已没有组合的情况下仍报"还在输入"，退格就永远只走引擎、
+                // 编辑框里的字一个也删不掉 —— 长按删一段文字时表现为「删到一半突然不动了」
+                // （用户实测）。这里以引擎真实的 preedit 为准。
+                val engineComposing = com.yuyan.inputmethod.core.Rime.compositionText.isNotEmpty()
+                if (!engineComposing || DecodingInfo.isAssociate) {
                     service.getTextBeforeCursor(1).takeIf { it.isNotEmpty() }?.let { textBeforeCursors.push(it) }
                     sendKeyEvent(keyCode)
                 } else {
