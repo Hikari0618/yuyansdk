@@ -272,6 +272,12 @@ object RimeEngine {
     private fun getCurrentComposition(candidates: List<CandidateListItem>): String {
         val composition = Rime.compositionText
         val rimeSchema = Rime.getCurrentRimeSchema()
+        // 词库型英语方案（万象英语等）：引擎把 hikari 切成 "hike ari"，显示串会跟候选一模一样，
+        // 待编辑区就看不出自己敲的是什么。这里直接显示原始输入串。
+        if (rimeSchema != CustomConstant.SCHEMA_EN && InputModeSwitcher.isEnglish) {
+            val raw = Rime.getRimeInput()
+            if (raw.isNotEmpty()) return raw
+        }
         if(rimeSchema == CustomConstant.SCHEMA_EN) return ""
         if(composition.isEmpty()) return ""
         if(candidates.isEmpty()) return composition

@@ -2,6 +2,8 @@ package com.yuyan.imemodule.service
 
 import android.view.KeyEvent
 import androidx.lifecycle.MutableLiveData
+import com.yuyan.imemodule.application.CustomConstant
+import com.yuyan.imemodule.manager.InputModeSwitcher
 import com.yuyan.inputmethod.core.CandidateListItem
 import com.yuyan.inputmethod.core.Kernel
 import com.yuyan.inputmethod.core.Rime
@@ -77,6 +79,24 @@ object DecodingInfo {
     val isEngineFinish: Boolean
         get() = Kernel.isFinish
 
+    /**
+     * 词库型英语方案（万象英语等）下的「原始输入串」。
+     *
+     * 这类方案在引擎里会把输入重新分词、并做拼写提示：敲 hikari，引擎的 preedit 是
+     * "hike ari"（hike + ari 两段）。待编辑区和回车都直接取 preedit，于是：
+     *   · 待编辑区显示成 "hike ari"（和候选一模一样，看不出自己敲的是什么）
+     *   · 回车提交 "hike ari" 去掉分隔符 = "hikeari"（用户实测，想要的 hikari 打不出来）
+     * 这里改用引擎的原始输入（Rime.getRimeInput()，即用户实际敲的按键串）。
+     *
+     * 只对「词库型英语方案」生效：自带 english 方案走 ascii 直输，本来就不该有组合串；
+     * 中文方案（含双拼）的显示串要按音节/双拼规则重排，不能用原始输入。
+     */
+    private fun rawInputForDictEnglish(): String {
+        if (!InputModeSwitcher.isEnglish) return ""
+        if (Rime.getCurrentRimeSchema() == CustomConstant.SCHEMA_EN) return ""
+        return Rime.getRimeInput()
+    }
+
     val composingStrForDisplay: String   //获取显示的拼音字符串/
         get() = Kernel.wordsShowPinyin
 
@@ -85,6 +105,8 @@ object DecodingInfo {
             // 必须用「引擎原始输入」而不是显示串：显示串里的空格/撇号只是音节分隔符，
             // 而且显示串可能已被换成全拼或带声调注释。直接提交显示串会把分隔符一起上屏
             // （用户实测：输入 iiii 回车得到 "ii ii"）。
+            val dictEnglishRaw = rawInputForDictEnglish()
+            if (dictEnglishRaw.isNotEmpty()) return dictEnglishRaw
             val raw = Rime.compositionText
                 .filter { it.code <= 0xFF }      // 去掉引擎插入的提示字符（如 U+2038 光标符）
                 .replace("'", "")
@@ -104,6 +126,8 @@ object DecodingInfo {
      */
     val composingStrForRawCommit: String
         get() {
+            val dictEnglishRaw = rawInputForDictEnglish()
+            if (dictEnglishRaw.isNotEmpty()) return dictEnglishRaw
             val text = Rime.compositionText
                 // 去掉 U+2038 之类的提示/光标符，保留 ASCII 与 CJK（≥ 0x2E80）
                 .filter { it.code <= 0xFF || it.code >= 0x2E80 }
