@@ -100,6 +100,18 @@ object DecodingInfo {
     val composingStrForDisplay: String   //获取显示的拼音字符串/
         get() = Kernel.wordsShowPinyin
 
+    /**
+     * librime 把「反查：拆分|笔画」这类提示也渲染进 preedit，用 〔〕 包着。
+     * 它是引擎的注释、不是输入内容，上屏前统一剔掉 —— 按分隔符剔，不去认具体文案。
+     */
+    private val rimeCommentRegex = Regex("〔[^〕]*〕")
+
+    private fun stripRimeComments(text: String) = text.replace(rimeCommentRegex, "")
+
+    /** 引擎当前是否还在组合（preedit 非空；可能只剩注释） */
+    val hasComposition: Boolean
+        get() = Rime.compositionText.isNotEmpty()
+
     val composingStrForCommit: String   // 获取输入的拼音字符串（用于回车/上屏）
         get() {
             // 必须用「引擎原始输入」而不是显示串：显示串里的空格/撇号只是音节分隔符，
@@ -107,13 +119,13 @@ object DecodingInfo {
             // （用户实测：输入 iiii 回车得到 "ii ii"）。
             val dictEnglishRaw = rawInputForDictEnglish()
             if (dictEnglishRaw.isNotEmpty()) return dictEnglishRaw
-            val raw = Rime.compositionText
+            val raw = stripRimeComments(Rime.compositionText)
                 .filter { it.code <= 0xFF }      // 去掉引擎插入的提示字符（如 U+2038 光标符）
                 .replace("'", "")
                 .replace(" ", "")
             if (raw.isNotEmpty()) return raw
             // 引擎没有 preedit（例如英文模式）时退回显示串，同样去掉分隔符
-            return Kernel.wordsShowPinyin.replace("'", "").replace(" ", "")
+            return stripRimeComments(Kernel.wordsShowPinyin).replace("'", "").replace(" ", "")
                 .ifEmpty { getCandidate(0)?.text ?: "" }
         }
 
@@ -128,7 +140,11 @@ object DecodingInfo {
         get() {
             val dictEnglishRaw = rawInputForDictEnglish()
             if (dictEnglishRaw.isNotEmpty()) return dictEnglishRaw
-            val text = Rime.compositionText
+            val preedit = Rime.compositionText
+            val stripped = stripRimeComments(preedit)
+            // preedit 整段就是引擎注释（反查提示之类）→ 没有可上屏的内容
+            if (stripped != preedit && stripped.isBlank()) return ""
+            val text = stripped
                 // 去掉 U+2038 之类的提示/光标符，保留 ASCII 与 CJK（≥ 0x2E80）
                 .filter { it.code <= 0xFF || it.code >= 0x2E80 }
                 .replace("'", "")

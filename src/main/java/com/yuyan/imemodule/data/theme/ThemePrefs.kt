@@ -1,11 +1,13 @@
 package com.yuyan.imemodule.data.theme
 
+import android.content.Intent
 import android.content.SharedPreferences
 import androidx.annotation.StringRes
 import com.yuyan.imemodule.R
 import com.yuyan.imemodule.prefs.ManagedPreferenceCategory
 import com.yuyan.imemodule.prefs.behavior.KeyboardSymbolSlideUpMod
 import com.yuyan.imemodule.prefs.behavior.SkbStyleMode
+import com.yuyan.imemodule.ui.fragment.theme.CustomSlideSymbolActivity
 import com.yuyan.imemodule.view.preference.ManagedPreference
 
 class ThemePrefs(sharedPreferences: SharedPreferences) :
@@ -46,11 +48,13 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
         SkbStyleMode,
         listOf(
             SkbStyleMode.Yuyan,
+            SkbStyleMode.Sogou,
             SkbStyleMode.Google,
             SkbStyleMode.Samsung
         ),
         listOf(
             R.string.keyboard_style_mod_yuyan,
+            R.string.keyboard_style_mod_sogou,
             R.string.keyboard_style_mod_google,
             R.string.keyboard_style_mod_samsung,
         )
@@ -103,6 +107,16 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
 
     val keyboardSymbol =
         switch(R.string.keyboard_symbol_show, "keyboard_symbol_show_enable", true)
+
+    // 关掉「上划选择符号」后这一项没有意义，跟着置灰
+    val customSlideSymbol = action(
+        R.string.keyboard_custom_slide_symbol,
+        "keyboard_custom_slide_symbol",
+        R.string.keyboard_custom_slide_symbol_summary,
+        enableUiOn = { keyboardSymbol.getValue() }
+    ) { context ->
+        context.startActivity(Intent(context, CustomSlideSymbolActivity::class.java))
+    }
 
     val symbolSlideUpMod = list(
         R.string.keyboard_symbol_slide_up_mod,

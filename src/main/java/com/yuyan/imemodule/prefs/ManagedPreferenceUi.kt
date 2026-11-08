@@ -54,6 +54,29 @@ abstract class ManagedPreferenceUi<T : Preference>(
         }
     }
 
+    class Action(
+        @StringRes
+        val title: Int,
+        key: String,
+        @StringRes
+        val summary: Int? = null,
+        private val onClick: (Context) -> Unit,
+        enableUiOn: (() -> Boolean)? = null
+    ) : ManagedPreferenceUi<Preference>(key, enableUiOn) {
+        override fun createUi(context: Context) = Preference(context).apply {
+            this.key = this@Action.key
+            isIconSpaceReserved = false
+            isSingleLineTitle = false
+            isPersistent = false
+            setTitle(this@Action.title)
+            this@Action.summary?.let { setSummary(it) }
+            setOnPreferenceClickListener {
+                this@Action.onClick(context)
+                true
+            }
+        }
+    }
+
     class StringList<T : Any>(
         @StringRes
         val title: Int,

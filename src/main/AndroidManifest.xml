@@ -41,6 +41,11 @@
             android:exported="false"
             android:label="@string/edit_theme" />
         <activity
+            android:name=".ui.fragment.theme.CustomSlideSymbolActivity"
+            android:configChanges="orientation|screenSize"
+            android:exported="false"
+            android:label="@string/keyboard_custom_slide_symbol" />
+        <activity
             android:name=".libs.cropper.CropImageActivity"
             android:exported="false"
             android:theme="@style/Theme.CropActivityTheme"/>

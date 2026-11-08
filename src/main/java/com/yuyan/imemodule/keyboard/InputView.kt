@@ -713,7 +713,7 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 // 组合串会被 resetToIdleState 丢掉、空格被塞进输入框，而不是把待编辑内容上屏。
                 // 判据与上面的回车分支一致。
                 val composing = DecodingInfo.composingStrForRawCommit
-                if (DecodingInfo.isAssociate || (DecodingInfo.isCandidatesEmpty && composing.isEmpty())) {
+                if (DecodingInfo.isAssociate || (DecodingInfo.isCandidatesEmpty && composing.isEmpty() && !DecodingInfo.hasComposition)) {
                     if (keyCode == KeyEvent.KEYCODE_SPACE) {
                         // 空格用「文本提交」而不是键值事件：
                         // 远控类应用（UU远程等）只转发文本，InputConnection.sendKeyEvent
@@ -738,8 +738,16 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 // URL 输入框等）会被误判成「没在输入」，于是把回车直接透传给应用 ——
                 // 网址栏里就变成触发搜索，而不是上屏待编辑内容（同文 Trime 会先上屏）。
                 val composing = DecodingInfo.composingStrForRawCommit
-                if (DecodingInfo.isAssociate || composing.isEmpty()) sendKeyEvent(keyCode)
-                else commitDecInfoText(composing)
+                if (DecodingInfo.isAssociate) {
+                    sendKeyEvent(keyCode)
+                } else if (composing.isNotEmpty()) {
+                    commitDecInfoText(composing)
+                } else if (!DecodingInfo.hasComposition) {
+                    // 引擎没有 preedit = 真的没在输入，回车透传给应用
+                    sendKeyEvent(keyCode)
+                }
+                // 组合里只剩引擎提示（万象反查的〔反查：拆分|笔画〕之类）时，
+                // 回车只退出组合：不上屏提示文案，也不透传成换行
                 resetToIdleState()
             }
             KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {

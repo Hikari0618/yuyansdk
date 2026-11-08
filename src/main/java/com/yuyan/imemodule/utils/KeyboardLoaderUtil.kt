@@ -2,6 +2,7 @@ package com.yuyan.imemodule.utils
 
 import android.view.KeyEvent
 import com.yuyan.imemodule.application.CustomConstant
+import com.yuyan.imemodule.data.theme.CustomSlideSymbols
 import com.yuyan.imemodule.data.theme.ThemeManager
 import com.yuyan.imemodule.entity.keyboard.SoftKey
 import com.yuyan.imemodule.entity.keyboard.SoftKeyToggle
@@ -31,6 +32,13 @@ class KeyboardLoaderUtil private constructor() {
     private var mSkbValue: Int = 0
     private var numberLine: Boolean = false
     private var skbStyleMode: SkbStyleMode = SkbStyleMode.Yuyan
+    /** 当前这套键位是不是主键盘（26 键），自定义上滑符号只认主键盘 */
+    private var qwertyKeyboard: Boolean = false
+    private var chineseKeyboard: Boolean = true
+
+    /** 搜狗风格只在最后一行的排布上跟默认不同，键位表直接复用默认（Yuyan）那套 */
+    private val layoutStyle: SkbStyleMode
+        get() = if (skbStyleMode == SkbStyleMode.Sogou) SkbStyleMode.Yuyan else skbStyleMode
     fun clearKeyboardMap() {
         mSoftKeyboardMap.clear()
     }
@@ -52,6 +60,9 @@ class KeyboardLoaderUtil private constructor() {
     private fun loadBaseSkb(skbValue: Int): SoftKeyboard {
         skbStyleMode = ThemeManager.prefs.skbStyleMode.getValue()
         mSkbValue = skbValue
+        qwertyKeyboard = skbValue == InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN ||
+                skbValue == InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_ABC
+        chineseKeyboard = skbValue != InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_ABC
         // shift键状态
         // 直输状态
         val shiftToggleStates = LinkedList<ToggleState>()
@@ -82,7 +93,7 @@ class KeyboardLoaderUtil private constructor() {
                         arrayOf(29, 47, 32, 34, 35, 36, 38, 39, 40),
                         arrayOf(74, 54, 52, 31, 50, 30, 42, 41, KeyEvent.KEYCODE_DEL),)
                     else -> {
-                        KeyboardData.layoutQwertyCn[skbStyleMode]!!
+                        KeyboardData.layoutQwertyCn[layoutStyle]!!
                     }
                 }
                 var qwertyKeys = createQwertyPYKeys(keys[0])
@@ -116,7 +127,7 @@ class KeyboardLoaderUtil private constructor() {
             }
             InputModeSwitcher.MASK_SKB_LAYOUT_T9_PINYIN -> {  // 2000  T9键键
                 var keyBeans: MutableList<SoftKey> = LinkedList()
-                val keys = KeyboardData.layoutT9Cn[skbStyleMode]!!
+                val keys = KeyboardData.layoutT9Cn[layoutStyle]!!
                 var t9Key = createT9Keys(keys[0])
                 t9Key.first().apply {
                     widthF = 0.18f
@@ -146,7 +157,7 @@ class KeyboardLoaderUtil private constructor() {
             }
             InputModeSwitcher.MASK_SKB_LAYOUT_HANDWRITING -> {// 3000 手写键盘
                 var keyBeans: MutableList<SoftKey> = LinkedList()
-                val keys = KeyboardData.layoutHandwritingCn[skbStyleMode]!!
+                val keys = KeyboardData.layoutHandwritingCn[layoutStyle]!!
                 var handwritingKey = createHandwritingKey(keys[0][0]) // 符号站位
                 handwritingKey.mLeftF = 0.815f
                 handwritingKey.heightF = 0.50f
@@ -162,7 +173,7 @@ class KeyboardLoaderUtil private constructor() {
             }
             InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_ABC -> {// 4000 英文全键
                 var keyBeans: MutableList<SoftKey> = LinkedList()
-                val keys = KeyboardData.layoutQwertyEn[skbStyleMode]!!
+                val keys = KeyboardData.layoutQwertyEn[layoutStyle]!!
                 var qwertyKeys = createQwertyKeys(keys[0])
                 keyBeans.addAll(qwertyKeys)
                 rows.add(keyBeans)
@@ -189,7 +200,7 @@ class KeyboardLoaderUtil private constructor() {
             }
             InputModeSwitcher.MASK_SKB_LAYOUT_NUMBER -> {  // 5000 数字键盘
                 var keyBeans: MutableList<SoftKey> = LinkedList()
-                val keys =  KeyboardData.layoutT9Number[skbStyleMode]!!
+                val keys =  KeyboardData.layoutT9Number[layoutStyle]!!
                 var t9Keys = createT9NumberKeys(keys[0])
                 t9Keys.first().apply {
                     widthF = 0.18f
@@ -218,7 +229,7 @@ class KeyboardLoaderUtil private constructor() {
             InputModeSwitcher.MASK_SKB_LAYOUT_LX17 -> {     // 6000 乱序17键盘
                 var keyBeans: MutableList<SoftKey> = LinkedList()
                 if(AppPrefs.getInstance().keyboardSetting.lx17WithLeftPrefix.getValue()) {
-                    val keys = KeyboardData.layoutLX17CnWithLeftPrefix[skbStyleMode]!!
+                    val keys = KeyboardData.layoutLX17CnWithLeftPrefix[layoutStyle]!!
                     var lX17Keys = createLX17Keys(keys[0])
                     lX17Keys.first().apply {
                         widthF = 0.1457f
@@ -240,7 +251,7 @@ class KeyboardLoaderUtil private constructor() {
                     keyBeans = lastRows(skbValue)
                     rows.add(keyBeans)
                 } else {
-                    val keys =  KeyboardData.layoutLX17Cn[skbStyleMode]!!
+                    val keys =  KeyboardData.layoutLX17Cn[layoutStyle]!!
                     var lX17Keys = createLX17Keys(keys[0], 0.165f)
                     keyBeans.addAll(lX17Keys)
                     rows.add(keyBeans)
@@ -258,7 +269,7 @@ class KeyboardLoaderUtil private constructor() {
             }
             InputModeSwitcher.MASK_SKB_LAYOUT_STROKE -> {  // 7000  笔画键盘
                 var keyBeans: MutableList<SoftKey> = LinkedList()
-                val keys =  KeyboardData.layoutStrokeCn[skbStyleMode]!!
+                val keys =  KeyboardData.layoutStrokeCn[layoutStyle]!!
                 var t9Key = createT9Keys(keys[0])
                 t9Key.first().apply {
                     widthF = 0.18f
@@ -284,7 +295,7 @@ class KeyboardLoaderUtil private constructor() {
             }
             InputModeSwitcher.MASK_SKB_LAYOUT_TEXTEDIT -> {     // 8000 文本编辑键盘
                 var keyBeans: MutableList<SoftKey> = LinkedList()
-                val keys =  KeyboardData.layoutTextEdit[skbStyleMode]!!
+                val keys =  KeyboardData.layoutTextEdit[layoutStyle]!!
                 var editKeys = createTextEditKeys(keys[0])
                 editKeys[0].heightF = 0.75f
                 editKeys[2].heightF = 0.75f
@@ -313,6 +324,7 @@ class KeyboardLoaderUtil private constructor() {
         }
         val numberLineSkb = when(skbStyleMode){
             SkbStyleMode.Yuyan -> numberLine
+            SkbStyleMode.Sogou -> numberLine
             SkbStyleMode.Samsung -> numberLine
             SkbStyleMode.Google -> numberLine
         }
@@ -350,6 +362,10 @@ class KeyboardLoaderUtil private constructor() {
                 } else if (skbStyleMode == SkbStyleMode.Samsung) {
                     createQwertyKeys(arrayOf(InputModeSwitcher.USER_KEYCODE_SYMBOL, InputModeSwitcher.USER_KEYCODE_LANG,
                         InputModeSwitcher.USER_KEYCODE_LEFT_COMMA, KeyEvent.KEYCODE_SPACE, InputModeSwitcher.USER_KEYCODE_LEFT_PERIOD, InputModeSwitcher.USER_KEYCODE_NUMBER))
+                } else if (skbStyleMode == SkbStyleMode.Sogou) {
+                    // 默认那行 + 句号键（放在空格和中英之间），空格后面按 3 键宽算
+                    createQwertyKeys(arrayOf(InputModeSwitcher.USER_KEYCODE_SYMBOL, InputModeSwitcher.USER_KEYCODE_NUMBER,
+                        InputModeSwitcher.USER_KEYCODE_LEFT_COMMA, KeyEvent.KEYCODE_SPACE, InputModeSwitcher.USER_KEYCODE_LEFT_PERIOD, InputModeSwitcher.USER_KEYCODE_LANG))
                 } else {
                     createQwertyKeys(arrayOf(InputModeSwitcher.USER_KEYCODE_SYMBOL, InputModeSwitcher.USER_KEYCODE_NUMBER,
                             InputModeSwitcher.USER_KEYCODE_LEFT_PERIOD, KeyEvent.KEYCODE_SPACE, InputModeSwitcher.USER_KEYCODE_LANG))
@@ -377,6 +393,10 @@ class KeyboardLoaderUtil private constructor() {
                 } else if (skbStyleMode == SkbStyleMode.Samsung) {
                     createQwertyPYKeys(arrayOf(InputModeSwitcher.USER_KEYCODE_SYMBOL, InputModeSwitcher.USER_KEYCODE_LANG,
                         InputModeSwitcher.USER_KEYCODE_LEFT_COMMA, KeyEvent.KEYCODE_SPACE, InputModeSwitcher.USER_KEYCODE_LEFT_PERIOD, InputModeSwitcher.USER_KEYCODE_NUMBER))
+                } else if (skbStyleMode == SkbStyleMode.Sogou) {
+                    // 默认那行 + 句号键（放在空格和中英之间），空格后面按 3 键宽算
+                    createQwertyPYKeys(arrayOf(InputModeSwitcher.USER_KEYCODE_SYMBOL, InputModeSwitcher.USER_KEYCODE_NUMBER,
+                        InputModeSwitcher.USER_KEYCODE_LEFT_COMMA, KeyEvent.KEYCODE_SPACE, InputModeSwitcher.USER_KEYCODE_LEFT_PERIOD, InputModeSwitcher.USER_KEYCODE_LANG))
                 } else {
                     createQwertyPYKeys(arrayOf(InputModeSwitcher.USER_KEYCODE_SYMBOL, InputModeSwitcher.USER_KEYCODE_NUMBER,
                             InputModeSwitcher.USER_KEYCODE_LEFT_COMMA, KeyEvent.KEYCODE_SPACE, InputModeSwitcher.USER_KEYCODE_LANG))
@@ -422,6 +442,25 @@ class KeyboardLoaderUtil private constructor() {
                     t9Keys[0].widthF = 0.18f;t9Keys[1].widthF = 0.21f
                     t9Keys[2].widthF = 0.21f;t9Keys[3].widthF = 0.21f
                 }
+            }
+        } else if (skbStyleMode == SkbStyleMode.Sogou) {
+            if (t9Keys.size == 6) {
+                // 默认那行的宽度不变，只是空格从 4 键宽收成 3 键宽，腾出位置给句号键
+                softKeyToggle.widthF = 0.147f
+                t9Keys[0].widthF = 0.147f   // 符号
+                t9Keys[1].widthF = 0.099f   // 123
+                t9Keys[2].widthF = 0.099f   // ，
+                t9Keys[3].widthF = 0.297f   // 空格（3 键宽）
+                t9Keys[4].widthF = 0.099f   // 。
+                t9Keys[5].widthF = 0.099f   // 中英
+            } else if (t9Keys.size == 5) {
+                softKeyToggle.widthF = 0.147f
+                t9Keys[0].widthF = 0.147f;t9Keys[1].widthF = 0.099f
+                t9Keys[2].widthF = 0.099f;t9Keys[3].widthF = 0.396f
+                t9Keys[4].widthF = 0.099f
+            } else {
+                t9Keys[0].widthF = 0.18f;t9Keys[1].widthF = 0.147f
+                t9Keys[2].widthF = 0.336f;t9Keys[3].widthF = 0.147f
             }
         } else {
             if (t9Keys.size == 5) {
@@ -520,9 +559,10 @@ class KeyboardLoaderUtil private constructor() {
         }
         val softKeys = mutableListOf<SoftKey>()
         val keyPreset = if(numberLine)KeyPreset.qwertyPYKeyPreset else KeyPreset.qwertyPYKeyNumberPreset
+        val customSymbols = CustomSlideSymbols.overrides(chinese = true)
         for(code in codes){
             val labels = keyPreset[code]
-            softKeys.add(SoftKey(code = code, label = labels?.getOrNull(0) ?: "", labelSmall = labels?.getOrNull(1) ?: "", keyMnemonic = keyMnemonicPreset[code] ?: "").apply {
+            softKeys.add(SoftKey(code = code, label = labels?.getOrNull(0) ?: "", labelSmall = customSymbols[code] ?: labels?.getOrNull(1) ?: "", keyMnemonic = keyMnemonicPreset[code] ?: "").apply {
                 widthF = 0.099f
             })
         }
@@ -532,9 +572,10 @@ class KeyboardLoaderUtil private constructor() {
     private fun createQwertyKeys(codes: Array<Int>): Array<SoftKey> {
         val softKeys = mutableListOf<SoftKey>()
         val keyPreset = if(numberLine)KeyPreset.qwertyKeyPreset else KeyPreset.qwertyKeyNumberPreset
+        val customSymbols = CustomSlideSymbols.overrides(chinese = false)
         for(code in codes){
             val labels = keyPreset[code]
-            softKeys.add(SoftKey(code = code, label = labels?.getOrNull(0) ?: "", labelSmall = labels?.getOrNull(1) ?: "", keyMnemonic = labels?.getOrNull(2) ?: "").apply {
+            softKeys.add(SoftKey(code = code, label = labels?.getOrNull(0) ?: "", labelSmall = customSymbols[code] ?: labels?.getOrNull(1) ?: "", keyMnemonic = labels?.getOrNull(2) ?: "").apply {
                 widthF = 0.099f
             })
         }
@@ -586,7 +627,10 @@ class KeyboardLoaderUtil private constructor() {
     }
 
     private fun createKeyToggle(code: Int): SoftKeyToggle {
-        return SoftKeyToggle(code)
+        return SoftKeyToggle(code).apply {
+            // 分词（Google 风格是 SHIFT）和回车键没有预设上滑符号，自定义值直接挂上去
+            if (qwertyKeyboard) labelSmall = CustomSlideSymbols.lookup(chineseKeyboard, code).orEmpty()
+        }
     }
 
     companion object {

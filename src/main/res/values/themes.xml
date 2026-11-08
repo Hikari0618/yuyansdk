@@ -2,6 +2,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
     </style>
+    <!-- 自定义上滑符号页右上角「＋」弹出菜单：从上往下展开 -->
+    <style name="Anim_MenuExpandDown">
+        <item name="android:windowEnterAnimation">@anim/menu_expand_down</item>
+        <item name="android:windowExitAnimation">@anim/menu_collapse_up</item>
+    </style>
     <style name="Theme.CropActivityTheme" parent="Theme.AppCompat.DayNight">
         <item name="android:statusBarColor">?android:attr/colorPrimary</item>
         <item name="android:windowLightStatusBar">true</item>

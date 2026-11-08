@@ -221,7 +221,7 @@ open class TextKeyboard(context: Context?) : BaseKeyboardView(context){
             if(skbStyleMode == SkbStyleMode.Samsung)mPaint.alpha = 128
             mPaint.textSize = mNormalKeyTextSizeSmall.toFloat()
             val x = when(prefs.skbStyleMode.getValue()){
-                SkbStyleMode.Yuyan -> softKey.mLeft + (softKey.width() - mPaint.measureText(keyLabelSmall)) / 2.0f
+                SkbStyleMode.Yuyan, SkbStyleMode.Sogou -> softKey.mLeft + (softKey.width() - mPaint.measureText(keyLabelSmall)) / 2.0f
                 SkbStyleMode.Samsung -> softKey.mRight - mPaint.measureText(keyLabelSmall) - keyXMargin * 2
                 SkbStyleMode.Google -> softKey.mRight - mPaint.measureText(keyLabelSmall) - keyXMargin * 2
             }

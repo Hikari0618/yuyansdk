@@ -1,6 +1,7 @@
 
 package com.yuyan.imemodule.prefs
 
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.annotation.StringRes
 import androidx.preference.PreferenceScreen
@@ -34,6 +35,17 @@ abstract class ManagedPreferenceCategory(
         pref.register()
         ui.registerUi()
         return pref
+    }
+
+    protected fun action(
+        @StringRes title: Int,
+        key: String,
+        @StringRes summary: Int? = null,
+        enableUiOn: (() -> Boolean)? = null,
+        onClick: (Context) -> Unit
+    ) {
+        val ui = ManagedPreferenceUi.Action(title, key, summary, onClick, enableUiOn)
+        ui.registerUi()
     }
 
     protected fun <T : Any> list(
