@@ -39,6 +39,8 @@ enum class SkbMenuMode {
     TextEdit,
     PinyinWanxiangPro,
     PinyinCustom,
+    /** 「选方案」列表里的一行：同一键盘下可换的拼音方案（schemaId + layoutMask 由 SkbFunItem 带过来） */
+    SchemaPick,
     FuzzyPinyin,
     RimeSync,
     RimeDeploy,

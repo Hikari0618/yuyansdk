@@ -15,6 +15,7 @@ import com.yuyan.inputmethod.util.ImeLog
 import com.yuyan.inputmethod.util.LX17PinYinUtils
 import com.yuyan.inputmethod.util.QwertyPinYinUtils
 import com.yuyan.inputmethod.util.T9PinYinUtils
+import java.io.File
 import java.util.Locale
 
 object RimeEngine {
@@ -51,12 +52,63 @@ object RimeEngine {
         return keyRecordStack.isEmpty()
     }
 
+    private val digitT9Cache = HashMap<String, Boolean>()
+
+    /**
+     * 方案是不是「数字型九键」—— 把字母折成数字的那类方案：
+     *   · 万象九键 wanxiang_t9：xlit/A-Z/22233344455566677778889999/
+     *   · 雾凇九键 t9        ：derive/[abc]/2/ … derive/[wxyz]/9/
+     *   · 内置 t9_pinyin     ：xlit/A-Z/AAADDDGGGJJJMMMPPPPTTTWWWW/（字母型，不算）
+     * 命中说明它要的是数字键位，九键键盘得发 2~9 而不是键位字母。
+     */
+    fun isDigitT9Schema(schemaId: String): Boolean {
+        val f = File(CustomConstant.RIME_DICT_PATH, "$schemaId.schema.yaml")
+        val key = "$schemaId:${if (f.exists()) f.lastModified() else 0}"
+        digitT9Cache[key]?.let { return it }
+        val result = runCatching {
+            if (!f.exists()) return@runCatching false
+            f.readText().lineSequence().any { line ->
+                val t = line.trim().removePrefix("- ").trim()
+                DIGIT_COLLAPSE.containsMatchIn(t) || DIGIT_DERIVE.containsMatchIn(t)
+            }
+        }.getOrDefault(false)
+        digitT9Cache[key] = result
+        return result
+    }
+
+    /** xlit/ABCDEF…/222333…/ —— 整表折成数字 */
+    private val DIGIT_COLLAPSE = Regex("""^xlit/[A-Za-z]+/[0-9]{3,}""")
+    /** derive/[abc]/2/ —— 字母类折成单个数字 */
+    private val DIGIT_DERIVE = Regex("""^derive/\[[A-Za-z]+\]/[0-9]/""")
+
+    /**
+     * 键盘键位字母 → 方案的九键数字（A/D/G/J/M/P/T/W → 2~9）。
+     * 只在「九键布局 + 数字型方案」时用；其余情况原样返回。
+     */
+    fun t9DigitFor(keyChar: Int): Int {
+        if (InputModeSwitcher.skbLayout != InputModeSwitcher.MASK_SKB_LAYOUT_T9_PINYIN) return keyChar
+        if (!isDigitT9Schema(Rime.getCurrentRimeSchema())) return keyChar
+        return when (keyChar.toChar().uppercaseChar()) {
+            'A' -> '2'.code
+            'D' -> '3'.code
+            'G' -> '4'.code
+            'J' -> '5'.code
+            'M' -> '6'.code
+            'P' -> '7'.code
+            'T' -> '8'.code
+            'W' -> '9'.code
+            else -> keyChar
+        }
+    }
+
     fun onNormalKey(event: KeyEvent) {
         val keyCode = event.keyCode
-        val keyChar = if(keyCode == KeyEvent.KEYCODE_APOSTROPHE) if(isFinish()) '/'.code else '\''.code
+        val rawChar = if(keyCode == KeyEvent.KEYCODE_APOSTROPHE) if(isFinish()) '/'.code else '\''.code
             else if (event.unicodeChar != 0) event.unicodeChar
             else android.view.KeyCharacterMap.load(android.view.KeyCharacterMap.VIRTUAL_KEYBOARD)
                 .get(keyCode, event.metaState)
+        // 数字型九键（万象九键、雾凇九键…）：方案要的是 2~9，键盘发的是键位字母，这里换算
+        val keyChar = t9DigitFor(rawChar)
         // mask 是 rime 修饰键掩码（Shift/Ctrl…），不是 KeyEvent.action；统一传 0
         val pushed = keyRecordStack.pushKey(event)
         val ret = if (pushed) Rime.processKey(keyChar, 0) else false

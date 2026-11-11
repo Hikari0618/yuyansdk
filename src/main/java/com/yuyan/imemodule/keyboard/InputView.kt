@@ -623,8 +623,15 @@ class InputView(context: Context, private val service: ImeService) : LifecycleRe
                 if (SymbolPreset.containsKey(it)) commitPairSymbol(it) else commitText(it)
             }
         } else {
-            val metaState = when(Kernel.getCurrentRimeSchema()) {
-                CustomConstant.SCHEMA_ZH_T9, CustomConstant.SCHEMA_ZH_STROKE, CustomConstant.SCHEMA_ZH_DOUBLE_LX17 -> KeyEvent.META_CAPS_LOCK_ON
+            // 九键/笔画：内置方案是「大写键位码」，强制大写。
+            // 乱序17 要看绑的是不是内置方案：内置 double_pinyin_ls17 的 prism 是大写，
+            // 但第三方方案（如万象 /lxsq 切出来的乱序17）prism 是小写 —— 硬加大写会永久查不到。
+            val layout = InputModeSwitcher.skbLayout
+            val metaState = when {
+                layout == InputModeSwitcher.MASK_SKB_LAYOUT_T9_PINYIN ||
+                    layout == InputModeSwitcher.MASK_SKB_LAYOUT_STROKE -> KeyEvent.META_CAPS_LOCK_ON
+                layout == InputModeSwitcher.MASK_SKB_LAYOUT_LX17 &&
+                    Kernel.getCurrentRimeSchema() == CustomConstant.SCHEMA_ZH_DOUBLE_LX17 -> KeyEvent.META_CAPS_LOCK_ON
                 else -> InputModeSwitcher.mToggleStates.modifiers
             }
             processKeyUp(KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, metaState, 0, 0, KeyEvent.FLAG_SOFT_KEYBOARD))

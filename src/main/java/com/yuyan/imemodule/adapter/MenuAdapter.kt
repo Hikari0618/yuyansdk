@@ -132,7 +132,10 @@ class MenuAdapter (context: Context?, val data: MutableList<SkbFunItem>) : Recyc
                 AppPrefs.getInstance().internal.englishSchemaId.getValue() == data.schemaId
             }
             // Keyboard Menu
-            SkbMenuMode.PinyinT9 -> rimeValue == CustomConstant.SCHEMA_ZH_T9
+            // 「选方案」页里的行：布局和方案都对上才算选中
+            SkbMenuMode.SchemaPick -> InputModeSwitcher.skbLayout == data.layoutMask && rimeValue == data.schemaId
+            // 九键按【布局】判断：它现在可以绑用户自己部署的九键方案（万象 9jian 等）
+            SkbMenuMode.PinyinT9 -> InputModeSwitcher.skbLayout == InputModeSwitcher.MASK_SKB_LAYOUT_T9_PINYIN
             SkbMenuMode.Pinyin26Jian -> rimeValue == CustomConstant.SCHEMA_ZH_QWERTY
             SkbMenuMode.PinyinHandWriting -> rimeValue == CustomConstant.SCHEMA_ZH_HANDWRITING
             SkbMenuMode.PinyinLx17 -> rimeValue == CustomConstant.SCHEMA_ZH_DOUBLE_LX17

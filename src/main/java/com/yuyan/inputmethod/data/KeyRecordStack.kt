@@ -47,7 +47,14 @@ class KeyRecordStack {
                 keyRecords.add(InputKey.Apostrophe())
             }
             in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z -> {
-                if('A'.code <= keyChar && 'Z'.code >= keyChar){
+                // 只有「键位方案」（内置九键 / 乱序17）才记成 T9Key —— 退格和拼音选择
+                // 靠它把已选拼音还原成键位串。九键现在能绑第三方方案（万象 9jian 等），
+                // 那些方案的按键就是普通输入，记成 T9Key 会让退格走错分支。
+                val t9Like = when (Rime.getCurrentRimeSchema()) {
+                    CustomConstant.SCHEMA_ZH_T9, CustomConstant.SCHEMA_ZH_DOUBLE_LX17 -> true
+                    else -> false
+                }
+                if(t9Like && 'A'.code <= keyChar && 'Z'.code >= keyChar){
                     keyRecords.add(InputKey.T9Key(keyChar))
                 } else {
                     keyRecords.add(InputKey.QwertKey(keyChar))

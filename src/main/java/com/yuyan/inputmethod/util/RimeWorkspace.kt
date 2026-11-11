@@ -100,6 +100,32 @@ object RimeWorkspace {
             .map { it to (names[it] ?: it) }
     }
 
+    /**
+     * 方案是不是「九键」写法 —— 用于把用户自己部署的方案分到九键/全键两个列表里。
+     *
+     * 命中任一即算九键：
+     *   1. 方案 id / 名字里带 t9、9jian、9键、九键（万象、雾凇这类都这么命名）
+     *   2. speller/alphabet 里有数字键位 2~9（吃数字的九键方案）
+     *   3. algebra 里有 AAADDDGGGJJJMMMPPPPTTTWWWW 这个键位折叠写法
+     *      （内置 t9_pinyin 和万象 9jian 都是这套，见 t9_pinyin.schema.yaml）
+     * 都不命中就当 26 键方案。
+     */
+    fun isT9Schema(schemaId: String, schemaName: String = ""): Boolean {
+        val marker = "$schemaId $schemaName".lowercase()
+        if (marker.contains("t9") || marker.contains("9jian") || marker.contains("jiujian") ||
+            marker.contains("9键") || marker.contains("九键")
+        ) return true
+        val f = File(CustomConstant.RIME_DICT_PATH, "$schemaId.schema.yaml")
+        if (!f.exists()) return false
+        return runCatching {
+            val text = f.readText()
+            if (text.contains("AAADDDGGGJJJMMMPPPPTTTWWWW")) return@runCatching true
+            text.lineSequence()
+                .firstOrNull { it.trimStart().startsWith("alphabet:") }
+                ?.let { line -> line.any { it in '2'..'9' } } ?: false
+        }.getOrDefault(false)
+    }
+
     /** 当前 default.yaml 的 schema_list（用户/方案包维护的可用方案列表） */
     fun activeSchemaIds(): Set<String> {
         val f = File(userDir, "default.yaml")

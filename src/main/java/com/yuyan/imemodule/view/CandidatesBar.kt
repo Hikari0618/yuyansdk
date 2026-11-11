@@ -55,6 +55,7 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private lateinit var mCandidatesMenuContainer: LinearLayout //控制菜单视图
     private lateinit var mComposingView: TextView // 组成字符串的View，用于显示输入的拼音。
     private var mCaretPos = -1        // 组合区光标位置（去掉分隔符后的下标），-1 = 未设置
+    private var mCaretAfterSep = false // 光标停在分隔符后面（刚按过分词键 / 点在分隔符右侧）
     private var mCaretBaseText = ""   // 设置光标时的组合串，串一变标记作废
     private var mComposingExpanded = false  // 待编辑区是否已放大（点击定位后放大，上屏恢复）
     private lateinit var mRVCandidates: RecyclerView    //候选词列表
@@ -458,8 +459,9 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             // 引擎给不出（空串 / 越界，例如退格后返回 12）时，才退回「新旧串差异」推算。
             if (raw.isEmpty()) {
                 mCaretPos = -1
+                mCaretAfterSep = false
             } else {
-                val fromEngine = engineCaretLetters()
+                val (fromEngine, afterSep) = engineCaretState()
                 val oldLetters = asciiLetters(mCaretBaseText)
                 val newLetters = asciiLetters(raw)
                 var common = 0
@@ -471,9 +473,10 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
                     else -> mCaretPos.coerceIn(0, newLetters.length)
                 }
                 mCaretPos = if (fromEngine >= 0) fromEngine else guessed
+                mCaretAfterSep = fromEngine >= 0 && afterSep
                 com.yuyan.inputmethod.util.ImeLog.d(
-                    "[caret] key old='$mCaretBaseText' new='$raw' engine=$fromEngine guess=$guessed caret=$mCaretPos " +
-                        "pos=${com.yuyan.inputmethod.core.Rime.composition?.cursorPos}"
+                    "[caret] key old='$mCaretBaseText' new='$raw' engine=$fromEngine guess=$guessed " +
+                        "afterSep=$mCaretAfterSep caret=$mCaretPos pos=${com.yuyan.inputmethod.core.Rime.composition?.cursorPos}"
                 )
                 mCaretBaseText = raw
             }
@@ -493,6 +496,11 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
             if (isAsciiLetter(raw[idx])) cnt++
             idx++
         }
+        // 光标停在分隔符后面（刚按过分词键、或点在分隔符右侧）时，标记也要越过分隔符，
+        // 否则显示成「if yk|'i」而引擎里其实是「if yk'|i」（用户实测：分隔符看着在光标后面）
+        if (mCaretAfterSep) {
+            while (idx < raw.length && raw[idx].code <= 0xFF && !isAsciiLetter(raw[idx])) idx++
+        }
         mComposingView.text = raw.substring(0, idx) + "|" + raw.substring(idx)
     }
 
@@ -501,32 +509,38 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
 
     private fun asciiLetters(text: String) = text.filter { isAsciiLetter(it) }
 
-    /** 引擎光标 → ASCII 字母数；引擎给不出（空串/越界）返回 -1。
+    /** 引擎光标 → (ASCII 字母数, 是否停在分隔符后面)；引擎给不出时返回 (-1, false)。
      *
      *  注意两个方向的下标空间不一样（librime 的 C API 就是不对称的）：
      *   · 写：set_caret_pos() 收的是 composition.input 下标（音节分隔符占位）
      *   · 读：composition.cursor_pos = preedit.caret_pos（rime_api_impl.h:225），
      *         preedit 下标 —— 分隔符、软光标符、中文都占位
-     *  把回读值当输入串下标用会偏大（实测：设 10 回 14，正好多 4 个音节分隔符），
-     *  表现就是「点中间后光标偏很多，删着删着分隔符少了又自己对了」（用户实测）。
-     *  这里按 preedit 数 ASCII 字母，和界面显示串的字母数是一套口径
-     *  （显示串的字母就是 preedit 的 ASCII 字母，顺序不变）。 */
-    private fun engineCaretLetters(): Int {
-        val composition = com.yuyan.inputmethod.core.Rime.composition ?: return -1
-        val preedit = composition.preedit ?: return -1
+     *  只数字母会把「分隔符前后的两个位置」混成一个，分词符刚插入时光标就落到它前面，
+     *  引擎重算时又被规范化掉（用户实测：分隔符“消失”）。所以要把 afterSep 一起带出来。
+     */
+    private fun engineCaretState(): Pair<Int, Boolean> {
+        val composition = com.yuyan.inputmethod.core.Rime.composition ?: return -1 to false
+        val preedit = composition.preedit ?: return -1 to false
         val pos = composition.cursorPos
-        if (pos !in 0..preedit.length) return -1
-        return asciiLetters(preedit.take(pos)).length
+        if (pos !in 0..preedit.length) return -1 to false
+        val letters = asciiLetters(preedit.take(pos)).length
+        val afterSep = pos > 0 && preedit[pos - 1].code <= 0xFF && !isAsciiLetter(preedit[pos - 1])
+        return letters to afterSep
     }
 
-    /** 「第 n 个字母之后」在引擎输入串里的下标 —— set_caret_pos 要的是这个下标 */
-    private fun inputIndexOfLetter(n: Int): Int {
+    /** 「第 n 个字母之后」在引擎输入串里的下标 —— set_caret_pos 要的是这个下标。
+     *  afterSeparator=true 表示光标落在分隔符【之后】，要把紧跟的符号一起越过，
+     *  否则设进去的是「分隔符之前」那个位置，引擎重算时会把多余的分隔符规范化掉。 */
+    private fun inputIndexOfLetter(n: Int, afterSeparator: Boolean = false): Int {
         val input = com.yuyan.inputmethod.core.Rime.getRimeInput()
         var idx = 0
         var cnt = 0
         while (idx < input.length && cnt < n) {
             if (isAsciiLetter(input[idx])) cnt++
             idx++
+        }
+        if (afterSeparator) {
+            while (idx < input.length && input[idx].code <= 0xFF && !isAsciiLetter(input[idx])) idx++
         }
         return idx
     }
@@ -551,17 +565,21 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         // 要的是输入串下标，音节分隔符也占位。直接传字母数会整体偏左 —— 界面上就表现为
         // 「光标符号和真实光标位置对不上」（用户实测）。
         val letters = raw.substring(0, off).count { isAsciiLetter(it) }
-        val target = inputIndexOfLetter(letters)
+        // 点在分隔符右侧 → 光标应落在分隔符【之后】（otherwise 设进引擎的是分隔符之前那个位置，
+        // librime 重算时会把多余的分隔符规范化掉，看起来就是「分词符不见了」）
+        val afterSep = off > 0 && raw[off - 1].code <= 0xFF && !isAsciiLetter(raw[off - 1])
+        val target = inputIndexOfLetter(letters, afterSep)
         com.yuyan.inputmethod.util.ImeLog.d(
-            "[caret] tap off=$off raw='$raw' -> letters=$letters inputPath=$target"
+            "[caret] tap off=$off raw='$raw' -> letters=$letters afterSep=$afterSep inputPath=$target"
         )
         if (com.yuyan.inputmethod.core.Rime.setCaretPos(target)) {
-            // 以引擎读回来的位置为准（换算成字母数），不要再自己猜
-            val engineLetters = engineCaretLetters()
+            // 以引擎读回来的位置为准（换算成字母数 + 是否在分隔符后），不要再自己猜
+            val (engineLetters, engineAfterSep) = engineCaretState()
             mCaretPos = if (engineLetters >= 0) engineLetters else letters
+            mCaretAfterSep = if (engineLetters >= 0) engineAfterSep else afterSep
             com.yuyan.inputmethod.util.ImeLog.d(
                 "[caret] setCaretPos($target) ok, engine=${com.yuyan.inputmethod.core.Rime.composition?.cursorPos} " +
-                    "preedit='${com.yuyan.inputmethod.core.Rime.compositionText}' caret=$mCaretPos"
+                    "afterSep=$mCaretAfterSep preedit='${com.yuyan.inputmethod.core.Rime.compositionText}' caret=$mCaretPos"
             )
             // 点击定位后把待编辑区放大，方便继续精确修改（上屏后自动恢复）
             setComposingExpanded(true)

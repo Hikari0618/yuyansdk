@@ -229,23 +229,7 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 SkbMenuMode.PinyinHandWriting
             )
         )
-        val doublePYSchemaMode = AppPrefs.getInstance().input.doublePYSchemaMode.getValue()
-        val doublePinyinSchemaName = when (doublePYSchemaMode) {
-            DoublePinyinSchemaMode.flypy -> R.string.double_pinyin_flypy_plus
-            DoublePinyinSchemaMode.natural -> R.string.double_pinyin_natural
-            DoublePinyinSchemaMode.abc -> R.string.double_pinyin_abc
-            DoublePinyinSchemaMode.mspy -> R.string.double_pinyin_mspy
-            DoublePinyinSchemaMode.sogou -> R.string.double_pinyin_sougou
-            DoublePinyinSchemaMode.ziguang -> R.string.double_pinyin_ziguang
-            DoublePinyinSchemaMode.wanxiangPro -> R.string.wanxiang_pro
-        }
-        funItems.add(
-            SkbFunItem(
-                mContext.getString(doublePinyinSchemaName),
-                R.drawable.selece_input_mode_dpy26,
-                SkbMenuMode.Pinyin26Double
-            )
-        )
+        // 双拼不再单独占一个菜单项 —— 它是「拼音全键」方案列表里的第二项（名字随设置变）
         funItems.add(
             SkbFunItem(
                 mContext.getString(R.string.keyboard_name_pinyin_lx_17),
@@ -260,25 +244,98 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 SkbMenuMode.PinyinStroke
             )
         )
-        // 自定义方案（/sdcard/yuyan 导入的任意拼音方案，如万象拼音等）
-        com.yuyan.inputmethod.util.RimeWorkspace.customSchemas()
-            .filter { it.first != CustomConstant.SCHEMA_ZH_WANXIANG_PRO }
-            .forEach { (schemaId, schemaName) ->
-                funItems.add(
-                    SkbFunItem(
-                        schemaName,
-                        R.drawable.selece_input_mode_py26,
-                        SkbMenuMode.PinyinCustom,
-                        schemaId
-                    )
-                )
-            }
+        // 用户自己部署的方案不在这里直接列 —— 点上面任一键盘后进入「选方案」页，
+        // 由那一页按键盘能力（九键 / 全键）追加，见 showSchemaSelectView()
         val adapter = MenuAdapter(context, funItems)
         adapter.setOnItemClickLitener { _: RecyclerView.Adapter<*>?, _: View?, position: Int ->
             onKeyboardMenuClick(funItems[position])
         }
         mRVMenuLayout!!.setAdapter(adapter)
     }
+
+    /**
+     * 「选方案」页：同一个键盘下可以换成别的拼音方案。
+     *
+     *   九键   → 默认全拼（内置 t9_pinyin）+ 用户部署的九键方案
+     *   全键   → 默认全拼（内置 pinyin）+ 当前双拼（名字随设置）+ 用户部署的其余拼音方案
+     *   手写 / 乱序17 / 笔画 → 只有「默认」（第三方拼音方案套不到这些键盘上）
+     *
+     * 第三方方案按能力分流（RimeWorkspace.isT9Schema）：九键只列九键写法，全键列剩下的。
+     * 当前正在用的那一条前面打 ✓。
+     */
+    fun showSchemaSelectView(layout: SkbMenuMode) {
+        mMenuMode = layout
+        val mask = layoutMaskOf(layout)
+        val activeSchema = AppPrefs.getInstance().internal.pinyinModeRime.getValue()
+        val activeMask = InputModeSwitcher.skbLayout
+        val funItems: MutableList<SkbFunItem> = LinkedList()
+        fun add(name: String, schemaId: String, icon: Int) {
+            val checked = mask == activeMask && schemaId == activeSchema
+            funItems.add(
+                SkbFunItem(
+                    (if (checked) "✓ " else "") + name,
+                    icon,
+                    SkbMenuMode.SchemaPick,
+                    schemaId,
+                    mask
+                )
+            )
+        }
+        when (layout) {
+            SkbMenuMode.PinyinT9 -> add(mContext.getString(R.string.schema_default_quanpin), CustomConstant.SCHEMA_ZH_T9, R.drawable.selece_input_mode_py9)
+            SkbMenuMode.Pinyin26Jian -> {
+                add(mContext.getString(R.string.schema_default_quanpin), CustomConstant.SCHEMA_ZH_QWERTY, R.drawable.selece_input_mode_py26)
+                add(mContext.getString(doublePinyinNameRes()), doublePinyinSchemaId(), R.drawable.selece_input_mode_dpy26)
+            }
+            SkbMenuMode.PinyinHandWriting -> add(mContext.getString(R.string.schema_default), CustomConstant.SCHEMA_ZH_HANDWRITING, R.drawable.selece_input_mode_handwriting)
+            SkbMenuMode.PinyinLx17 -> add(mContext.getString(R.string.schema_default), CustomConstant.SCHEMA_ZH_DOUBLE_LX17, R.drawable.selece_input_mode_lx17)
+            SkbMenuMode.PinyinStroke -> add(mContext.getString(R.string.schema_default), CustomConstant.SCHEMA_ZH_STROKE, R.drawable.selece_input_mode_stroke)
+            else -> return
+        }
+        // 已启用的第三方方案【每个键盘都列】—— 能不能用交给用户自己试，
+        // 不按能力筛选（内置的拼音/九键/手写/笔画方案都不是万能的，
+        // App 也没法可靠判断第三方方案适配哪种键位）。
+        val icon = when (layout) {
+            SkbMenuMode.PinyinT9 -> R.drawable.selece_input_mode_py9
+            SkbMenuMode.PinyinHandWriting -> R.drawable.selece_input_mode_handwriting
+            SkbMenuMode.PinyinLx17 -> R.drawable.selece_input_mode_lx17
+            SkbMenuMode.PinyinStroke -> R.drawable.selece_input_mode_stroke
+            else -> R.drawable.selece_input_mode_py26
+        }
+        thirdPartySchemas().forEach { add(it.second, it.first, icon) }
+        val adapter = MenuAdapter(context, funItems)
+        adapter.setOnItemClickLitener { _: RecyclerView.Adapter<*>?, _: View?, position: Int ->
+            onKeyboardMenuClick(funItems[position])
+        }
+        mRVMenuLayout!!.setAdapter(adapter)
+    }
+
+    /** 双拼项的名字：跟着「设置 → 输入设置 → 双拼方案」走（小鹤双拼 / 自然码 / 微软双拼 …） */
+    private fun doublePinyinNameRes(): Int = when (AppPrefs.getInstance().input.doublePYSchemaMode.getValue()) {
+        DoublePinyinSchemaMode.flypy -> R.string.double_pinyin_flypy_plus
+        DoublePinyinSchemaMode.natural -> R.string.double_pinyin_natural
+        DoublePinyinSchemaMode.abc -> R.string.double_pinyin_abc
+        DoublePinyinSchemaMode.mspy -> R.string.double_pinyin_mspy
+        DoublePinyinSchemaMode.sogou -> R.string.double_pinyin_sougou
+        DoublePinyinSchemaMode.ziguang -> R.string.double_pinyin_ziguang
+        DoublePinyinSchemaMode.wanxiangPro -> R.string.wanxiang_pro
+    }
+
+    private fun doublePinyinSchemaId(): String =
+        CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY + AppPrefs.getInstance().input.doublePYSchemaMode.getValue()
+
+    /** 键盘菜单项 → 它对应的布局掩码 */
+    private fun layoutMaskOf(mode: SkbMenuMode): Int = when (mode) {
+        SkbMenuMode.PinyinT9 -> InputModeSwitcher.MASK_SKB_LAYOUT_T9_PINYIN
+        SkbMenuMode.PinyinHandWriting -> InputModeSwitcher.MASK_SKB_LAYOUT_HANDWRITING
+        SkbMenuMode.PinyinLx17 -> InputModeSwitcher.MASK_SKB_LAYOUT_LX17
+        SkbMenuMode.PinyinStroke -> InputModeSwitcher.MASK_SKB_LAYOUT_STROKE
+        else -> InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN
+    }
+
+    /** 用户自己部署的方案：已启用的全部列出，不按能力筛（能不能用由用户自己试） */
+    private fun thirdPartySchemas(): List<Pair<String, String>> =
+        com.yuyan.inputmethod.util.RimeWorkspace.customSchemas()
 
     /**
      * 「切换英语键盘」：选一个方案作为「英语模式」的方案。
@@ -363,10 +420,14 @@ class SettingsContainer(context: Context, inputView: InputView) : BaseContainer(
                 showRimeSwitchesView()
                 return
             }
-            SkbMenuMode.Pinyin26Jian -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, CustomConstant.SCHEMA_ZH_QWERTY)
-            SkbMenuMode.PinyinHandWriting -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_HANDWRITING, CustomConstant.SCHEMA_ZH_HANDWRITING)
-            SkbMenuMode.PinyinLx17 -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_LX17, CustomConstant.SCHEMA_ZH_DOUBLE_LX17)
-            SkbMenuMode.PinyinStroke -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_STROKE, CustomConstant.SCHEMA_ZH_STROKE)
+            // 这五个键盘项不再直接切方案：先进「选方案」页（选键盘 → 选这个键盘用的方案）
+            SkbMenuMode.PinyinT9, SkbMenuMode.Pinyin26Jian, SkbMenuMode.PinyinHandWriting,
+            SkbMenuMode.PinyinLx17, SkbMenuMode.PinyinStroke -> {
+                showSchemaSelectView(data.skbMenuMode)
+                return
+            }
+            // 「选方案」页点中某一行：布局 + 方案一起切
+            SkbMenuMode.SchemaPick -> Pair(data.layoutMask, data.schemaId)
             SkbMenuMode.Pinyin26Double -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY + AppPrefs.getInstance().input.doublePYSchemaMode.getValue())
             SkbMenuMode.PinyinWanxiangPro -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, CustomConstant.SCHEMA_ZH_WANXIANG_PRO)
             SkbMenuMode.PinyinCustom -> Pair(InputModeSwitcher.MASK_SKB_LAYOUT_QWERTY_PINYIN, data.schemaId)

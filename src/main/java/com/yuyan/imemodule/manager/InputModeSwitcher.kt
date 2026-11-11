@@ -351,8 +351,12 @@ object InputModeSwitcher {
             mRecentLauageInputMode = mInputMode
             getInstance().internal.inputDefaultMode.setValue(mInputMode)
         }
-        mToggleStates.modifiers = when(Kernel.getCurrentRimeSchema()) {
-            CustomConstant.SCHEMA_ZH_T9, CustomConstant.SCHEMA_ZH_STROKE, CustomConstant.SCHEMA_ZH_DOUBLE_LX17 -> KeyEvent.META_CAPS_LOCK_ON
+        // 键位方案默认大写（内置九键/笔画的大写键位码）；乱序17 只有绑内置方案时才大写，
+        // 绑第三方方案（万象 /lxsq）要发小写，否则 prism 查不到。
+        val layout = mInputMode and MASK_SKB_LAYOUT
+        mToggleStates.modifiers = when {
+            layout == MASK_SKB_LAYOUT_T9_PINYIN || layout == MASK_SKB_LAYOUT_STROKE -> KeyEvent.META_CAPS_LOCK_ON
+            layout == MASK_SKB_LAYOUT_LX17 && Kernel.getCurrentRimeSchema() == CustomConstant.SCHEMA_ZH_DOUBLE_LX17 -> KeyEvent.META_CAPS_LOCK_ON
             else -> MASK_CASE_LOWER
         }
     }
