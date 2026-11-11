@@ -48,6 +48,16 @@ object DoublePinYinUtils {
                 }
                 append("'")
             }
+            // 注释只覆盖光标之前的部分，光标后的输入码没进 zip —— 原样补回，
+            // 否则中间按分词后尾部字母整段消失（同 QwertyPinYinUtils 的说明）
+            if (comment.isNotEmpty()) {
+                compositionList.drop(comment.split("'").size).filter { it.isNotEmpty() }.forEach { compo ->
+                    compo.forEach { char ->
+                        append(doublePinyinMap.getOrElse(rimeSchema) { double_pinyin }.getOrElse(char) { char.toString() })
+                    }
+                    append("'")
+                }
+            }
         }
     }
 }
